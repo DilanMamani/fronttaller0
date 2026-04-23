@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export default function TurnstileWidget({ onVerify, onExpire, onError }) {
+export default function TurnstileWidget({ onVerify, onExpire, onError, onReady }) {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
 
@@ -15,6 +15,8 @@ export default function TurnstileWidget({ onVerify, onExpire, onError }) {
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
         theme: 'light',
+        appearance: 'always',
+        execution: 'execute',
         retry: 'auto',
         callback: (token) => {
           onVerify?.(token);
@@ -26,6 +28,8 @@ export default function TurnstileWidget({ onVerify, onExpire, onError }) {
           onError?.();
         },
       });
+
+      onReady?.(widgetIdRef.current);
     };
 
     if (window.turnstile) {
@@ -49,7 +53,7 @@ export default function TurnstileWidget({ onVerify, onExpire, onError }) {
         } catch {}
       }
     };
-  }, [onVerify, onExpire, onError]);
+  }, [onVerify, onExpire, onError, onReady]);
 
   return <div ref={containerRef} className="flex justify-center" />;
 }
