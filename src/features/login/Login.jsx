@@ -22,9 +22,10 @@ export default function Login() {
     email: '',
     password: '',
   });
+
+  const [turnstileToken, setTurnstileToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirige al usuario si ya está autenticado
   useEffect(() => {
     if (user && user.token) {
       const defaultRoute = getDefaultRoute(user.rol);
@@ -45,7 +46,22 @@ export default function Login() {
       return;
     }
 
-    const result = await dispatch(loginUser(formData));
+    if (!turnstileToken) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Captcha requerido',
+        text: 'Por favor complete el captcha antes de continuar',
+        confirmButtonColor: '#3b82f6',
+      });
+      return;
+    }
+
+    const result = await dispatch(
+      loginUser({
+        ...formData,
+        turnstileToken,
+      })
+    );
 
     if (loginUser.fulfilled.match(result)) {
       Swal.fire({
@@ -55,19 +71,20 @@ export default function Login() {
         timer: 1500,
         showConfirmButton: false,
       });
-      
+
       const defaultRoute = getDefaultRoute(result.payload.rol);
       navigate(defaultRoute, { replace: true });
     } else {
       const errorData = result.payload || {};
-      
+
       Swal.fire({
         icon: errorData.type || 'error',
         title: 'Error al iniciar sesión',
         text: errorData.message || 'Credenciales incorrectas',
         confirmButtonColor: '#3b82f6',
       });
-      
+
+      setTurnstileToken('');
       dispatch(clearError());
     }
   };
@@ -75,7 +92,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       <LoginPanel>
-        <LoginForm 
+        <LoginForm
           onSubmit={handleSubmit}
           formData={formData}
           setFormData={setFormData}
@@ -83,6 +100,7 @@ export default function Login() {
           setShowPassword={setShowPassword}
           isLoading={isLoading}
           error={error}
+          setTurnstileToken={setTurnstileToken}
         />
       </LoginPanel>
 

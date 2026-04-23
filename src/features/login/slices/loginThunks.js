@@ -10,40 +10,40 @@ export const loginUser = createAsyncThunk(
       if (!response.ok) {
         return rejectWithValue({
           message: response.msg || 'Error al iniciar sesión',
-          type: 'error'
+          type: 'error',
         });
       }
 
       return {
-        uid: response.uid || response.usuario?.uid || '',
-        name: response.nombre || response.usuario?.nombre || 'Usuario',
-        email: response.email || response.usuario?.email || '',
-        rol: response.rol || response.usuario?.role || 'Usuario',
+        uid: response.uid || '',
+        name: response.nombre || 'Usuario',
+        email: response.email || '',
+        rol: response.rol || 'Usuario',
         token: response.token,
-        expiresAt: Date.now() + response.expiresIn * 1000,
+        expiresAt: null,
       };
     } catch (error) {
       if (error.response) {
         const { status, data } = error.response;
-        
+
         if (status === 400) {
           return rejectWithValue({
             message: data.msg || 'Credenciales inválidas',
-            type: 'warning'
+            type: 'warning',
           });
         }
-        
+
         if (status === 500) {
           return rejectWithValue({
             message: 'Error en el servidor. Intente más tarde',
-            type: 'error'
+            type: 'error',
           });
         }
       }
-      
+
       return rejectWithValue({
         message: error.message || 'No se pudo conectar con el servidor',
-        type: 'error'
+        type: 'error',
       });
     }
   }
