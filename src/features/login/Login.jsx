@@ -94,6 +94,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       <LoginPanel>
+        
         <LoginForm
           onSubmit={handleSubmit}
           formData={formData}
@@ -101,11 +102,20 @@ export default function Login() {
           showPassword={showPassword}
           setShowPassword={setShowPassword}
           isLoading={isLoading}
-          error={error}
           setTurnstileToken={setTurnstileToken}
           captchaVerified={captchaVerified}
           setCaptchaVerified={setCaptchaVerified}
+
+          requires2FA={requires2FA}
+          twoFactorCode={twoFactorCode}
+          setTwoFactorCode={setTwoFactorCode}
+          onVerify2FA={handleVerify2FA}
+          onCancel2FA={handleCancel2FA}
+
+          blocked={blocked}
+          blockMessage={blockMessage}
         />
+
       </LoginPanel>
 
       <HeroPanel />
