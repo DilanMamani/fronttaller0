@@ -16,19 +16,13 @@ export default function TurnstileWidget({ onVerify, onExpire, onError }) {
         sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
         theme: 'light',
         retry: 'auto',
-
         callback: (token) => {
-          console.log('TOKEN TURNSTILE:', token);
           onVerify?.(token);
         },
-
         'expired-callback': () => {
-          console.log('TURNSTILE EXPIRED');
           onExpire?.();
         },
-
         'error-callback': () => {
-          console.log('TURNSTILE ERROR');
           onError?.();
         },
       });

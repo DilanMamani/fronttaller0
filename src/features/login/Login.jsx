@@ -24,6 +24,8 @@ export default function Login() {
   });
 
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaLoading, setCaptchaLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function Login() {
       return;
     }
 
-    if (!turnstileToken) {
+    if (!turnstileToken || !captchaVerified) {
       Swal.fire({
         icon: 'warning',
         title: 'Captcha requerido',
@@ -85,6 +87,8 @@ export default function Login() {
       });
 
       setTurnstileToken('');
+      setCaptchaVerified(false);
+      setCaptchaLoading(true);
       dispatch(clearError());
     }
   };
@@ -101,6 +105,10 @@ export default function Login() {
           isLoading={isLoading}
           error={error}
           setTurnstileToken={setTurnstileToken}
+          captchaVerified={captchaVerified}
+          setCaptchaVerified={setCaptchaVerified}
+          captchaLoading={captchaLoading}
+          setCaptchaLoading={setCaptchaLoading}
         />
       </LoginPanel>
 

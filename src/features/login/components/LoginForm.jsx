@@ -10,6 +10,10 @@ export default function LoginForm({
   setShowPassword,
   setTurnstileToken,
   isLoading,
+  captchaVerified,
+  setCaptchaVerified,
+  captchaLoading,
+  setCaptchaLoading,
 }) {
   const navigate = useNavigate();
 
@@ -17,6 +21,8 @@ export default function LoginForm({
     e?.preventDefault();
     onSubmit();
   };
+
+  const loginDisabled = isLoading || !captchaVerified;
 
   return (
     <div className="space-y-6">
@@ -43,10 +49,36 @@ export default function LoginForm({
       />
 
       <TurnstileWidget
-        onVerify={(token) => setTurnstileToken(token)}
-        onExpire={() => setTurnstileToken('')}
-        onError={() => setTurnstileToken('')}
+        onVerify={(token) => {
+          setTurnstileToken(token);
+          setCaptchaVerified(true);
+          setCaptchaLoading(false);
+        }}
+        onExpire={() => {
+          setTurnstileToken('');
+          setCaptchaVerified(false);
+          setCaptchaLoading(true);
+        }}
+        onError={() => {
+          setTurnstileToken('');
+          setCaptchaVerified(false);
+          setCaptchaLoading(true);
+        }}
       />
+
+      <div className="text-sm">
+        {captchaLoading && !captchaVerified && (
+          <p className="text-amber-600 font-medium">Verificando captcha...</p>
+        )}
+
+        {!captchaLoading && captchaVerified && (
+          <p className="text-green-600 font-medium">Captcha verificado correctamente</p>
+        )}
+
+        {!captchaLoading && !captchaVerified && (
+          <p className="text-red-500 font-medium">Debe completar el captcha para continuar</p>
+        )}
+      </div>
 
       <div className="flex items-center justify-between text-sm">
         <button
@@ -61,10 +93,14 @@ export default function LoginForm({
       <button
         type="button"
         onClick={handleFormSubmit}
-        disabled={isLoading}
-        className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+        disabled={loginDisabled}
+        className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
       >
-        {isLoading ? 'Ingresando...' : 'Iniciar Sesión'}
+        {isLoading
+          ? 'Ingresando...'
+          : captchaVerified
+          ? 'Iniciar Sesión'
+          : 'Complete el captcha'}
       </button>
     </div>
   );
