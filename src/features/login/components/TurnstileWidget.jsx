@@ -5,57 +5,54 @@ export default function TurnstileWidget({ onVerify, onExpire, onError }) {
   const widgetIdRef = useRef(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let mounted = true;
+    let intervalId;
 
-    const renderWidget = () => {
-      if (
-        cancelled ||
-        !containerRef.current ||
-        !window.turnstile ||
-        widgetIdRef.current !== null
-      ) {
-        return;
-      }
-
-      containerRef.current.innerHTML = '';
+    const mountWidget = () => {
+      if (!mounted || !window.turnstile || !containerRef.current) return;
+      if (widgetIdRef.current !== null) return;
 
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+        theme: 'light',
+        retry: 'auto',
+
         callback: (token) => {
+          console.log('TOKEN TURNSTILE:', token);
           onVerify?.(token);
         },
+
         'expired-callback': () => {
-          widgetIdRef.current = null;
+          console.log('TURNSTILE EXPIRED');
           onExpire?.();
-          if (containerRef.current) {
-            containerRef.current.innerHTML = '';
-          }
-          renderWidget();
         },
+
         'error-callback': () => {
+          console.log('TURNSTILE ERROR');
           onError?.();
         },
-        theme: 'light',
       });
     };
 
-    const waitForTurnstile = setInterval(() => {
-      if (window.turnstile) {
-        clearInterval(waitForTurnstile);
-        renderWidget();
-      }
-    }, 300);
+    if (window.turnstile) {
+      mountWidget();
+    } else {
+      intervalId = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(intervalId);
+          mountWidget();
+        }
+      }, 200);
+    }
 
     return () => {
-      cancelled = true;
-      clearInterval(waitForTurnstile);
+      mounted = false;
+      if (intervalId) clearInterval(intervalId);
 
       if (window.turnstile && widgetIdRef.current !== null) {
         try {
           window.turnstile.remove(widgetIdRef.current);
-        } catch (error) {
-          console.error('Error al remover Turnstile:', error);
-        }
+        } catch {}
       }
     };
   }, [onVerify, onExpire, onError]);
