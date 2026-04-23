@@ -2,7 +2,7 @@ import axios from 'axios';
 import { store } from '../store/index';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api/',
+  baseURL: 'https://back-sacramentos.onrender.com/api',
 });
 
 // Interceptor para manejar respuestas y errores
