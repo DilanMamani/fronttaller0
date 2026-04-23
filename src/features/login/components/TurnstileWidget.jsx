@@ -1,23 +1,20 @@
 import { useEffect, useRef } from 'react';
 
-export default function TurnstileWidget({ onVerify, onExpire, onError, onReady }) {
+export default function TurnstileWidget({ onVerify, onExpire, onError }) {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
 
   useEffect(() => {
-    let mounted = true;
     let intervalId;
 
     const mountWidget = () => {
-      if (!mounted || !window.turnstile || !containerRef.current) return;
+      if (!window.turnstile || !containerRef.current) return;
       if (widgetIdRef.current !== null) return;
 
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
         theme: 'light',
         appearance: 'always',
-        execution: 'execute',
-        retry: 'auto',
         callback: (token) => {
           onVerify?.(token);
         },
@@ -28,8 +25,6 @@ export default function TurnstileWidget({ onVerify, onExpire, onError, onReady }
           onError?.();
         },
       });
-
-      onReady?.(widgetIdRef.current);
     };
 
     if (window.turnstile) {
@@ -44,16 +39,9 @@ export default function TurnstileWidget({ onVerify, onExpire, onError, onReady }
     }
 
     return () => {
-      mounted = false;
       if (intervalId) clearInterval(intervalId);
-
-      if (window.turnstile && widgetIdRef.current !== null) {
-        try {
-          window.turnstile.remove(widgetIdRef.current);
-        } catch {}
-      }
     };
-  }, [onVerify, onExpire, onError, onReady]);
+  }, [onVerify, onExpire, onError]);
 
   return <div ref={containerRef} className="flex justify-center" />;
 }

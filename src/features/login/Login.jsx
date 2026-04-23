@@ -1,3 +1,4 @@
+// src/features/login/Login.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -24,8 +25,6 @@ export default function Login() {
 
   const [turnstileToken, setTurnstileToken] = useState('');
   const [captchaVerified, setCaptchaVerified] = useState(false);
-  const [captchaLoading, setCaptchaLoading] = useState(false);
-  const [turnstileWidgetId, setTurnstileWidgetId] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -34,26 +33,6 @@ export default function Login() {
       navigate(defaultRoute, { replace: true });
     }
   }, [user, navigate]);
-
-  const handleExecuteCaptcha = () => {
-    if (!window.turnstile || turnstileWidgetId === null) return;
-
-    setCaptchaLoading(true);
-    setCaptchaVerified(false);
-    setTurnstileToken('');
-
-    try {
-      window.turnstile.execute(turnstileWidgetId);
-    } catch (error) {
-      setCaptchaLoading(false);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo iniciar la verificación del captcha',
-        confirmButtonColor: '#3b82f6',
-      });
-    }
-  };
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -72,7 +51,7 @@ export default function Login() {
       Swal.fire({
         icon: 'warning',
         title: 'Captcha requerido',
-        text: 'Primero verifique el captcha',
+        text: 'Complete la verificación de Cloudflare antes de continuar',
         confirmButtonColor: '#3b82f6',
       });
       return;
@@ -108,14 +87,6 @@ export default function Login() {
 
       setTurnstileToken('');
       setCaptchaVerified(false);
-      setCaptchaLoading(false);
-
-      if (window.turnstile && turnstileWidgetId !== null) {
-        try {
-          window.turnstile.reset(turnstileWidgetId);
-        } catch {}
-      }
-
       dispatch(clearError());
     }
   };
@@ -125,7 +96,6 @@ export default function Login() {
       <LoginPanel>
         <LoginForm
           onSubmit={handleSubmit}
-          onExecuteCaptcha={handleExecuteCaptcha}
           formData={formData}
           setFormData={setFormData}
           showPassword={showPassword}
@@ -135,9 +105,6 @@ export default function Login() {
           setTurnstileToken={setTurnstileToken}
           captchaVerified={captchaVerified}
           setCaptchaVerified={setCaptchaVerified}
-          captchaLoading={captchaLoading}
-          setCaptchaLoading={setCaptchaLoading}
-          setTurnstileWidgetId={setTurnstileWidgetId}
         />
       </LoginPanel>
 
