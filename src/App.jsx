@@ -14,6 +14,7 @@ import Reportes from './features/reportes/Reportes'
 import Certificados from './features/certificados/Certificados'
 import Parroquias from './features/parroquias/Parroquias';
 import ResetPassword from './features/password/pages/ResetPassword';
+import RolesPermisos from './features/roles/Roles';
 
 export default function App() {
   return (
@@ -84,6 +85,14 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoute={ROUTES.PARROQUIAS}>
                 <Parroquias />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={ROUTES.ROL_PERMISOS}
+            element={
+              <ProtectedRoute requiredRoute={ROUTES.ROL_PERMISOS}>
+                <RolesPermisos />
               </ProtectedRoute>
             }
           />

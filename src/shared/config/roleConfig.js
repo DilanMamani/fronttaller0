@@ -12,6 +12,7 @@ export const ROUTES = {
   USUARIOS: '/usuarios',
   REPORTES: '/reportes',
   PARROQUIAS: '/parroquias',
+  ROL_PERMISOS: '/roles-permisos',
 };
 
 export const ROLE_PERMISSIONS = {
@@ -24,6 +25,7 @@ export const ROLE_PERMISSIONS = {
     ROUTES.USUARIOS,
     ROUTES.REPORTES,
     ROUTES.PARROQUIAS,
+    ROUTES.ROL_PERMISOS,
   ],
   [ROLES.CONSULTOR]: [
     ROUTES.CERTIFICADOS,
