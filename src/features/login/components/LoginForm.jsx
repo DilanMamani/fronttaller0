@@ -1,6 +1,6 @@
 import InputField from './InputField';
 import { useNavigate } from 'react-router-dom';
-import TurnstileWidget from './TurnstileWidget';
+// import TurnstileWidget from './TurnstileWidget';
 
 export default function LoginForm({
   onSubmit,
@@ -8,19 +8,17 @@ export default function LoginForm({
   setFormData,
   showPassword,
   setShowPassword,
-  setTurnstileToken,
+  // setTurnstileToken,
   isLoading,
-  captchaVerified,
-  setCaptchaVerified,
+  // captchaVerified,
+  // setCaptchaVerified,
 
-  // 2FA
   requires2FA = false,
   twoFactorCode = '',
   setTwoFactorCode = () => {},
   onVerify2FA = () => {},
   onCancel2FA = () => {},
 
-  // bloqueo
   blocked = false,
   blockMessage = '',
 }) {
@@ -68,6 +66,8 @@ export default function LoginForm({
             </div>
           )}
 
+          {/* CAPTCHA DESACTIVADO TEMPORALMENTE */}
+          {/*
           <TurnstileWidget
             onVerify={(token) => {
               setTurnstileToken(token);
@@ -82,6 +82,11 @@ export default function LoginForm({
               setCaptchaVerified(false);
             }}
           />
+          */}
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+            Captcha desactivado temporalmente para pruebas.
+          </div>
 
           <div className="flex items-center justify-between text-sm">
             <button
@@ -96,7 +101,7 @@ export default function LoginForm({
           <button
             type="button"
             onClick={handleFormSubmit}
-            disabled={isLoading || !captchaVerified || blocked}
+            disabled={isLoading || blocked}
             className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {isLoading ? 'Ingresando...' : 'Iniciar Sesión'}

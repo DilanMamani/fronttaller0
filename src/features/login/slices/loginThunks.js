@@ -18,7 +18,7 @@ export const loginUser = createAsyncThunk(
         uid: response.uid || '',
         name: response.nombre || 'Usuario',
         email: response.email || '',
-        rol: response.rol || 'Usuario',
+        rol: response.rol?.nombre || 'Usuario',
         token: response.token,
         expiresAt: null,
       };

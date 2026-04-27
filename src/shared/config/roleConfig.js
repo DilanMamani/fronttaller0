@@ -1,8 +1,22 @@
+// src/shared/config/roleConfig.js
+
+// ===============================
+// ROLES
+// ===============================
 export const ROLES = {
-  ADMIN: 'Administrador',
+  ADMIN: 'ADMIN_SISTEMA',
   CONSULTOR: 'Consultor',
+
+  // Puedes ir ampliando según tu sistema real
+  PARROCO: 'PARROCO',
+  SECRETARIO: 'SECRETARIO_PARROQUIAL',
+  OSI: 'OFICIAL_SEGURIDAD',
+  AUDITOR: 'AUDITOR'
 };
 
+// ===============================
+// RUTAS
+// ===============================
 export const ROUTES = {
   DASHBOARD: '/dashboard',
   PERSONAS: '/personas',
@@ -15,6 +29,9 @@ export const ROUTES = {
   ROL_PERMISOS: '/roles-permisos',
 };
 
+// ===============================
+// MATRIZ DE ACCESOS
+// ===============================
 export const ROLE_PERMISSIONS = {
   [ROLES.ADMIN]: [
     ROUTES.DASHBOARD,
@@ -27,34 +44,89 @@ export const ROLE_PERMISSIONS = {
     ROUTES.PARROQUIAS,
     ROUTES.ROL_PERMISOS,
   ],
+
   [ROLES.CONSULTOR]: [
     ROUTES.CERTIFICADOS,
   ],
+
+  [ROLES.PARROCO]: [
+    ROUTES.DASHBOARD,
+    ROUTES.SACRAMENTOS,
+    ROUTES.CERTIFICADOS,
+  ],
+
+  [ROLES.SECRETARIO]: [
+    ROUTES.PERSONAS,
+    ROUTES.SACRAMENTOS,
+    ROUTES.CERTIFICADOS,
+  ],
+
+  [ROLES.OSI]: [
+    ROUTES.AUDITORIA,
+    ROUTES.REPORTES,
+    ROUTES.ROL_PERMISOS,
+  ],
+  [ROLES.AUDITOR]: [
+    ROUTES.AUDITORIA,
+  ],
+  
 };
 
-// Verificar accesos
+// ===============================
+// NORMALIZADOR DE ROL
+// ===============================
+// Soporta:
+// - "ADMIN_SISTEMA"
+// - { id_rol: 1, nombre: "ADMIN_SISTEMA" }
+const normalizeRole = (userRole) => {
+  if (!userRole) return null;
+
+  if (typeof userRole === 'object') {
+    return userRole.nombre || null;
+  }
+
+  return userRole;
+};
+
+// ===============================
+// VERIFICAR ACCESO
+// ===============================
 export const hasAccess = (userRole, route) => {
-  if (!userRole || !route) return false;
-  
-  const permissions = ROLE_PERMISSIONS[userRole];
+  const role = normalizeRole(userRole);
+
+  if (!role || !route) return false;
+
+  const permissions = ROLE_PERMISSIONS[role];
   if (!permissions) return false;
-  
+
   return permissions.includes(route);
 };
 
-// Obtener ruta por defecto según el rol
+// ===============================
+// RUTA POR DEFECTO
+// ===============================
 export const getDefaultRoute = (userRole) => {
-  const permissions = ROLE_PERMISSIONS[userRole];
-  if (!permissions || permissions.length === 0) return '/';
-  
-  return permissions[0];
+  const role = normalizeRole(userRole);
+
+  const permissions = ROLE_PERMISSIONS[role];
+
+  if (!permissions || permissions.length === 0) {
+    return '/';
+  }
+
+  return permissions[0]; // primera ruta disponible
 };
 
+// ===============================
+// FILTRAR MENÚ SEGÚN ROL
+// ===============================
 export const getFilteredNavItems = (navItems, userRole) => {
-  if (!userRole) return [];
-  
-  const permissions = ROLE_PERMISSIONS[userRole];
+  const role = normalizeRole(userRole);
+
+  if (!role) return [];
+
+  const permissions = ROLE_PERMISSIONS[role];
   if (!permissions) return [];
-  
+
   return navItems.filter(item => permissions.includes(item.to));
 };

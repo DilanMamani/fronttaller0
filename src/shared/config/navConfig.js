@@ -7,4 +7,5 @@ export const navItems = [
   { to: '/usuarios', label: 'Usuarios', icon: 'manage_accounts' },
   { to: '/reportes', label: 'Reportes', icon: 'bar_chart' },
   { to: '/parroquias', label: 'Parroquias', icon: 'church' },
+  { to: '/roles-permisos', label: 'Roles y permisos', icon: 'manage_accounts'}
 ];

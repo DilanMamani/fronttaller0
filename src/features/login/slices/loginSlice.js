@@ -48,6 +48,13 @@ const loginSlice = createSlice({
         state.logoutTimeout = setTimeout(() => {
           store.dispatch({ type: 'login/logout' });
         }, ms);
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || {
+          message: action.error?.message || 'Error al iniciar sesión',
+          type: 'error',
+        };
       });
       
   },
