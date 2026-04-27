@@ -238,5 +238,5 @@ export const seguridadApi = {
   fetchConfiguracion: () =>
     api.get('/configuracion-seguridad').then((res) => res.data).catch(handleError),
   updateConfiguracion: (data) =>
-    api.put('/configuracion-seguridad', data).then((res) => res.data).catch(handleError),
+    api.put(`/configuracion-seguridad`, data).then((res) => res.data).catch(handleError),
 };

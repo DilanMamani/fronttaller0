@@ -25,6 +25,7 @@ export const ROUTES = {
   REPORTES: '/reportes',
   PARROQUIAS: '/parroquias',
   ROL_PERMISOS: '/roles-permisos',
+  SEGURIDAD: '/configuracion-seguridad',
 };
 
 // ===============================
@@ -56,6 +57,7 @@ export const ROLE_PERMISSIONS = {
     ROUTES.USUARIOS,
     ROUTES.ROL_PERMISOS,
     ROUTES.AUDITORIA,
+    ROUTES.SEGURIDAD,
     
 
   ],

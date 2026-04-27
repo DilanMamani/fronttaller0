@@ -11,6 +11,7 @@ import { usuariosReducer } from '../features/usuarios/slices/usuariosSlice';
 import { parroquiasReducer } from '../features/parroquias/slices/parroquiasSlice';
 import rolesReducer from '../features/roles/slicesRol/rolesSlice';
 import permisosReducer from '../features/roles/slicesPermiso/permisosSlice';
+import configuracionSeguridadReducer from '../features/seguridad/slices/configuracionSeguridadSlice';
 // Agregar otros reducers aqui sdjalsd
 // Mantener los reducers en sus carpetas pofavo
 
@@ -30,6 +31,7 @@ export const rootReducer = combineReducers({
   parroquias: parroquiasReducer,
   roles: rolesReducer,
   permisos: permisosReducer,
+  configuracionSeguridad: configuracionSeguridadReducer,
   // Agregar otros reducers aqui sdjalsd
 });
 
