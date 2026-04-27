@@ -156,7 +156,7 @@ export default function Usuarios() {
       console.debug('createUsuario result:', action);
       if (action.meta.requestStatus === 'fulfilled') {
         setToast({ type: 'success', message: 'Usuario creado correctamente.' });
-        setFormAdd({ nombre: '', email: '', rol: '', activo: '' });
+        setFormAdd({ nombre: '', email: '', rol: '', activo: '', apellido_paterno: '', apellido_materno: '', password: '', fecha_nacimiento: '' });
         // refrescar lista si estamos en la pestaña buscar
         if (activeTab === 'buscar') dispatch(fetchUsuarios({}));
       } else {
@@ -489,7 +489,7 @@ export default function Usuarios() {
                       >
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">{getFullName(u.nombre, u.apellido_paterno, u.apellido_materno)}</td>
                         <td className="px-6 py-4">{u.email}</td>
-                        <td className="px-6 py-4"><span className="bg-primary/10 text-primary text-xs font-medium px-2.5 py-0.5 rounded-full">{u.rol}</span></td>
+                        <td className="px-6 py-4"><span className="bg-primary/10 text-primary text-xs font-medium px-2.5 py-0.5 rounded-full">{u.rol.nombre}</span></td>
                         <td className="px-6 py-4">
                           {(u.activo === 'Activo' || u.activo === true || u.activo === 'true') ? (
                             <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs font-medium px-2.5 py-0.5 rounded-full">Activo</span>
@@ -563,12 +563,20 @@ export default function Usuarios() {
                       <label htmlFor="e-role" className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">Rol</label>
                       <select
                         id="e-role"
-                        value={selectedUser.rol || ''}
+                        value={selectedUser.rol.id_rol || ''}
                         onChange={(e)=>setSelectedUser({ ...selectedUser, rol: e.target.value })}
                         className="bg-background-light dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
                       >
-                        <option value="Administrador">Administrador</option>
-                        <option value="Consultor">Consultor</option>
+                        <option value="">Seleccione</option>
+                  {isLoadingRoles ? (
+                    <option disabled>Cargando roles...</option>
+                  ) : (
+                    roles.map((rol) => (
+                      <option key={rol.id_rol} value={rol.id_rol}>
+                        {rol.nombre}
+                      </option>
+                    ))
+                  )}
                       </select>
                     </div>
                     <div>
