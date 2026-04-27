@@ -4,10 +4,8 @@
 // ROLES
 // ===============================
 export const ROLES = {
-  ADMIN: 'ADMIN_SISTEMA',
-  CONSULTOR: 'Consultor',
-
-  // Puedes ir ampliando según tu sistema real
+  ADMIN_DIOCESANO: 'ADMIN_DIOCESANO',
+  DIGITADOR: 'DIGITADOR',
   PARROCO: 'PARROCO',
   SECRETARIO: 'SECRETARIO_PARROQUIAL',
   OSI: 'OSI',
@@ -33,22 +31,16 @@ export const ROUTES = {
 // MATRIZ DE ACCESOS
 // ===============================
 export const ROLE_PERMISSIONS = {
-  [ROLES.ADMIN]: [
-    ROUTES.DASHBOARD,
-    ROUTES.PERSONAS,
-    ROUTES.SACRAMENTOS,
-    ROUTES.CERTIFICADOS,
-    ROUTES.AUDITORIA,
-    ROUTES.USUARIOS,
+  [ROLES.ADMIN_DIOCESANO]: [
     ROUTES.REPORTES,
     ROUTES.PARROQUIAS,
-    ROUTES.ROL_PERMISOS,
   ],
 
-  [ROLES.CONSULTOR]: [
-    ROUTES.CERTIFICADOS,
+  [ROLES.DIGITADOR]: [
+    ROUTES.PERSONAS,
+    ROUTES.SACRAMENTOS,
   ],
-
+  
   [ROLES.PARROCO]: [
     ROUTES.DASHBOARD,
     ROUTES.SACRAMENTOS,

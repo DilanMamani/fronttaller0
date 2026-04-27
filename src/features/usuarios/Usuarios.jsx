@@ -18,6 +18,14 @@ import {
   selectIsUpdating,
 } from './slices/usuariosSlice';
 
+import {
+  fetchRoles,
+} from './slicesRol/rolesThunk';
+
+import {
+  selectRoles,
+  selectRolesLoading,
+} from './slicesRol/rolesSlice';
 
 export default function Usuarios() {
   const dispatch = useDispatch();
@@ -29,6 +37,8 @@ export default function Usuarios() {
   const usuarioSeleccionado = useSelector(selectUsuarioSeleccionado);
   const [activeTab, setActiveTab] = useState('agregar')
   const [selectedUser, setSelectedUser] = useState(null)
+  const roles = useSelector(selectRoles);
+  const isLoadingRoles = useSelector(selectRolesLoading);
 
   // ===== activos par a preparar consumo de API (sin endpoints aún) =====
   const [formAdd, setFormAdd] = useState({
@@ -55,6 +65,9 @@ export default function Usuarios() {
 
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }, [toast]);
+  useEffect(() => {
+    dispatch(fetchRoles());
+  }, [dispatch]);
 
   const extractError = (actionOrError) => {
     try {
@@ -135,7 +148,7 @@ export default function Usuarios() {
       email: formAdd.email?.trim(),
       password: formAdd.password || undefined,                 // requerido u opcional según tu backend
       fecha_nacimiento: formAdd.fecha_nacimiento || undefined, // yyyy-mm-dd
-      rol: formAdd.rol || '',
+      id_rol: formAdd.rol ? Number(formAdd.rol) : undefined,
       activo: formAdd.activo === '' ? undefined : (formAdd.activo ? 'Activo' : 'Inactivo'),
     };
     try {
@@ -334,8 +347,15 @@ export default function Usuarios() {
               onChange={(e)=>setFormAdd({ ...formAdd, rol: e.target.value })}
             >
               <option value="">Seleccione</option>
-              <option value="Administrador">Administrador</option>
-              <option value="Consultor">Consultor</option>
+                  {isLoadingRoles ? (
+                    <option disabled>Cargando roles...</option>
+                  ) : (
+                    roles.map((rol) => (
+                      <option key={rol.id_rol} value={rol.id_rol}>
+                        {rol.nombre}
+                      </option>
+                    ))
+                  )}
             </select>
                 </div>
                 <div>
@@ -401,8 +421,11 @@ export default function Usuarios() {
                         onChange={(e)=>setFilters({ ...filters, rol: e.target.value })}
                         >
                         <option value="">Todos</option>
-                        <option value="Administrador">Administrador</option>
-                        <option value="Consultor">Consultor</option>
+                          {roles.map((rol) => (
+                            <option key={rol.id_rol} value={rol.id_rol}>
+                              {rol.nombre}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div>
