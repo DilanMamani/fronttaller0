@@ -200,6 +200,7 @@ export default function Usuarios() {
 
   const handleResetAdd = () => {
     setFormAdd({ nombre: '', email: '', rol: '', activo: '', apellido_paterno: '', apellido_materno: '', password: '', fecha_nacimiento: '' });
+    setSelectedUser(null);
   }
 
   const handleResetSearch = () => {

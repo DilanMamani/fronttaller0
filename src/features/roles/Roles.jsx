@@ -31,6 +31,7 @@ export default function RolesPermisos() {
 
   const roles = useSelector(selectRoles);
   const permisosDisponibles = useSelector(selectPermisos);
+  const [searchPermiso, setSearchPermiso] = useState('');
 
   const isLoadingRoles = useSelector(selectRolesLoading);
   const isCreatingRol = useSelector(selectRolesCreating);
@@ -91,6 +92,42 @@ export default function RolesPermisos() {
     });
   }, [roles, filters]);
 
+  const getModuloPermiso = (nombre = '') => {
+  if (nombre.includes('USUARIO')) return 'Usuarios';
+  if (nombre.includes('ROL') || nombre.includes('PERMISO')) return 'Roles y permisos';
+  if (nombre.includes('PERSONA')) return 'Personas';
+  if (nombre.includes('SACRAMENTO')) return 'Sacramentos';
+  if (nombre.includes('CERTIFICADO')) return 'Certificados';
+  if (nombre.includes('PARROQUIA')) return 'Parroquias';
+  if (nombre.includes('AUDITORIA')) return 'Auditoría';
+  if (nombre.includes('CONFIG_SEGURIDAD')) return 'Configuración de seguridad';
+  if (nombre.includes('REPORTE')) return 'Reportes';
+  if (nombre.includes('DASHBOARD')) return 'Dashboard';
+  return 'Otros';
+};
+
+
+const permisosFiltrados = permisosDisponibles.filter((permiso) => {
+  const texto = searchPermiso.toLowerCase().trim();
+  if (!texto) return true;
+
+  const modulo = getModuloPermiso(permiso.nombre).toLowerCase();
+
+  return (
+    permiso.nombre?.toLowerCase().includes(texto) ||
+    permiso.descripcion?.toLowerCase().includes(texto) ||
+    modulo.includes(texto)
+  );
+});
+
+const permisosAgrupados = permisosFiltrados.reduce((acc, permiso) => {
+  const modulo = getModuloPermiso(permiso.nombre);
+
+  if (!acc[modulo]) acc[modulo] = [];
+  acc[modulo].push(permiso);
+
+  return acc;
+}, {});
   const togglePermisoAdd = (idPermiso) => {
     setFormAdd((prev) => ({
       ...prev,
@@ -357,37 +394,66 @@ export default function RolesPermisos() {
                 </div>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block mb-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                  Permisos asignados
-                </label>
+             <div className="md:col-span-2">
+  <label className="block mb-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+    Permisos asignados
+  </label>
+  <div className="mb-4">
+  <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+    Buscar permiso
+  </label>
 
-                {isLoadingPermisos ? (
-                  <div className="text-sm text-gray-500">Cargando permisos...</div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {permisosDisponibles.map((permiso) => (
-                      <label
-                        key={permiso.id_permiso}
-                        className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-pointer bg-background-light dark:bg-gray-800/40"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formAdd.permisos.includes(permiso.id_permiso)}
-                          onChange={() => togglePermisoAdd(permiso.id_permiso)}
-                          className="w-4 h-4 text-primary"
-                        />
-                        <span className="text-sm text-gray-800 dark:text-gray-200">
-                          {permiso.nombre}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {permiso.descripcion} 
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+  <input
+    type="text"
+    placeholder="Buscar por módulo, nombre o descripción..."
+    value={searchPermiso}
+    onChange={(e) => setSearchPermiso(e.target.value)}
+    className="w-full bg-background-light dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg block p-2.5"
+  />
+</div>
+
+  {isLoadingPermisos ? (
+    <div className="text-sm text-gray-500">Cargando permisos...</div>
+  ) : (
+    <div className="space-y-6">
+      {Object.entries(permisosAgrupados).map(([modulo, permisos]) => (
+        <div
+          key={modulo}
+          className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/20"
+        >
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            {modulo}
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {permisos.map((permiso) => (
+              <label
+                key={permiso.id_permiso}
+                className="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-pointer bg-background-light dark:bg-gray-800/40 hover:border-primary/60 transition"
+              >
+                <input
+                  type="checkbox"
+                  checked={formAdd.permisos.includes(permiso.id_permiso)}
+                  onChange={() => togglePermisoAdd(permiso.id_permiso)}
+                  className="w-4 h-4 mt-1 text-primary"
+                />
+
+                <div>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                    {permiso.nombre}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {permiso.descripcion || 'Sin descripción'}
+                  </p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 
               <div className="md:col-span-2 mt-2 flex gap-3">
                 <button
@@ -565,31 +631,63 @@ export default function RolesPermisos() {
                   />
 
                   <div className="md:col-span-2">
-                    <label className="block mb-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                      Permisos del rol
-                    </label>
+  <label className="block mb-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+    Permisos del rol
+  </label>
+  <div className="mb-4">
+  <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+    Buscar permiso
+  </label>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {permisosDisponibles.map((permiso) => (
-                        <label
-                          key={permiso.id_permiso}
-                          className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-pointer bg-background-light dark:bg-gray-800/40"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(selectedRole.permisos || []).includes(
-                              permiso.id_permiso
-                            )}
-                            onChange={() => togglePermisoEdit(permiso.id_permiso)}
-                            className="w-4 h-4 text-primary"
-                          />
-                          <span className="text-sm text-gray-800 dark:text-gray-200">
-                            {permiso.nombre}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+  <input
+    type="text"
+    placeholder="Buscar por módulo, nombre o descripción..."
+    value={searchPermiso}
+    onChange={(e) => setSearchPermiso(e.target.value)}
+    className="w-full bg-background-light dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg block p-2.5"
+  />
+</div>
+
+  <div className="space-y-6">
+    {Object.entries(permisosAgrupados).map(([modulo, permisos]) => (
+      <div
+        key={modulo}
+        className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/20"
+      >
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+          {modulo}
+        </h4>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {permisos.map((permiso) => (
+            <label
+              key={permiso.id_permiso}
+              className="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-pointer bg-background-light dark:bg-gray-800/40 hover:border-primary/60 transition"
+            >
+              <input
+                type="checkbox"
+                checked={(selectedRole.permisos || []).includes(
+                  permiso.id_permiso
+                )}
+                onChange={() => togglePermisoEdit(permiso.id_permiso)}
+                className="w-4 h-4 mt-1 text-primary"
+              />
+
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {permiso.nombre}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {permiso.descripcion || 'Sin descripción'}
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 
                   <div className="md:col-span-2 flex justify-end gap-4 pt-2">
                     <button

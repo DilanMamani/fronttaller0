@@ -240,3 +240,16 @@ export const seguridadApi = {
   updateConfiguracion: (data) =>
     api.put(`/configuracion-seguridad`, data).then((res) => res.data).catch(handleError),
 };
+
+// api para los dominios de correos
+export const dominiosApi = { 
+  fetchDominios: () =>
+    api.get('/dominio-permitido').then((res) => res.data).catch(handleError),
+  crearDominio: (data) =>
+    api.post('/dominio-permitido/new', data).then((res) => res.data).catch(handleError),
+  eliminarDominio: (id) =>
+    api.delete(`/dominio-permitido/${id}`).then((res) => res.data).catch(handleError),
+  updateDominio: (id, data) =>
+    api.put(`/dominio-permitido/${id}`, data).then((res) => res.data).catch(handleError),
+
+};  
