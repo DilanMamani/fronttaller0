@@ -380,6 +380,9 @@ export default function RolesPermisos() {
                         <span className="text-sm text-gray-800 dark:text-gray-200">
                           {permiso.nombre}
                         </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {permiso.descripcion} 
+                        </span>
                       </label>
                     ))}
                   </div>
