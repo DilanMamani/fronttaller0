@@ -4,7 +4,7 @@ export const navItems = [
   { to: '/sacramentos', label: 'Sacramentos', icon: 'import_contacts' },
   { to: '/certificados', label: 'Certificados', icon: 'workspace_premium' },
   { to: '/auditoria', label: 'Auditoría', icon: 'history' },
-  { to: '/usuarios', label: 'Usuarios', icon: 'manage_accounts' },
+  { to: '/usuarios', label: 'Usuarios', icon: 'person' },
   { to: '/reportes', label: 'Reportes', icon: 'bar_chart' },
   { to: '/parroquias', label: 'Parroquias', icon: 'church' },
   { to: '/roles-permisos', label: 'Roles y permisos', icon: 'manage_accounts'}

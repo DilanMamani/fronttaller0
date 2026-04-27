@@ -208,3 +208,35 @@ export const sacramentosApi = {
 
   
 };
+//apis para roles 
+export const rolesApi = {
+  fetchRoles: (params = {}) =>
+    api.get('/rol/', { params }).then((res) => res.data).catch(handleError),
+  fetchRolById: (id) =>
+    api.get(`/rol/${id}`).then((res) => res.data).catch(handleError),
+  createRol: (data) =>
+    api.post('/rol/new', data).then((res) => res.data).catch(handleError),
+  updateRol: (id, data) =>
+    api.put(`/rol/${id}`, data).then((res) => res.data).catch(handleError),
+};
+
+//apis para permisos
+export const permisosApi = {
+  fetchPermisos: (params = {}) =>
+    api.get('/permiso/', { params }).then((res) => res.data).catch(handleError),
+  fetchPermisoById: (id) =>
+    api.get(`/permiso/${id}`).then((res) => res.data).catch(handleError),
+  createPermiso: (data) =>
+    api.post('/permiso/new', data).then((res) => res.data).catch(handleError),
+  updatePermiso: (id, data) =>
+    api.put(`/permiso/${id}`, data).then((res) => res.data).catch(handleError),
+
+};
+
+// api para configuracion de seguridad
+export const seguridadApi = {
+  fetchConfiguracion: () =>
+    api.get('/configuracion-seguridad').then((res) => res.data).catch(handleError),
+  updateConfiguracion: (data) =>
+    api.put('/configuracion-seguridad', data).then((res) => res.data).catch(handleError),
+};
