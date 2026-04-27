@@ -10,7 +10,7 @@ export const ROLES = {
   // Puedes ir ampliando según tu sistema real
   PARROCO: 'PARROCO',
   SECRETARIO: 'SECRETARIO_PARROQUIAL',
-  OSI: 'OFICIAL_SEGURIDAD',
+  OSI: 'OSI',
   AUDITOR: 'AUDITOR'
 };
 
@@ -62,9 +62,11 @@ export const ROLE_PERMISSIONS = {
   ],
 
   [ROLES.OSI]: [
-    ROUTES.AUDITORIA,
-    ROUTES.REPORTES,
+    ROUTES.USUARIOS,
     ROUTES.ROL_PERMISOS,
+    ROUTES.AUDITORIA,
+    
+
   ],
   [ROLES.AUDITOR]: [
     ROUTES.AUDITORIA,
