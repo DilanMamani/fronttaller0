@@ -170,7 +170,7 @@ const permisosAgrupados = permisosFiltrados.reduce((acc, permiso) => {
       setFormPermiso({ nombre: "", descripcion: "" });
       dispatch(fetchPermisos());
     } else {
-      showToast("error", "No se pudo crear el permiso.");
+      showToast("error", action.payload?.msg || action.payload?.message || "No se pudo crear el permiso.");
     }
   };
 
@@ -200,7 +200,7 @@ const permisosAgrupados = permisosFiltrados.reduce((acc, permiso) => {
       });
       dispatch(fetchRoles());
     } else {
-      showToast("error", "No se pudo crear el rol.");
+      showToast("error", action.payload?.msg || action.payload?.message || "No se pudo crear el rol.");
     }
   };
 
