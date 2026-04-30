@@ -134,6 +134,9 @@ export const usuariosApi = {
   //para cambiar la contraseña
   changePassword: (token, newPassword) =>
     api.post('/password/cambiar', { token, newPassword }).then((res) => res.data).catch(handleError),
+  //para desbloquear usuario
+  unlockUsuario: (id) =>
+    api.post(`/usuarios/desbloquear/${id}`).then((res) => res.data).catch(handleError),
 };
 
 export const parroquiasApi = {

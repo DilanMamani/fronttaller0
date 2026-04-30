@@ -137,3 +137,19 @@ export const changeUsuarioPassword = createAsyncThunk(
         }
     }
 );  
+
+export const unlockUsuario = createAsyncThunk(
+    'usuarios/unlockUsuario',
+    async (id, { rejectWithValue }) => {
+        try {
+            console.log('[usuariosThunk] Desbloqueando usuario ID:', id);
+            const response = await usuariosApi.unlockUsuario(id);
+            console.log('[usuariosThunk] Usuario desbloqueado:', response);
+            return response;
+        }
+        catch (error) {
+            console.error('[usuariosThunk] Error desbloqueando usuario:', error);
+            return rejectWithValue(error?.response?.data || error.message || error);
+        }
+    }
+);
