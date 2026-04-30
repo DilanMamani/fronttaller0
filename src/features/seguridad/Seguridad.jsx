@@ -292,9 +292,9 @@ return (
             <section>
               <h4 className="text-lg font-semibold mb-4">Bloqueo de cuenta</h4>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <NumberInput label="Intentos fallidos" value={form.max_intentos_fallidos} onChange={(v)=>handleNumberChange('max_intentos_fallidos', v)} />
-                <NumberInput label="Tiempo bloqueo (min)" value={form.tiempo_bloqueo_minutos} onChange={(v)=>handleNumberChange('tiempo_bloqueo_minutos', v)} />
+        
               </div>
             </section>
 
