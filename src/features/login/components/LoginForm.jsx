@@ -1,6 +1,6 @@
 import InputField from './InputField';
+import TurnstileWidget from './TurnstileWidget';
 import { useNavigate } from 'react-router-dom';
-// import TurnstileWidget from './TurnstileWidget';
 
 export default function LoginForm({
   onSubmit,
@@ -8,10 +8,10 @@ export default function LoginForm({
   setFormData,
   showPassword,
   setShowPassword,
-  // setTurnstileToken,
+  setTurnstileToken,
   isLoading,
-  // captchaVerified,
-  // setCaptchaVerified,
+  captchaVerified,
+  setCaptchaVerified,
 
   requires2FA = false,
   twoFactorCode = '',
@@ -26,7 +26,7 @@ export default function LoginForm({
 
   const handleFormSubmit = (e) => {
     e?.preventDefault();
-    onSubmit();
+    onSubmit(e);
   };
 
   const handleVerifyCode = (e) => {
@@ -66,8 +66,6 @@ export default function LoginForm({
             </div>
           )}
 
-          {/* CAPTCHA DESACTIVADO TEMPORALMENTE */}
-          {/*
           <TurnstileWidget
             onVerify={(token) => {
               setTurnstileToken(token);
@@ -82,11 +80,6 @@ export default function LoginForm({
               setCaptchaVerified(false);
             }}
           />
-          */}
-
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
-            Captcha desactivado temporalmente para pruebas.
-          </div>
 
           <div className="flex items-center justify-between text-sm">
             <button
@@ -101,7 +94,7 @@ export default function LoginForm({
           <button
             type="button"
             onClick={handleFormSubmit}
-            disabled={isLoading || blocked}
+            disabled={isLoading || blocked || !captchaVerified}
             className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {isLoading ? 'Ingresando...' : 'Iniciar Sesión'}
@@ -154,12 +147,6 @@ export default function LoginForm({
           >
             {isLoading ? 'Verificando...' : 'Verificar código'}
           </button>
-
-          {blocked && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
-              {blockMessage || 'Tu cuenta ha sido bloqueada temporalmente por múltiples intentos fallidos.'}
-            </div>
-          )}
         </>
       )}
     </div>
