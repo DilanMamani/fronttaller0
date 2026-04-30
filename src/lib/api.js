@@ -2,9 +2,8 @@ import axios from 'axios';
 import { store } from '../store/index';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL,
 });
-
 // Interceptor para manejar respuestas y errores
 api.interceptors.response.use(
   (response) => response,
@@ -41,6 +40,9 @@ const handleError = (error) => {
 export const loginApi = {
   login: (credentials) =>
     api.post('/usuarios/', credentials).then((res) => res.data).catch(handleError),
+
+  verificar2FA: (data) =>
+    api.post('/usuarios/verificar-2fa', data).then((res) => res.data).catch(handleError),
 };
 
 // pa colocar el header
@@ -154,9 +156,14 @@ export const parroquiasApi = {
     api.put(`/parroquias/${id}`, data).then((res) => res.data).catch(handleError),
 };
 export const passwordApi = {
-  solicitar: (email) => api.post('/password/solicitar', { email }),
-  validar: (token) => api.get('/password/validar', { params: { token } }),
-  cambiar: (token, newPassword) => api.post('/password/cambiar', { token, newPassword }),
+  solicitar: (email) =>
+    api.post('/password/solicitar', { email }).then((res) => res.data).catch(handleError),
+
+  validar: (token) =>
+    api.get('/password/validar', { params: { token } }).then((res) => res.data).catch(handleError),
+
+  cambiar: (token, newPassword) =>
+    api.post('/password/cambiar', { token, newPassword }).then((res) => res.data).catch(handleError),
 };
 
 export const auditoriaApi = {
