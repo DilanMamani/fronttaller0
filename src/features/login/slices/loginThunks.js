@@ -28,6 +28,7 @@ export const loginUser = createAsyncThunk(
         email: response.email || '',
         rol: response.rol?.nombre || 'Usuario',
         token: response.token,
+        parroquia: response.parroquia || null,
         expiresAt: null,
       };
     } catch (error) {
@@ -59,6 +60,7 @@ export const verify2FAUser = createAsyncThunk(
         rol: response.rol?.nombre || 'Usuario',
         token: response.token,
         expiresAt: null,
+        parroquia: response.parroquia || null,  
       };
     } catch (error) {
       return rejectWithValue({
