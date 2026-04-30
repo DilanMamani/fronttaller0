@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Layout from '../../shared/components/layout/Layout';
+import Swal from 'sweetalert2';
 
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -8,6 +9,7 @@ import {
   fetchUsuarioById,
   createUsuarioAndSendReset,
   updateUsuario,
+  unlockUsuario
 } from './slices/usuariosTrunk';
 import {
   selectIsLoading, 
@@ -272,6 +274,74 @@ export default function Usuarios() {
     }
   };
 
+ const formatFechaBolivia = (fecha) => {
+  if (!fecha) return 'Desconocida';
+
+  return new Intl.DateTimeFormat('es-BO', {
+    timeZone: 'America/La_Paz',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(fecha));
+};
+
+const handleDesbloquear = async (u, e) => {
+  e?.stopPropagation();
+
+  const fechaBloqueo = formatFechaBolivia(u.fecha_bloqueo);
+
+  const result = await Swal.fire({
+    title: '¿Desbloquear usuario?',
+    html: `
+      <p class="text-sm text-gray-600 dark:text-gray-300">
+        El usuario <strong>${u.nombre} ${u.apellido_paterno}</strong>
+        fue bloqueado el <strong>${fechaBloqueo}</strong>
+        tras <strong>${u.intentos_fallidos}</strong> intentos fallidos.
+      </p>
+      <p class="text-sm text-gray-500 mt-2">¿Confirmas que quieres desbloquearlo?</p>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, desbloquear',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#f59e0b',
+    cancelButtonColor: '#6b7280',
+  });
+
+  if (!result.isConfirmed) return;
+
+  const id = u.id ?? u.id_usuario;
+
+  try {
+    const action = await dispatch(unlockUsuario(Number(id)));
+
+    if (action.meta.requestStatus === 'fulfilled') {
+      setToast({
+        type: 'success',
+        message: 'Usuario desbloqueado correctamente.',
+      });
+
+      if (hasFilters) {
+        dispatch(fetchUsuarios({
+          nombre: filters.nombre?.trim() || undefined,
+          email: filters.email?.trim() || undefined,
+          rol: filters.rol || undefined,
+          activo: filters.activo === '' ? undefined : Boolean(filters.activo),
+        }));
+      } else {
+        dispatch(fetchAllUsuarios());
+      }
+    } else {
+      setToast({ type: 'error', message: extractError(action) });
+    }
+  } catch (err) {
+    setToast({ type: 'error', message: extractError(err) });
+  }
+};
+
   const getFullName = (nombre, apellido_paterno, apellido_materno) => {
     return `${nombre} ${apellido_paterno} ${apellido_materno}`.trim();
   };
@@ -483,14 +553,15 @@ export default function Usuarios() {
                       <th scope="col" className="px-6 py-3">Rol</th>
                       <th scope="col" className="px-6 py-3">Parroquia</th>
                       <th scope="col" className="px-6 py-3">Estado</th>
+                      <th scope="col" className="px-6 py-3">Bloqueo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoading && (
-                      <tr><td className="px-6 py-4" colSpan={5}>Cargando...</td></tr>
+                      <tr><td className="px-6 py-4" colSpan={6}>Cargando...</td></tr>
                     )}
                     {!isLoading && users.length === 0 && (
-                      <tr><td className="px-6 py-4" colSpan={5}>Sin resultados</td></tr>
+                      <tr><td className="px-6 py-4" colSpan={6}>Sin resultados</td></tr>
                     )}
                     {!isLoading && users.map((u) => (
                       <tr
@@ -523,6 +594,22 @@ export default function Usuarios() {
                             <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs font-medium px-2.5 py-0.5 rounded-full">Activo</span>
                           ) : (
                             <span className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactivo</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {u.bloqueado ? (
+                            <button
+                              onClick={(e) => handleDesbloquear(u, e)}
+                              className="inline-flex items-center gap-1.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 text-xs font-medium px-3 py-1 rounded-full hover:bg-red-200 dark:hover:bg-red-900 transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-sm">lock</span>
+                              Bloqueado
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-green-700 dark:text-green-400 text-xs font-medium px-3 py-1">
+                              <span className="material-symbols-outlined text-sm">lock_open</span>
+                              Libre
+                            </span>
                           )}
                         </td>
                       </tr>

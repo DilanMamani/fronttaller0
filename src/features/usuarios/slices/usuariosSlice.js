@@ -9,6 +9,7 @@ import {
   resetUsuarioPassword,
   changeUsuarioPassword,
   createUsuarioAndSendReset,
+  unlockUsuario
 } from './usuariosTrunk';
 
 // Re-export thunks so consumers can import from this slice file
@@ -22,6 +23,7 @@ export {
   resetUsuarioPassword,
   changeUsuarioPassword,
   createUsuarioAndSendReset,
+  unlockUsuario
 };
 
 
@@ -48,6 +50,8 @@ const initialState = {
   lastResetResponse: null,
   lastChangeResponse: null,
 };
+
+
 
 const usuariosSlice = createSlice({
   name: 'usuarios',
@@ -235,7 +239,25 @@ const usuariosSlice = createSlice({
         state.isCreating = false;
         state.isResettingPassword = false;
         state.error = action.payload?.message || action.payload || 'Error al crear y enviar restablecimiento';
-      });
+      })
+      .addCase(unlockUsuario.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(unlockUsuario.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        const updated = action.payload;
+        const getId = (x) => x?.id ?? x?.id_usuario;
+        const upId = getId(updated);
+        state.usuarios = (state.usuarios || []).map(u => (getId(u) === upId ? updated : u));
+        if (getId(state.usuarioSeleccionado) === upId) {
+          state.usuarioSeleccionado = updated;
+        }
+      })
+      .addCase(unlockUsuario.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload?.message || action.payload || 'Error al desbloquear usuario'; }
+      );
   },
 });
 
