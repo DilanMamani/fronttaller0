@@ -18,41 +18,41 @@ const passwordSlice = createSlice({
       state.error = null;
       state.success = false;
     },
+    clearPasswordState: () => initialState,
   },
   extraReducers: (builder) => {
     builder
-      // Solicitar
       .addCase(solicitarReset.pending, (state) => {
         state.isLoading = true;
         state.error = null;
         state.success = false;
       })
-      .addCase(solicitarReset.fulfilled, (state, action) => {
+      .addCase(solicitarReset.fulfilled, (state) => {
         state.isLoading = false;
         state.success = true;
       })
       .addCase(solicitarReset.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.msg;
+        state.error = action.payload?.msg || 'Error al solicitar recuperación';
       })
 
-      // Validar
       .addCase(validarToken.pending, (state) => {
         state.isLoading = true;
+        state.error = null;
       })
       .addCase(validarToken.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.email = action.payload.email;
-        state.purpose = action.payload.purpose;
+        state.email = action.payload?.email || '';
+        state.purpose = action.payload?.purpose || '';
       })
       .addCase(validarToken.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.msg;
+        state.error = action.payload?.msg || 'Token inválido';
       })
 
-      // Cambiar
       .addCase(cambiarPassword.pending, (state) => {
         state.isLoading = true;
+        state.error = null;
       })
       .addCase(cambiarPassword.fulfilled, (state) => {
         state.isLoading = false;
@@ -61,13 +61,13 @@ const passwordSlice = createSlice({
       })
       .addCase(cambiarPassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.msg;
+        state.error = action.payload?.msg || 'Error al cambiar contraseña';
       });
   },
 });
 
 export { solicitarReset, validarToken, cambiarPassword };
 
-export const { resetPasswordState } = passwordSlice.actions;
+export const { resetPasswordState, clearPasswordState } = passwordSlice.actions;
 export const passwordReducer = passwordSlice.reducer;
 export default passwordSlice.reducer;

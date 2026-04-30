@@ -8,6 +8,7 @@ import {
 } from '../slices/passwordSlice';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { seguridadApi } from '../../../lib/api';
 import {
   Eye,
   EyeOff,
@@ -19,6 +20,10 @@ import {
   X
 } from 'lucide-react';
 
+const toBool = (value) => {
+  return value === true || value === 'true' || value === 'TRUE' || value === 1 || value === '1';
+};
+
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,25 +32,113 @@ export default function ForgotPassword() {
   const [token, setToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [passwordConfig, setPasswordConfig] = useState(null);
+  const [loadingConfig, setLoadingConfig] = useState(true);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isLoading, error } = useSelector((state) => state.password);
+
+  const { isLoading, error, email: maskedEmail } = useSelector((state) => state.password);
+
+  useEffect(() => {
+    const cargarConfiguracion = async () => {
+      try {
+        setLoadingConfig(true);
+
+        const resp = await seguridadApi.fetchConfiguracion();
+
+        let config = null;
+
+        if (resp?.configuracion) {
+          config = resp.configuracion;
+        } else if (Array.isArray(resp)) {
+          config = resp[0];
+        } else if (Array.isArray(resp?.configuracion)) {
+          config = resp.configuracion[0];
+        } else {
+          config = resp;
+        }
+
+        if (!config) {
+          setPasswordConfig(null);
+          return;
+        }
+
+        setPasswordConfig({
+          longitud_minima: Number(config.longitud_minima),
+          longitud_maxima: Number(config.longitud_maxima),
+          requiere_mayuscula: toBool(config.requiere_mayuscula),
+          requiere_minuscula: toBool(config.requiere_minuscula),
+          requiere_numero: toBool(config.requiere_numero),
+          requiere_caracter_especial: toBool(config.requiere_caracter_especial),
+        });
+
+      } catch (error) {
+        console.error('Error cargando configuración de seguridad:', error);
+        setPasswordConfig(null);
+      } finally {
+        setLoadingConfig(false);
+      }
+    };
+
+    cargarConfiguracion();
+  }, []);
 
   const passwordChecks = useMemo(() => {
-    return {
-      length: password.length >= 12,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /\d/.test(password),
-      symbol: /[^A-Za-z0-9]/.test(password),
-    };
-  }, [password]);
+    if (!passwordConfig) return {};
 
-  const passedChecksCount = Object.values(passwordChecks).filter(Boolean).length;
+    const hasPassword = password.length > 0;
+
+    return {
+      length: hasPassword && password.length >= passwordConfig.longitud_minima,
+      maxLength: hasPassword && password.length <= passwordConfig.longitud_maxima,
+      uppercase: hasPassword && /[A-Z]/.test(password),
+      lowercase: hasPassword && /[a-z]/.test(password),
+      number: hasPassword && /[0-9]/.test(password),
+      symbol: hasPassword && /[^A-Za-z0-9]/.test(password),
+    };
+  }, [password, passwordConfig]);
+
+  const activeChecks = useMemo(() => {
+    if (!passwordConfig) return [];
+
+    const checks = [
+      passwordChecks.length,
+      passwordChecks.maxLength,
+    ];
+
+    if (passwordConfig.requiere_mayuscula) {
+      checks.push(passwordChecks.uppercase);
+    }
+
+    if (passwordConfig.requiere_minuscula) {
+      checks.push(passwordChecks.lowercase);
+    }
+
+    if (passwordConfig.requiere_numero) {
+      checks.push(passwordChecks.number);
+    }
+
+    if (passwordConfig.requiere_caracter_especial) {
+      checks.push(passwordChecks.symbol);
+    }
+
+    return checks;
+  }, [passwordChecks, passwordConfig]);
+
+  const passedChecksCount = activeChecks.filter(Boolean).length;
+  const totalChecks = activeChecks.length;
+
+  const isPasswordValid =
+    passwordConfig &&
+    password.length > 0 &&
+    activeChecks.length > 0 &&
+    activeChecks.every(Boolean);
+
+  const doPasswordsMatch = password && confirm && password === confirm;
 
   const passwordStrength = useMemo(() => {
-    if (!password) {
+    if (!password || !passwordConfig || totalChecks === 0) {
       return {
         label: 'Sin evaluar',
         width: '0%',
@@ -54,28 +147,30 @@ export default function ForgotPassword() {
       };
     }
 
-    if (passedChecksCount <= 2) {
+    const percent = Math.round((passedChecksCount / totalChecks) * 100);
+
+    if (percent < 50) {
       return {
         label: 'Débil',
-        width: '25%',
+        width: `${percent}%`,
         color: 'bg-red-500',
         textColor: 'text-red-500',
       };
     }
 
-    if (passedChecksCount === 3) {
+    if (percent < 75) {
       return {
         label: 'Media',
-        width: '50%',
+        width: `${percent}%`,
         color: 'bg-yellow-500',
         textColor: 'text-yellow-600 dark:text-yellow-400',
       };
     }
 
-    if (passedChecksCount === 4) {
+    if (percent < 100) {
       return {
         label: 'Buena',
-        width: '75%',
+        width: `${percent}%`,
         color: 'bg-blue-500',
         textColor: 'text-blue-600 dark:text-blue-400',
       };
@@ -87,10 +182,7 @@ export default function ForgotPassword() {
       color: 'bg-green-500',
       textColor: 'text-green-600 dark:text-green-400',
     };
-  }, [password, passedChecksCount]);
-
-  const isPasswordValid = Object.values(passwordChecks).every(Boolean);
-  const doPasswordsMatch = password && confirm && password === confirm;
+  }, [password, passwordConfig, passedChecksCount, totalChecks]);
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
@@ -99,42 +191,52 @@ export default function ForgotPassword() {
     const result = await dispatch(solicitarReset(email));
 
     if (solicitarReset.fulfilled.match(result)) {
-      const { url } = result.payload || {};
+      Swal.fire({
+        icon: 'info',
+        title: 'Revisa tu correo',
+        text: 'Si el correo existe, se enviará un enlace de recuperación.',
+        confirmButtonText: 'Volver al login',
+      }).then(() => {
+        navigate('/login');
+      });
 
-      if (url) {
-        const urlObj = new URL(url);
-        const tokenFromUrl = urlObj.searchParams.get('token');
-
-        if (tokenFromUrl) {
-          setToken(tokenFromUrl);
-          setShowPasswordForm(true);
-          dispatch(validarToken(tokenFromUrl));
-        } else {
-          Swal.fire({
-            icon: 'info',
-            title: 'Revisa tu correo',
-            text: 'Te enviamos un enlace para restablecer tu contraseña.',
-            timer: 5000,
-          });
-        }
-      } else {
-        Swal.fire({
-          icon: 'info',
-          title: 'Revisa tu correo',
-          text: 'Si el correo existe, te enviamos un enlace.',
-        });
-      }
+      return;
     }
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: result.payload?.msg || 'No se pudo enviar el enlace de recuperación.',
+    });
   };
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
+    dispatch(resetPasswordState());
+
+    if (!passwordConfig) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Configuración no disponible',
+        text: 'No se pudo cargar la configuración de seguridad.',
+      });
+      return;
+    }
+
+    if (!password || !confirm) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Campos incompletos',
+        text: 'Ingresa y confirma tu nueva contraseña.',
+      });
+      return;
+    }
 
     if (!isPasswordValid) {
       Swal.fire({
         icon: 'error',
-        title: 'Contraseña insegura',
-        text: 'La contraseña debe tener mínimo 12 caracteres, mayúscula, minúscula, número y símbolo.',
+        title: 'Contraseña no válida',
+        text: 'La contraseña debe cumplir con la configuración de seguridad actual.',
       });
       return;
     }
@@ -143,7 +245,7 @@ export default function ForgotPassword() {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Las contraseñas no coinciden',
+        text: 'Las contraseñas no coinciden.',
       });
       return;
     }
@@ -161,7 +263,15 @@ export default function ForgotPassword() {
       }).then(() => {
         navigate('/login');
       });
+
+      return;
     }
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Contraseña no válida',
+      text: result.payload?.msg || 'No se pudo cambiar la contraseña.',
+    });
   };
 
   useEffect(() => {
@@ -186,6 +296,7 @@ export default function ForgotPassword() {
       >
         {valid ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
       </div>
+
       <span
         className={`text-sm ${
           valid
@@ -214,7 +325,7 @@ export default function ForgotPassword() {
 
           <p className="text-center text-muted-light dark:text-muted-dark mb-8 text-sm">
             {showPasswordForm
-              ? 'Crea una contraseña fuerte para proteger tu cuenta'
+              ? 'Crea una nueva contraseña para proteger tu cuenta'
               : 'Ingresa tu correo para recibir el enlace de recuperación'}
           </p>
 
@@ -237,14 +348,7 @@ export default function ForgotPassword() {
                 disabled={isLoading}
                 className="w-full py-3.5 bg-primary text-white font-semibold rounded-xl hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-primary/30"
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Enviando...
-                  </span>
-                ) : (
-                  'Enviar enlace de recuperación'
-                )}
+                {isLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
               </button>
             </form>
           )}
@@ -256,7 +360,7 @@ export default function ForgotPassword() {
                   Cuenta:{' '}
                 </span>
                 <span className="font-semibold text-foreground-light dark:text-foreground-dark">
-                  {email || 'Restableciendo contraseña'}
+                  {maskedEmail || 'Restableciendo contraseña'}
                 </span>
               </div>
 
@@ -275,11 +379,7 @@ export default function ForgotPassword() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-light dark:text-muted-dark hover:text-primary transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
 
@@ -300,28 +400,59 @@ export default function ForgotPassword() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-2 pt-1">
-                  <RequirementItem
-                    valid={passwordChecks.length}
-                    text="Mínimo 12 caracteres"
-                  />
-                  <RequirementItem
-                    valid={passwordChecks.uppercase}
-                    text="Al menos una letra mayúscula"
-                  />
-                  <RequirementItem
-                    valid={passwordChecks.lowercase}
-                    text="Al menos una letra minúscula"
-                  />
-                  <RequirementItem
-                    valid={passwordChecks.number}
-                    text="Al menos un número"
-                  />
-                  <RequirementItem
-                    valid={passwordChecks.symbol}
-                    text="Al menos un símbolo"
-                  />
-                </div>
+                {loadingConfig && (
+                  <p className="text-sm text-muted-light dark:text-muted-dark">
+                    Cargando reglas de seguridad...
+                  </p>
+                )}
+
+                {!loadingConfig && !passwordConfig && (
+                  <p className="text-sm text-red-600">
+                    No se pudo cargar la configuración de seguridad.
+                  </p>
+                )}
+
+                {!loadingConfig && passwordConfig && (
+                  <div className="grid grid-cols-1 gap-2 pt-1">
+                    <RequirementItem
+                      valid={passwordChecks.length}
+                      text={`Mínimo ${passwordConfig.longitud_minima} caracteres`}
+                    />
+
+                    <RequirementItem
+                      valid={passwordChecks.maxLength}
+                      text={`Máximo ${passwordConfig.longitud_maxima} caracteres`}
+                    />
+
+                    {passwordConfig.requiere_mayuscula === true && (
+                      <RequirementItem
+                        valid={passwordChecks.uppercase}
+                        text="Al menos una letra mayúscula"
+                      />
+                    )}
+
+                    {passwordConfig.requiere_minuscula === true && (
+                      <RequirementItem
+                        valid={passwordChecks.lowercase}
+                        text="Al menos una letra minúscula"
+                      />
+                    )}
+
+                    {passwordConfig.requiere_numero === true && (
+                      <RequirementItem
+                        valid={passwordChecks.number}
+                        text="Al menos un número"
+                      />
+                    )}
+
+                    {passwordConfig.requiere_caracter_especial === true && (
+                      <RequirementItem
+                        valid={passwordChecks.symbol}
+                        text="Al menos un símbolo"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="relative">
@@ -339,11 +470,7 @@ export default function ForgotPassword() {
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-light dark:text-muted-dark hover:text-primary transition-colors"
                 >
-                  {showConfirm ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
+                  {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
 
@@ -363,17 +490,16 @@ export default function ForgotPassword() {
 
               <button
                 type="submit"
-                disabled={isLoading || !isPasswordValid || !doPasswordsMatch}
+                disabled={
+                  isLoading ||
+                  loadingConfig ||
+                  !passwordConfig ||
+                  !isPasswordValid ||
+                  !doPasswordsMatch
+                }
                 className="w-full py-3.5 bg-primary text-white font-semibold rounded-xl hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-primary/30"
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Guardando...
-                  </span>
-                ) : (
-                  'Cambiar contraseña'
-                )}
+                {isLoading ? 'Guardando...' : 'Cambiar contraseña'}
               </button>
             </form>
           )}
