@@ -32,7 +32,7 @@ export default function Login() {
   });
 
   const [turnstileToken, setTurnstileToken] = useState('');
-  const [captchaVerified, setCaptchaVerified] = useState(true);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const [requires2FA, setRequires2FA] = useState(false);
