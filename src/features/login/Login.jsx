@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import Swal from 'sweetalert2';
 
-import { loginUser } from './slices/loginThunks';
+import { loginUser, verify2FAUser } from './slices/loginThunks';
 import { clearError } from './slices/loginSlice';
 import { selectIsLoading, selectError, selectUser } from './slices/loginSelectors';
 import { getDefaultRoute } from '../../shared/config/roleConfig';
@@ -12,9 +12,6 @@ import { getDefaultRoute } from '../../shared/config/roleConfig';
 import LoginPanel from './components/LoginPanel';
 import LoginForm from './components/LoginForm';
 import HeroPanel from './components/HeroPanel';
-
-// Código 2FA estático (por ahora)
-const STATIC_2FA_CODE = '123456';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,33 +26,28 @@ export default function Login() {
     password: '',
   });
 
-  // CAPTCHA (desactivado temporalmente)
   const [turnstileToken, setTurnstileToken] = useState('');
-  const [captchaVerified, setCaptchaVerified] = useState(true); // siempre true por ahora
-
+  const [captchaVerified, setCaptchaVerified] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
-  // 2FA
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
-  const [tempUserData, setTempUserData] = useState(null);
+  const [token2FA, setToken2FA] = useState('');
 
-  // bloqueo
   const [blocked, setBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
 
-  // Redirección automática si ya hay sesión
   useEffect(() => {
-    if (user && user.token) {
+    if (user && user.token && !requires2FA) {
       const defaultRoute = getDefaultRoute(user.rol);
       navigate(defaultRoute, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, requires2FA]);
 
   const resetStates = () => {
     setRequires2FA(false);
     setTwoFactorCode('');
-    setTempUserData(null);
+    setToken2FA('');
     setBlocked(false);
     setBlockMessage('');
   };
@@ -72,18 +64,6 @@ export default function Login() {
       return;
     }
 
-    // CAPTCHA DESACTIVADO
-    /*
-    if (!turnstileToken || !captchaVerified) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Captcha requerido',
-        text: 'Complete la verificación de Cloudflare antes de continuar',
-      });
-      return;
-    }
-    */
-
     const result = await dispatch(
       loginUser({
         ...formData,
@@ -94,27 +74,20 @@ export default function Login() {
     if (loginUser.fulfilled.match(result)) {
       const data = result.payload;
 
-      // 🧠 Simulación de backend
-      if (data?.blocked) {
-        setBlocked(true);
-        setBlockMessage(data.message || 'Cuenta bloqueada por múltiples intentos fallidos');
-        return;
-      }
-
-      if (data?.requires2FA) {
+      if (data?.requiere2FA) {
         setRequires2FA(true);
-        setTempUserData(data);
+        setToken2FA(data.token2FA);
+        setTwoFactorCode('');
 
         Swal.fire({
           icon: 'info',
           title: 'Verificación en dos pasos',
-          text: `Se envió un código al correo (${formData.email}). Código estático: ${STATIC_2FA_CODE}`,
+          text: `Se envió un código de verificación al correo ${formData.email}`,
         });
 
         return;
       }
 
-      // Login directo (sin 2FA)
       Swal.fire({
         icon: 'success',
         title: '¡Bienvenido!',
@@ -125,11 +98,9 @@ export default function Login() {
 
       const defaultRoute = getDefaultRoute(data.rol);
       navigate(defaultRoute, { replace: true });
-
     } else {
       const errorData = result.payload || {};
 
-      // detectar bloqueo desde error
       if (errorData.blocked) {
         setBlocked(true);
         setBlockMessage(errorData.message);
@@ -146,7 +117,7 @@ export default function Login() {
     }
   };
 
-  const handleVerify2FA = () => {
+  const handleVerify2FA = async () => {
     if (!twoFactorCode.trim()) {
       Swal.fire({
         icon: 'warning',
@@ -156,24 +127,36 @@ export default function Login() {
       return;
     }
 
-    if (twoFactorCode !== STATIC_2FA_CODE) {
+    const result = await dispatch(
+      verify2FAUser({
+        token2FA,
+        codigo: twoFactorCode.trim(),
+      })
+    );
+
+    if (verify2FAUser.fulfilled.match(result)) {
+      const data = result.payload;
+
       Swal.fire({
-        icon: 'error',
-        title: 'Código incorrecto',
-        text: 'El código no es válido',
+        icon: 'success',
+        title: 'Acceso concedido',
+        timer: 1200,
+        showConfirmButton: false,
       });
-      return;
+
+      resetStates();
+
+      const defaultRoute = getDefaultRoute(data.rol);
+      navigate(defaultRoute, { replace: true });
+    } else {
+      const errorData = result.payload || {};
+
+      Swal.fire({
+        icon: errorData.type || 'error',
+        title: 'Código incorrecto',
+        text: errorData.message || 'No se pudo verificar el código',
+      });
     }
-
-    Swal.fire({
-      icon: 'success',
-      title: 'Acceso concedido',
-      timer: 1200,
-      showConfirmButton: false,
-    });
-
-    const defaultRoute = getDefaultRoute(tempUserData?.rol);
-    navigate(defaultRoute, { replace: true });
   };
 
   const handleCancel2FA = () => {
@@ -183,7 +166,6 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       <LoginPanel>
-
         <LoginForm
           onSubmit={handleSubmit}
           formData={formData}
@@ -191,24 +173,17 @@ export default function Login() {
           showPassword={showPassword}
           setShowPassword={setShowPassword}
           isLoading={isLoading}
-
-          // CAPTCHA (simulado)
           setTurnstileToken={setTurnstileToken}
           captchaVerified={captchaVerified}
           setCaptchaVerified={setCaptchaVerified}
-
-          // 2FA
           requires2FA={requires2FA}
           twoFactorCode={twoFactorCode}
           setTwoFactorCode={setTwoFactorCode}
           onVerify2FA={handleVerify2FA}
           onCancel2FA={handleCancel2FA}
-
-          // bloqueo
           blocked={blocked}
           blockMessage={blockMessage}
         />
-
       </LoginPanel>
 
       <HeroPanel />

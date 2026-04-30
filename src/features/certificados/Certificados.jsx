@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { ClipLoader } from "react-spinners"; 
+const CERT_API = import.meta.env.VITE_CERTIFICADOS_URL;
 import Layout from '../../shared/components/layout/Layout';
 
 // === IMPORTACIONES DE REDUX ===
@@ -52,7 +53,7 @@ export default function Certificados() {
     try {
       setLoading(true);
       const response = await fetch(
-        `https://generador-documentos.onrender.com/mostrar-certificado?filename=${plantilla}`,
+  `${CERT_API}/mostrar-certificado?filename=${plantilla}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -80,7 +81,7 @@ export default function Certificados() {
     try {
       setLoading(true);
       const response = await fetch(
-        `https://generador-documentos.onrender.com/descargar-certificado?filename=${plantilla}`,
+  `${CERT_API}/descargar-certificado?filename=${plantilla}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

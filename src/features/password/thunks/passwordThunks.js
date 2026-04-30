@@ -5,10 +5,11 @@ export const solicitarReset = createAsyncThunk(
   'password/solicitar',
   async (email, { rejectWithValue }) => {
     try {
-      const response = await passwordApi.solicitar(email);
-      return response.data;
+      return await passwordApi.solicitar(email);
     } catch (error) {
-      return rejectWithValue(error.response?.data || { msg: 'Error en el servidor' });
+      return rejectWithValue({
+        msg: error.message || 'Error en el servidor',
+      });
     }
   }
 );
@@ -17,10 +18,11 @@ export const validarToken = createAsyncThunk(
   'password/validar',
   async (token, { rejectWithValue }) => {
     try {
-      const response = await passwordApi.validar(token);
-      return response.data;
+      return await passwordApi.validar(token);
     } catch (error) {
-      return rejectWithValue(error.response?.data || { msg: 'Token inválido' });
+      return rejectWithValue({
+        msg: error.message || 'Token inválido',
+      });
     }
   }
 );
@@ -29,10 +31,11 @@ export const cambiarPassword = createAsyncThunk(
   'password/cambiar',
   async ({ token, newPassword }, { rejectWithValue }) => {
     try {
-      const response = await passwordApi.cambiar(token, newPassword);
-      return response.data;
+      return await passwordApi.cambiar(token, newPassword);
     } catch (error) {
-      return rejectWithValue(error.response?.data || { msg: 'Error al cambiar contraseña' });
+      return rejectWithValue({
+        msg: error.message || 'Error al cambiar contraseña',
+      });
     }
   }
 );

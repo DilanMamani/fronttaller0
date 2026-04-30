@@ -166,7 +166,8 @@ export default function Reportes() {
       const data = await client.request(GENERAR_REPORTE_PDF, variables);
 
       if (data?.generarReportePDF?.downloadUrl) {
-        const url = `http://localhost:4001${data.generarReportePDF.downloadUrl}`;
+        const BASE_URL = import.meta.env.VITE_GRAPHQL_URL.replace('/graphql', '');
+const url = `${BASE_URL}${data.generarReportePDF.downloadUrl}`;
         setDownloadUrl(url);
         
         Swal.fire({
