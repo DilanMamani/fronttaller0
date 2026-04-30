@@ -8,10 +8,12 @@ export default function LoginForm({
   setFormData,
   showPassword,
   setShowPassword,
-  setTurnstileToken,
+
+  showCaptcha = false,
+  setTurnstileToken = () => {},
   isLoading,
-  captchaVerified,
-  setCaptchaVerified,
+  captchaVerified = true,
+  setCaptchaVerified = () => {},
 
   requires2FA = false,
   twoFactorCode = '',
@@ -44,7 +46,9 @@ export default function LoginForm({
             type="email"
             placeholder="Ingresa tu email"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
             autoComplete="email"
           />
 
@@ -54,7 +58,9 @@ export default function LoginForm({
             type={showPassword ? 'text' : 'password'}
             placeholder="Ingresa tu contraseña"
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
             autoComplete="current-password"
             showPassword={showPassword}
             onTogglePassword={() => setShowPassword(!showPassword)}
@@ -62,24 +68,27 @@ export default function LoginForm({
 
           {blocked && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
-              {blockMessage || 'Tu cuenta ha sido bloqueada temporalmente por múltiples intentos fallidos.'}
+              {blockMessage ||
+                'Tu cuenta ha sido bloqueada temporalmente por múltiples intentos fallidos.'}
             </div>
           )}
 
-          <TurnstileWidget
-            onVerify={(token) => {
-              setTurnstileToken(token);
-              setCaptchaVerified(true);
-            }}
-            onExpire={() => {
-              setTurnstileToken('');
-              setCaptchaVerified(false);
-            }}
-            onError={() => {
-              setTurnstileToken('');
-              setCaptchaVerified(false);
-            }}
-          />
+          {showCaptcha && (
+            <TurnstileWidget
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                setCaptchaVerified(true);
+              }}
+              onExpire={() => {
+                setTurnstileToken('');
+                setCaptchaVerified(false);
+              }}
+              onError={() => {
+                setTurnstileToken('');
+                setCaptchaVerified(false);
+              }}
+            />
+          )}
 
           <div className="flex items-center justify-between text-sm">
             <button
@@ -94,7 +103,7 @@ export default function LoginForm({
           <button
             type="button"
             onClick={handleFormSubmit}
-            disabled={isLoading || blocked || !captchaVerified}
+            disabled={isLoading || blocked || (showCaptcha && !captchaVerified)}
             className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {isLoading ? 'Ingresando...' : 'Iniciar Sesión'}
@@ -107,7 +116,8 @@ export default function LoginForm({
               Verificación en dos pasos
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Ingresa el código enviado a tu correo electrónico para completar el inicio de sesión.
+              Ingresa el código enviado a tu correo electrónico para completar
+              el inicio de sesión.
             </p>
           </div>
 
@@ -147,6 +157,13 @@ export default function LoginForm({
           >
             {isLoading ? 'Verificando...' : 'Verificar código'}
           </button>
+
+          {blocked && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+              {blockMessage ||
+                'Tu cuenta ha sido bloqueada temporalmente por múltiples intentos fallidos.'}
+            </div>
+          )}
         </>
       )}
     </div>

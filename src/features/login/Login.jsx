@@ -8,11 +8,11 @@ import { loginUser, verify2FAUser } from './slices/loginThunks';
 import { clearError } from './slices/loginSlice';
 import {
   selectIsLoading,
-  selectError,
   selectUser,
 } from './slices/loginSelectors';
 
 import { getDefaultRoute } from '../../shared/config/roleConfig';
+import { seguridadApi } from '../../lib/api';
 
 import LoginPanel from './components/LoginPanel';
 import LoginForm from './components/LoginForm';
@@ -23,7 +23,6 @@ export default function Login() {
   const dispatch = useDispatch();
 
   const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
   const user = useSelector(selectUser);
 
   const [formData, setFormData] = useState({
@@ -31,8 +30,10 @@ export default function Login() {
     password: '',
   });
 
+  const [showCaptcha, setShowCaptcha] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
-  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(true);
+
   const [showPassword, setShowPassword] = useState(false);
 
   const [requires2FA, setRequires2FA] = useState(false);
@@ -41,6 +42,30 @@ export default function Login() {
 
   const [blocked, setBlocked] = useState(false);
   const [blockMessage, setBlockMessage] = useState('');
+
+  useEffect(() => {
+    const cargarConfiguracion = async () => {
+      try {
+        const resp = await seguridadApi.fetchConfiguracion();
+        const config = resp?.configuracion || resp;
+
+        const usaCaptcha =
+          config?.usa_captcha === true ||
+          config?.usa_captcha === 'true' ||
+          config?.usa_captcha === 1 ||
+          config?.usa_captcha === '1';
+
+        setShowCaptcha(usaCaptcha);
+        setCaptchaVerified(!usaCaptcha);
+      } catch (error) {
+        console.error('Error cargando configuración de seguridad:', error);
+        setShowCaptcha(false);
+        setCaptchaVerified(true);
+      }
+    };
+
+    cargarConfiguracion();
+  }, []);
 
   useEffect(() => {
     if (user?.token && !requires2FA) {
@@ -73,10 +98,19 @@ export default function Login() {
       return;
     }
 
+    if (showCaptcha && !captchaVerified) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Verificación requerida',
+        text: 'Complete la verificación captcha antes de iniciar sesión.',
+      });
+      return;
+    }
+
     const result = await dispatch(
       loginUser({
         ...formData,
-        turnstileToken,
+        turnstileToken: showCaptcha ? turnstileToken : null,
       })
     );
 
@@ -183,6 +217,7 @@ export default function Login() {
           showPassword={showPassword}
           setShowPassword={setShowPassword}
           isLoading={isLoading}
+          showCaptcha={showCaptcha}
           setTurnstileToken={setTurnstileToken}
           captchaVerified={captchaVerified}
           setCaptchaVerified={setCaptchaVerified}
