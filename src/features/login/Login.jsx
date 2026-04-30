@@ -6,7 +6,12 @@ import Swal from 'sweetalert2';
 
 import { loginUser, verify2FAUser } from './slices/loginThunks';
 import { clearError } from './slices/loginSlice';
-import { selectIsLoading, selectError, selectUser } from './slices/loginSelectors';
+import {
+  selectIsLoading,
+  selectError,
+  selectUser,
+} from './slices/loginSelectors';
+
 import { getDefaultRoute } from '../../shared/config/roleConfig';
 
 import LoginPanel from './components/LoginPanel';
@@ -38,22 +43,26 @@ export default function Login() {
   const [blockMessage, setBlockMessage] = useState('');
 
   useEffect(() => {
-    if (user && user.token && !requires2FA) {
+    if (user?.token && !requires2FA) {
       const defaultRoute = getDefaultRoute(user.rol);
       navigate(defaultRoute, { replace: true });
     }
   }, [user, navigate, requires2FA]);
 
-  const resetStates = () => {
+  const reset2FAStates = () => {
     setRequires2FA(false);
     setTwoFactorCode('');
     setToken2FA('');
+  };
+
+  const resetErrorStates = () => {
     setBlocked(false);
     setBlockMessage('');
   };
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
+    resetErrorStates();
 
     if (!formData.email || !formData.password) {
       Swal.fire({
@@ -91,30 +100,30 @@ export default function Login() {
       Swal.fire({
         icon: 'success',
         title: '¡Bienvenido!',
-        text: `Hola ${data.name}`,
+        text: `Hola ${data.name || data.nombre || 'Usuario'}`,
         timer: 1500,
         showConfirmButton: false,
       });
 
       const defaultRoute = getDefaultRoute(data.rol);
       navigate(defaultRoute, { replace: true });
-    } else {
-      const errorData = result.payload || {};
-
-      if (errorData.blocked) {
-        setBlocked(true);
-        setBlockMessage(errorData.message);
-      }
-
-      Swal.fire({
-        icon: errorData.type || 'error',
-        title: 'Error al iniciar sesión',
-        text: errorData.message || 'Credenciales incorrectas',
-      });
-
-      resetStates();
-      dispatch(clearError());
+      return;
     }
+
+    const errorData = result.payload || {};
+
+    if (errorData.blocked || errorData.status === 403) {
+      setBlocked(true);
+      setBlockMessage(errorData.message || errorData.msg || 'Tu cuenta está bloqueada.');
+    }
+
+    Swal.fire({
+      icon: errorData.type || 'error',
+      title: 'Error al iniciar sesión',
+      text: errorData.message || errorData.msg || 'Credenciales incorrectas',
+    });
+
+    dispatch(clearError());
   };
 
   const handleVerify2FA = async () => {
@@ -144,23 +153,24 @@ export default function Login() {
         showConfirmButton: false,
       });
 
-      resetStates();
+      reset2FAStates();
 
       const defaultRoute = getDefaultRoute(data.rol);
       navigate(defaultRoute, { replace: true });
-    } else {
-      const errorData = result.payload || {};
-
-      Swal.fire({
-        icon: errorData.type || 'error',
-        title: 'Código incorrecto',
-        text: errorData.message || 'No se pudo verificar el código',
-      });
+      return;
     }
+
+    const errorData = result.payload || {};
+
+    Swal.fire({
+      icon: errorData.type || 'error',
+      title: 'Código incorrecto',
+      text: errorData.message || errorData.msg || 'No se pudo verificar el código',
+    });
   };
 
   const handleCancel2FA = () => {
-    resetStates();
+    reset2FAStates();
   };
 
   return (
