@@ -1,6 +1,6 @@
 import InputField from './InputField';
 import { useNavigate } from 'react-router-dom';
-import TurnstileWidget from './TurnstileWidget';
+// import TurnstileWidget from './TurnstileWidget';
 
 export default function LoginForm({
   onSubmit,
@@ -8,10 +8,19 @@ export default function LoginForm({
   setFormData,
   showPassword,
   setShowPassword,
-  setTurnstileToken,
+  // setTurnstileToken,
   isLoading,
-  captchaVerified,
-  setCaptchaVerified,
+  // captchaVerified,
+  // setCaptchaVerified,
+
+  requires2FA = false,
+  twoFactorCode = '',
+  setTwoFactorCode = () => {},
+  onVerify2FA = () => {},
+  onCancel2FA = () => {},
+
+  blocked = false,
+  blockMessage = '',
 }) {
   const navigate = useNavigate();
 
@@ -20,63 +29,139 @@ export default function LoginForm({
     onSubmit();
   };
 
+  const handleVerifyCode = (e) => {
+    e?.preventDefault();
+    onVerify2FA();
+  };
+
   return (
     <div className="space-y-6">
-      <InputField
-        id="email"
-        label="Email"
-        type="email"
-        placeholder="Ingresa tu email"
-        value={formData.email}
-        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-        autoComplete="email"
-      />
+      {!requires2FA ? (
+        <>
+          <InputField
+            id="email"
+            label="Email"
+            type="email"
+            placeholder="Ingresa tu email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            autoComplete="email"
+          />
 
-      <InputField
-        id="password"
-        label="Contraseña"
-        type={showPassword ? 'text' : 'password'}
-        placeholder="Ingresa tu contraseña"
-        value={formData.password}
-        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-        autoComplete="current-password"
-        showPassword={showPassword}
-        onTogglePassword={() => setShowPassword(!showPassword)}
-      />
+          <InputField
+            id="password"
+            label="Contraseña"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Ingresa tu contraseña"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            autoComplete="current-password"
+            showPassword={showPassword}
+            onTogglePassword={() => setShowPassword(!showPassword)}
+          />
 
-      <TurnstileWidget
-        onVerify={(token) => {
-          setTurnstileToken(token);
-          setCaptchaVerified(true);
-        }}
-        onExpire={() => {
-          setTurnstileToken('');
-          setCaptchaVerified(false);
-        }}
-        onError={() => {
-          setTurnstileToken('');
-          setCaptchaVerified(false);
-        }}
-      />
+          {blocked && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+              {blockMessage || 'Tu cuenta ha sido bloqueada temporalmente por múltiples intentos fallidos.'}
+            </div>
+          )}
 
-      <div className="flex items-center justify-between text-sm">
-        <button
-          type="button"
-          onClick={() => navigate('/reset-password')}
-          className="font-medium text-primary hover:text-accent-gold transition-colors duration-200"
-        >
-          ¿Olvidaste tu contraseña?
-        </button>
-      </div>
+          {/* CAPTCHA DESACTIVADO TEMPORALMENTE */}
+          {/*
+          <TurnstileWidget
+            onVerify={(token) => {
+              setTurnstileToken(token);
+              setCaptchaVerified(true);
+            }}
+            onExpire={() => {
+              setTurnstileToken('');
+              setCaptchaVerified(false);
+            }}
+            onError={() => {
+              setTurnstileToken('');
+              setCaptchaVerified(false);
+            }}
+          />
+          */}
 
-      <button
-        type="button"
-        onClick={handleFormSubmit}
-        disabled={isLoading || !captchaVerified}
-        className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-      >
-        {isLoading ? 'Ingresando...' : 'Iniciar Sesión'}
-      </button>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+            Captcha desactivado temporalmente para pruebas.
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={() => navigate('/reset-password')}
+              className="font-medium text-primary hover:text-accent-gold transition-colors duration-200"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleFormSubmit}
+            disabled={isLoading || blocked}
+            className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {isLoading ? 'Ingresando...' : 'Iniciar Sesión'}
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Verificación en dos pasos
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Ingresa el código enviado a tu correo electrónico para completar el inicio de sesión.
+            </p>
+          </div>
+
+          <InputField
+            id="twoFactorCode"
+            label="Código de verificación"
+            type="text"
+            placeholder="Ingresa el código"
+            value={twoFactorCode}
+            onChange={(e) => setTwoFactorCode(e.target.value)}
+            autoComplete="one-time-code"
+          />
+
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={onCancel2FA}
+              className="font-medium text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition-colors duration-200"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/reset-password')}
+              className="font-medium text-primary hover:text-accent-gold transition-colors duration-200"
+            >
+              ¿Problemas para ingresar?
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleVerifyCode}
+            disabled={isLoading || blocked}
+            className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {isLoading ? 'Verificando...' : 'Verificar código'}
+          </button>
+
+          {blocked && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+              {blockMessage || 'Tu cuenta ha sido bloqueada temporalmente por múltiples intentos fallidos.'}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

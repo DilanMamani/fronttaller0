@@ -43,7 +43,7 @@ export default function UserProfile() {
     <div className="flex items-center gap-3">
       <div className="hidden sm:block text-right">
         <p className="font-semibold text-sm">{user.name}</p>
-        <p className="text-xs text-muted-light dark:text-muted-dark">{user.rol}</p>
+        <p className="text-xs text-muted-light dark:text-muted-dark">{user.rol.nombre}</p>
       </div>
 
       <button
