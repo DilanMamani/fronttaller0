@@ -57,22 +57,18 @@ export const buildUsuarioFields = ({
 
 
   if (mostrarParroquia) {
-    fields.push({
-      name: 'id_parroquia',
-      label: 'Parroquia asignada',
-      type: 'select',
-      options: [
-        {
-          value: '',
-          label: isLoadingParroquias ? 'Cargando parroquias...' : 'Seleccione una parroquia',
-        },
-        ...parroquias.map((p) => ({
-          value: p.id_parroquia,
-          label: p.nombre,
-        })),
-      ],
-    });
-  }
+  fields.push({
+    name: 'id_parroquias',
+    label: 'Parroquias asignadas',
+    type: 'multiselect',
+    options: [
+      ...parroquias.map((p) => ({
+        value: String(p.id_parroquia),
+        label: p.nombre,
+      })),
+    ],
+  });
+}
 
   fields.push({
     name: 'activo',
