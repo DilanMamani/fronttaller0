@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import Swal from 'sweetalert2';
+
 
 import Layout from '../../shared/components/layout/Layout';
 import DuplicatesMergeModal from './components/DuplicatesMergeModal';
@@ -9,7 +9,9 @@ import PageTabs from '../../shared/components/pages/PageTabs.jsx';
 import FormFields from '../../shared/components/pages/FormFields.jsx';
 import FilterPanel from '../../shared/components/pages/FilterPanel.jsx';
 import DataTable from '../../shared/components/pages/DataTable.jsx';
+import Toast from '../../shared/components/ui/Toast.jsx';
 import { useEditEntityModal } from '../../shared/components/pages/EditEntityModal.jsx';
+import { extractError } from '../../shared/utils/extractError.js';
 
 import {
   parroquiaFields,
@@ -27,14 +29,9 @@ import {
   updateParroquia,
 } from './slices/parroquiasThunk';
 
-import {
-  selectIsLoading,
-  selectError,
-} from './slices/parroquiasSlice';
+import { selectIsLoading, selectError } from './slices/parroquiasSlice';
 
-import {
-  buscarPersonasConTodosLosSacramentos,
-} from '../sacramentos/slices/sacramentosTrunk.js';
+import { buscarPersonasConTodosLosSacramentos } from '../sacramentos/slices/sacramentosTrunk.js';
 
 export default function Parroquias() {
   const dispatch = useDispatch();
@@ -56,6 +53,36 @@ export default function Parroquias() {
   const [openEncargadoList, setOpenEncargadoList] = useState(false);
   const [loadingEncargado, setLoadingEncargado] = useState(false);
 
+  const [toast, setToast] = useState(null); // { type: 'success'|'error', message: string }
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const isFormValid =
+  formData.nombre?.trim() &&
+  formData.direccion?.trim() &&
+  formData.telefono?.trim() && formData.telefono.trim().length >= 7 &&
+  formData.email?.trim() && /\S+@\S+\.\S+/.test(formData.email) &&
+  formData.id_usuario;
+
+  const cargarUsuariosParrocos = async (search = '') => {
+    const action = await dispatch(
+      buscarPersonasConTodosLosSacramentos({
+        rol: 'PARROCO',
+        search,
+        limit: 100,
+      })
+    );
+
+    if (buscarPersonasConTodosLosSacramentos.fulfilled.match(action)) {
+      return action.payload || [];
+    }
+
+    return [];
+  };
+
   useEffect(() => {
     if (activeTab !== 'agregar') return;
 
@@ -67,38 +94,23 @@ export default function Parroquias() {
 
     setLoadingEncargado(true);
 
-    const delay = setTimeout(() => {
-      dispatch(
-        buscarPersonasConTodosLosSacramentos({
-          sacerdote: true,
-          search: queryEncargado,
-        })
-      )
-        .unwrap()
-        .then((data) => {
-          setListaEncargados(data.personas || []);
-          setOpenEncargadoList(true);
-        })
-        .catch(() => {
-          setListaEncargados([]);
-        })
-        .finally(() => setLoadingEncargado(false));
+    const delay = setTimeout(async () => {
+      const usuarios = await cargarUsuariosParrocos(queryEncargado);
+
+      setListaEncargados(usuarios);
+      setOpenEncargadoList(true);
+      setLoadingEncargado(false);
     }, 300);
 
     return () => clearTimeout(delay);
-  }, [queryEncargado, activeTab, dispatch]);
+  }, [queryEncargado, activeTab]);
 
   const cargarParroquias = async (filtros = filters) => {
     const result = await dispatch(fetchParroquias(filtros));
 
     if (fetchParroquias.fulfilled.match(result)) {
       const data = result.payload;
-
-      if (Array.isArray(data)) {
-        setParroquiasLocal(data);
-      } else {
-        setParroquiasLocal(data.parroquias || []);
-      }
+      setParroquiasLocal(Array.isArray(data) ? data : data.parroquias || []);
     }
   };
 
@@ -114,24 +126,17 @@ export default function Parroquias() {
     const result = await dispatch(createParroquia(formData));
 
     if (createParroquia.fulfilled.match(result)) {
-      Swal.fire({
-        icon: 'success',
-        title: 'Parroquia agregada',
-        text: 'La parroquia fue creada exitosamente.',
-        timer: 1800,
-        showConfirmButton: false,
-      });
-
+      setToast({ type: 'success', message: 'Parroquia creada exitosamente.' });
       setFormData({ ...initialParroquiaForm });
       setQueryEncargado('');
       setListaEncargados([]);
       setOpenEncargadoList(false);
     } else {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: result.payload?.msg || 'Hubo un problema al crear la parroquia.',
-      });
+        setToast({
+          type: 'error',
+          message: extractError(result),
+        });
+
     }
   };
 
@@ -149,50 +154,68 @@ export default function Parroquias() {
     if (!fetchParroquiaById.fulfilled.match(result)) {
       close();
 
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo cargar la parroquia seleccionada.',
-      });
+      setToast({ type: 'error', message: 'Error al cargar los datos de la parroquia.' });
 
       return;
     }
 
     const parroquia = result.payload?.parroquia || result.payload;
+    const usuarios = await cargarUsuariosParrocos('');
+
+    const parroquiaEditFields = [
+      ...parroquiaFields,
+      {
+        name: 'id_usuario',
+        label: 'Párroco encargado',
+        type: 'select',
+        options: [
+          { value: '', label: 'Sin párroco asignado' },
+          ...usuarios.map((u) => ({
+            value: u.id_usuario,
+            label: `${u.nombre} ${u.apellido_paterno || ''} ${u.apellido_materno || ''} - ${u.email}`,
+          })),
+        ],
+      },
+    ];
+
+    const entity = {
+      ...parroquia,
+      id_usuario: parroquia.parroco?.id_usuario || '',
+    };
 
     open({
       title: 'Editar Parroquia',
-      entity: parroquia,
-      fields: parroquiaFields,
+      entity,
+      fields: parroquiaEditFields,
       loading: false,
       onSave: async (editedParroquia) => {
         const id = editedParroquia.id_parroquia;
 
+        const data = {
+          nombre: editedParroquia.nombre,
+          direccion: editedParroquia.direccion,
+          telefono: editedParroquia.telefono,
+          email: editedParroquia.email,
+          id_usuario: editedParroquia.id_usuario || null,
+        };
+
         const resultUpdate = await dispatch(
           updateParroquia({
             id,
-            data: editedParroquia,
+            data,
           })
         );
 
         if (updateParroquia.fulfilled.match(resultUpdate)) {
-          Swal.fire({
-            icon: 'success',
-            title: 'Parroquia actualizada',
-            text: 'Los cambios se guardaron correctamente.',
-            timer: 1600,
-            showConfirmButton: false,
-          });
+          setToast({ type: 'success', message: 'Parroquia actualizada exitosamente.' });
 
           cargarParroquias();
-
           return true;
         }
 
-        Swal.fire({
-          icon: 'error',
-          title: 'Error al actualizar',
-          text: resultUpdate.payload?.msg || 'No se pudieron guardar los cambios.',
+       setToast({
+          type: 'error',
+          message: extractError(resultUpdate),
         });
 
         return false;
@@ -204,9 +227,7 @@ export default function Parroquias() {
     <Layout title="Gestión de Parroquias">
       <PageTabs
         activeTab={activeTab}
-        onChange={(tab) => {
-          setActiveTab(tab);
-        }}
+        onChange={(tab) => setActiveTab(tab)}
         tabs={[
           { key: 'agregar', label: 'Agregar Parroquia' },
           { key: 'buscar', label: 'Buscar Parroquia' },
@@ -230,17 +251,21 @@ export default function Parroquias() {
 
             <div className="relative mt-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Encargado de la Parroquia (Sacerdote)
+                Encargado de la Parroquia (Párroco)
               </label>
 
               <input
                 type="search"
-                placeholder="Buscar sacerdote por nombre o CI"
+                placeholder="Buscar usuario párroco por nombre o correo"
                 value={queryEncargado}
                 onChange={(e) => {
                   setQueryEncargado(e.target.value);
                   setOpenEncargadoList(true);
                   setListaEncargados([]);
+                  setFormData({
+                    ...formData,
+                    id_usuario: null,
+                  });
                 }}
                 className="w-full rounded-lg bg-background-light dark:bg-background-dark border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary p-3 pr-10"
               />
@@ -260,25 +285,25 @@ export default function Parroquias() {
                   {!loadingEncargado &&
                     listaEncargados.length === 0 &&
                     queryEncargado.length > 0 &&
-                    formData.id_persona == null && (
+                    formData.id_usuario == null && (
                       <div className="py-3 text-center text-sm text-gray-500">
-                        No se encontraron sacerdotes.
+                        No se encontraron usuarios con rol párroco.
                       </div>
                     )}
 
                   {!loadingEncargado &&
-                    listaEncargados.map((p) => (
+                    listaEncargados.map((u) => (
                       <div
-                        key={p.id_persona}
+                        key={u.id_usuario}
                         className="p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 rounded-md"
                         onClick={() => {
                           setFormData({
                             ...formData,
-                            id_persona: p.id_persona,
+                            id_usuario: u.id_usuario,
                           });
 
                           setQueryEncargado(
-                            `${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}`
+                            `${u.nombre} ${u.apellido_paterno || ''} ${u.apellido_materno || ''}`
                           );
 
                           setListaEncargados([]);
@@ -286,10 +311,10 @@ export default function Parroquias() {
                         }}
                       >
                         <strong>
-                          {p.nombre} {p.apellido_paterno} {p.apellido_materno}
+                          {u.nombre} {u.apellido_paterno} {u.apellido_materno}
                         </strong>
                         <div className="text-xs text-gray-500">
-                          CI: {p.carnet_identidad}
+                          {u.email}
                         </div>
                       </div>
                     ))}
@@ -297,18 +322,22 @@ export default function Parroquias() {
               )}
 
               <p className="text-xs text-gray-500 mt-2">
-                Seleccione el sacerdote encargado de la parroquia.
+                Seleccione un usuario con rol PÁRROCO como encargado.
               </p>
             </div>
 
             <div className="mt-6 flex items-center gap-3">
               <button
-                type="submit"
-                className="inline-flex items-center px-5 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90"
-              >
-                Agregar Parroquia
-              </button>
-
+                  type="submit"
+                  disabled={!isFormValid}
+                  className={`inline-flex items-center px-5 py-2.5 rounded-lg text-white font-medium ${
+                    isFormValid
+                      ? 'bg-primary hover:bg-primary/90'
+                      : 'bg-gray-400 cursor-not-allowed opacity-70'
+                  }`}
+                >
+                  Agregar Parroquia
+                </button>
               <button
                 type="button"
                 onClick={() => {
@@ -364,6 +393,7 @@ export default function Parroquias() {
         open={mergeOpen}
         onClose={() => setMergeOpen(false)}
       />
+       <Toast toast={toast} />
 
       {modal}
     </Layout>

@@ -3,7 +3,7 @@ export const initialParroquiaForm = {
   direccion: '',
   telefono: '',
   email: '',
-  id_persona: null,
+  id_usuario: null,
 };
 
 export const parroquiaFields = [
@@ -21,4 +21,6 @@ export const initialParroquiaFilters = {
 export const parroquiaSearchFields = [
   { name: 'nombre', label: 'Nombre', placeholder: 'Buscar por nombre' },
   { name: 'direccion', label: 'Dirección', placeholder: 'Buscar por dirección' },
+  { name: 'telefono', label: 'Teléfono', placeholder: 'Buscar por teléfono' },    
+  { name: 'email', label: 'Email', placeholder: 'Buscar por email' },
 ];

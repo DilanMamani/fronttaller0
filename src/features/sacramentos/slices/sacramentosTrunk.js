@@ -52,14 +52,22 @@ export const fetchParroquias = createAsyncThunk(
 
 //  Buscar personas que tengan bautizo + comunión + matrimonio (posibles sacerdotes)
 export const buscarPersonasConTodosLosSacramentos = createAsyncThunk(
-  'sacramentos/buscarPersonasConTodosLosSacramentos',
-  async (params = {}, { rejectWithValue }) => {
+  'usuarios/buscarPersonasConTodosLosSacramentos',
+
+  async (params = {}, thunkAPI) => {
+
     try {
-      const response = await sacramentosApi.buscarPersonasConTodosLosSacramentos(params);
-      return response;
+
+      const data = await sacramentosApi.buscarPersonasConTodosLosSacramentos(params);
+
+      return data.usuarios;
+
     } catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
+
+      return thunkAPI.rejectWithValue(error);
+
     }
+
   }
 );
 
