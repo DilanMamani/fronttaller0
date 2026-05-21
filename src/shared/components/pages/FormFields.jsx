@@ -1,5 +1,7 @@
 export default function FormFields({ fields = [], values = {}, setValues }) {
   const handleChange = (field, rawValue) => {
+    if (field.disabled || field.readOnly) return;
+
     setValues({
       ...values,
       [field.name]:
@@ -9,17 +11,40 @@ export default function FormFields({ fields = [], values = {}, setValues }) {
     });
   };
 
+  const baseClass = `
+    w-full rounded-xl border border-gray-300 dark:border-gray-700
+    bg-white dark:bg-background-dark
+    px-4 py-3 text-sm text-gray-900 dark:text-white
+    placeholder:text-gray-400
+    shadow-sm
+    focus:border-primary focus:ring-2 focus:ring-primary/20
+    outline-none transition-all
+  `;
+
+  const disabledClass = `
+    opacity-60 cursor-not-allowed
+    bg-gray-100 dark:bg-gray-800
+    text-gray-500 dark:text-gray-400
+  `;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {fields
         .filter((field) => !field.showIf || field.showIf(values))
         .map((field) => {
           const value = values?.[field.name] ?? '';
+          const isDisabled = Boolean(field.disabled);
+          const isReadOnly = Boolean(field.readOnly);
 
           const fullWidth =
             field.fullWidth ||
             field.colSpan === 'col-span-2' ||
             field.colSpan === 'md:col-span-2';
+
+          const inputClass = `
+            ${baseClass}
+            ${isDisabled || isReadOnly ? disabledClass : ''}
+          `;
 
           return (
             <div
@@ -37,15 +62,9 @@ export default function FormFields({ fields = [], values = {}, setValues }) {
                 <select
                   id={field.name}
                   value={String(value)}
+                  disabled={isDisabled}
                   onChange={(e) => handleChange(field, e.target.value)}
-                  className="
-                    w-full rounded-xl border border-gray-300 dark:border-gray-700
-                    bg-white dark:bg-background-dark
-                    px-4 py-3 text-sm text-gray-900 dark:text-white
-                    shadow-sm
-                    focus:border-primary focus:ring-2 focus:ring-primary/20
-                    outline-none transition-all
-                  "
+                  className={inputClass}
                 >
                   {field.options?.map((op) => (
                     <option key={String(op.value)} value={op.value}>
@@ -53,23 +72,34 @@ export default function FormFields({ fields = [], values = {}, setValues }) {
                     </option>
                   ))}
                 </select>
+              ) : field.type === 'textarea' ? (
+                <textarea
+                  id={field.name}
+                  placeholder={field.placeholder || ''}
+                  value={value}
+                  disabled={isDisabled}
+                  readOnly={isReadOnly}
+                  rows={field.rows || 4}
+                  onChange={(e) => handleChange(field, e.target.value)}
+                  className={inputClass}
+                />
               ) : (
                 <input
                   id={field.name}
                   type={field.type || 'text'}
                   placeholder={field.placeholder || ''}
                   value={value}
+                  disabled={isDisabled}
+                  readOnly={isReadOnly}
                   onChange={(e) => handleChange(field, e.target.value)}
-                  className="
-                    w-full rounded-xl border border-gray-300 dark:border-gray-700
-                    bg-white dark:bg-background-dark
-                    px-4 py-3 text-sm text-gray-900 dark:text-white
-                    placeholder:text-gray-400
-                    shadow-sm
-                    focus:border-primary focus:ring-2 focus:ring-primary/20
-                    outline-none transition-all
-                  "
+                  className={inputClass}
                 />
+              )}
+
+              {field.helpText && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {field.helpText}
+                </p>
               )}
             </div>
           );

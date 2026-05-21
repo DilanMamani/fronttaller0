@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-
 import Layout from '../../shared/components/layout/Layout';
 import DuplicatesMergeModal from './components/DuplicatesMergeModal';
 
@@ -35,7 +34,6 @@ import { buscarPersonasConTodosLosSacramentos } from '../sacramentos/slices/sacr
 
 export default function Parroquias() {
   const dispatch = useDispatch();
-
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
 
@@ -53,19 +51,27 @@ export default function Parroquias() {
   const [openEncargadoList, setOpenEncargadoList] = useState(false);
   const [loadingEncargado, setLoadingEncargado] = useState(false);
 
-  const [toast, setToast] = useState(null); // { type: 'success'|'error', message: string }
+  const [toast, setToast] = useState(null);
+
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
   }, [toast]);
 
   const isFormValid =
-  formData.nombre?.trim() &&
-  formData.direccion?.trim() &&
-  formData.telefono?.trim() && formData.telefono.trim().length >= 7 &&
-  formData.email?.trim() && /\S+@\S+\.\S+/.test(formData.email) &&
-  formData.id_usuario;
+    formData.nombre?.trim() &&
+    formData.direccion?.trim() &&
+    formData.telefono?.trim()?.length >= 7 &&
+    /\S+@\S+\.\S+/.test(formData.email || '') &&
+    formData.id_usuario;
+
+  const resetForm = () => {
+    setFormData({ ...initialParroquiaForm });
+    setQueryEncargado('');
+    setListaEncargados([]);
+    setOpenEncargadoList(false);
+  };
 
   const cargarUsuariosParrocos = async (search = '') => {
     const action = await dispatch(
@@ -83,6 +89,71 @@ export default function Parroquias() {
     return [];
   };
 
+  const cargarParroquias = async (filtros = filters) => {
+    const action = await dispatch(fetchParroquias(filtros));
+
+    if (fetchParroquias.fulfilled.match(action)) {
+      const data = action.payload;
+      setParroquiasLocal(Array.isArray(data) ? data : data.parroquias || []);
+    }
+  };
+
+  const buildParroquiaEditFields = (usuarios) => [
+    ...parroquiaFields,
+    {
+      name: 'id_usuario',
+      label: 'Párroco encargado',
+      type: 'select',
+      options: [
+        { value: '', label: 'Sin párroco asignado' },
+        ...usuarios.map((u) => ({
+          value: u.id_usuario,
+          label: `${u.nombre} ${u.apellido_paterno || ''} ${u.apellido_materno || ''} - ${u.email}`,
+        })),
+      ],
+    },
+  ];
+
+  const buildParroquiaPayload = (parroquia) => ({
+    nombre: parroquia.nombre,
+    direccion: parroquia.direccion,
+    telefono: parroquia.telefono,
+    email: parroquia.email,
+    id_usuario: parroquia.id_usuario || null,
+  });
+
+  const handleSaveParroquia = async (editedParroquia) => {
+    const id = editedParroquia.id_parroquia;
+
+    const action = await dispatch(
+      updateParroquia({
+        id,
+        data: buildParroquiaPayload(editedParroquia),
+      })
+    );
+
+    if (updateParroquia.fulfilled.match(action)) {
+      setToast({
+        type: 'success',
+        message: 'Parroquia actualizada exitosamente.',
+      });
+
+      cargarParroquias();
+      return true;
+    }
+
+    setToast({
+      type: 'error',
+      message: extractError(action),
+    });
+
+    return false;
+  };
+
+  useEffect(() => {
+    if (activeTab === 'buscar') cargarParroquias();
+  }, [activeTab]);
+
   useEffect(() => {
     if (activeTab !== 'agregar') return;
 
@@ -96,7 +167,6 @@ export default function Parroquias() {
 
     const delay = setTimeout(async () => {
       const usuarios = await cargarUsuariosParrocos(queryEncargado);
-
       setListaEncargados(usuarios);
       setOpenEncargadoList(true);
       setLoadingEncargado(false);
@@ -105,38 +175,31 @@ export default function Parroquias() {
     return () => clearTimeout(delay);
   }, [queryEncargado, activeTab]);
 
-  const cargarParroquias = async (filtros = filters) => {
-    const result = await dispatch(fetchParroquias(filtros));
-
-    if (fetchParroquias.fulfilled.match(result)) {
-      const data = result.payload;
-      setParroquiasLocal(Array.isArray(data) ? data : data.parroquias || []);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'buscar') {
-      cargarParroquias();
-    }
-  }, [activeTab]);
-
-  const handleSubmit = async (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
 
-    const result = await dispatch(createParroquia(formData));
+    if (!isFormValid) {
+      setToast({
+        type: 'error',
+        message: 'Complete todos los campos y seleccione un párroco.',
+      });
+      return;
+    }
 
-    if (createParroquia.fulfilled.match(result)) {
-      setToast({ type: 'success', message: 'Parroquia creada exitosamente.' });
-      setFormData({ ...initialParroquiaForm });
-      setQueryEncargado('');
-      setListaEncargados([]);
-      setOpenEncargadoList(false);
+    const action = await dispatch(createParroquia(formData));
+
+    if (createParroquia.fulfilled.match(action)) {
+      setToast({
+        type: 'success',
+        message: 'Parroquia creada exitosamente.',
+      });
+
+      resetForm();
     } else {
-        setToast({
-          type: 'error',
-          message: extractError(result),
-        });
-
+      setToast({
+        type: 'error',
+        message: extractError(action),
+      });
     }
   };
 
@@ -149,77 +212,31 @@ export default function Parroquias() {
       onSave: async () => false,
     });
 
-    const result = await dispatch(fetchParroquiaById(p.id_parroquia));
+    const [parroquiaAction, usuarios] = await Promise.all([
+      dispatch(fetchParroquiaById(p.id_parroquia)),
+      cargarUsuariosParrocos(''),
+    ]);
 
-    if (!fetchParroquiaById.fulfilled.match(result)) {
+    if (!fetchParroquiaById.fulfilled.match(parroquiaAction)) {
       close();
-
-      setToast({ type: 'error', message: 'Error al cargar los datos de la parroquia.' });
-
+      setToast({
+        type: 'error',
+        message: extractError(parroquiaAction),
+      });
       return;
     }
 
-    const parroquia = result.payload?.parroquia || result.payload;
-    const usuarios = await cargarUsuariosParrocos('');
-
-    const parroquiaEditFields = [
-      ...parroquiaFields,
-      {
-        name: 'id_usuario',
-        label: 'Párroco encargado',
-        type: 'select',
-        options: [
-          { value: '', label: 'Sin párroco asignado' },
-          ...usuarios.map((u) => ({
-            value: u.id_usuario,
-            label: `${u.nombre} ${u.apellido_paterno || ''} ${u.apellido_materno || ''} - ${u.email}`,
-          })),
-        ],
-      },
-    ];
-
-    const entity = {
-      ...parroquia,
-      id_usuario: parroquia.parroco?.id_usuario || '',
-    };
+    const parroquia = parroquiaAction.payload?.parroquia || parroquiaAction.payload;
 
     open({
       title: 'Editar Parroquia',
-      entity,
-      fields: parroquiaEditFields,
-      loading: false,
-      onSave: async (editedParroquia) => {
-        const id = editedParroquia.id_parroquia;
-
-        const data = {
-          nombre: editedParroquia.nombre,
-          direccion: editedParroquia.direccion,
-          telefono: editedParroquia.telefono,
-          email: editedParroquia.email,
-          id_usuario: editedParroquia.id_usuario || null,
-        };
-
-        const resultUpdate = await dispatch(
-          updateParroquia({
-            id,
-            data,
-          })
-        );
-
-        if (updateParroquia.fulfilled.match(resultUpdate)) {
-          setToast({ type: 'success', message: 'Parroquia actualizada exitosamente.' });
-
-          cargarParroquias();
-          return true;
-        }
-
-       setToast({
-          type: 'error',
-          message: extractError(resultUpdate),
-        });
-
-        return false;
+      entity: {
+        ...parroquia,
+        id_usuario: parroquia.parroco?.id_usuario || '',
       },
+      fields: buildParroquiaEditFields(usuarios),
+      loading: false,
+      onSave: handleSaveParroquia,
     });
   };
 
@@ -227,7 +244,7 @@ export default function Parroquias() {
     <Layout title="Gestión de Parroquias">
       <PageTabs
         activeTab={activeTab}
-        onChange={(tab) => setActiveTab(tab)}
+        onChange={setActiveTab}
         tabs={[
           { key: 'agregar', label: 'Agregar Parroquia' },
           { key: 'buscar', label: 'Buscar Parroquia' },
@@ -242,7 +259,7 @@ export default function Parroquias() {
             </h3>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6">
+          <form onSubmit={handleCreate} className="p-6">
             <FormFields
               fields={parroquiaFields}
               values={formData}
@@ -262,10 +279,7 @@ export default function Parroquias() {
                   setQueryEncargado(e.target.value);
                   setOpenEncargadoList(true);
                   setListaEncargados([]);
-                  setFormData({
-                    ...formData,
-                    id_usuario: null,
-                  });
+                  setFormData({ ...formData, id_usuario: null });
                 }}
                 className="w-full rounded-lg bg-background-light dark:bg-background-dark border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary p-3 pr-10"
               />
@@ -284,8 +298,7 @@ export default function Parroquias() {
 
                   {!loadingEncargado &&
                     listaEncargados.length === 0 &&
-                    queryEncargado.length > 0 &&
-                    formData.id_usuario == null && (
+                    queryEncargado.length > 0 && (
                       <div className="py-3 text-center text-sm text-gray-500">
                         No se encontraron usuarios con rol párroco.
                       </div>
@@ -297,15 +310,10 @@ export default function Parroquias() {
                         key={u.id_usuario}
                         className="p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 rounded-md"
                         onClick={() => {
-                          setFormData({
-                            ...formData,
-                            id_usuario: u.id_usuario,
-                          });
-
+                          setFormData({ ...formData, id_usuario: u.id_usuario });
                           setQueryEncargado(
                             `${u.nombre} ${u.apellido_paterno || ''} ${u.apellido_materno || ''}`
                           );
-
                           setListaEncargados([]);
                           setOpenEncargadoList(false);
                         }}
@@ -313,9 +321,7 @@ export default function Parroquias() {
                         <strong>
                           {u.nombre} {u.apellido_paterno} {u.apellido_materno}
                         </strong>
-                        <div className="text-xs text-gray-500">
-                          {u.email}
-                        </div>
+                        <div className="text-xs text-gray-500">{u.email}</div>
                       </div>
                     ))}
                 </div>
@@ -328,24 +334,20 @@ export default function Parroquias() {
 
             <div className="mt-6 flex items-center gap-3">
               <button
-                  type="submit"
-                  disabled={!isFormValid}
-                  className={`inline-flex items-center px-5 py-2.5 rounded-lg text-white font-medium ${
-                    isFormValid
-                      ? 'bg-primary hover:bg-primary/90'
-                      : 'bg-gray-400 cursor-not-allowed opacity-70'
-                  }`}
-                >
-                  Agregar Parroquia
-                </button>
+                type="submit"
+                disabled={!isFormValid}
+                className={`inline-flex items-center px-5 py-2.5 rounded-lg text-white font-medium ${
+                  isFormValid
+                    ? 'bg-primary hover:bg-primary/90'
+                    : 'bg-gray-400 cursor-not-allowed opacity-70'
+                }`}
+              >
+                Agregar Parroquia
+              </button>
+
               <button
                 type="button"
-                onClick={() => {
-                  setFormData({ ...initialParroquiaForm });
-                  setQueryEncargado('');
-                  setListaEncargados([]);
-                  setOpenEncargadoList(false);
-                }}
+                onClick={resetForm}
                 className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/40"
               >
                 Limpiar
@@ -382,7 +384,7 @@ export default function Parroquias() {
               loading={isLoading}
               loadingMessage="Cargando parroquias..."
               emptyMessage="No se encontraron resultados"
-              onRowClick={(p) => handleSelectParroquia(p)}
+              onRowClick={handleSelectParroquia}
               getRowKey={(p) => p.id_parroquia}
             />
           )}
@@ -393,7 +395,8 @@ export default function Parroquias() {
         open={mergeOpen}
         onClose={() => setMergeOpen(false)}
       />
-       <Toast toast={toast} />
+
+      <Toast toast={toast} />
 
       {modal}
     </Layout>
