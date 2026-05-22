@@ -46,7 +46,7 @@ import {
 
 import { buildUsuarioColumns } from './config/usuariosColumns.jsx';
 
-const ROLES_CON_PARROQUIA = ['parroco', 'párroco', 'secretario_parroquial'];
+const ROLES_CON_PARROQUIA = ['PARROCO',  'SECRETARIO_PARROQUIAL']; // Substring para identificar roles que requieren asignación de parroquia
 
 export default function Usuarios() {
   const dispatch = useDispatch();
@@ -86,13 +86,13 @@ export default function Usuarios() {
   }, [toast]);
 
   const rolRequiereParroquia = (idRol) => {
-    const nombre = roles
-      .find((r) => String(r.id_rol) === String(idRol))
-      ?.nombre
-      ?.toLowerCase() || '';
+  const nombre = roles
+    .find((r) => String(r.id_rol) === String(idRol))
+    ?.nombre
+    ?.toLowerCase();
 
-    return ROLES_CON_PARROQUIA.some((r) => nombre.includes(r));
-  };
+  return ROLES_CON_PARROQUIA.includes(nombre);
+};
 
   const mostrarParroquiaEnAdd = rolRequiereParroquia(formAdd.rol);
 
@@ -146,7 +146,7 @@ export default function Usuarios() {
     password: formAdd.password || undefined,
     fecha_nacimiento: formAdd.fecha_nacimiento || undefined,
     id_rol: formAdd.rol ? Number(formAdd.rol) : undefined,
-    id_parroquia:
+    id_parroquias:
       mostrarParroquiaEnAdd && formAdd.id_parroquia
         ? Number(formAdd.id_parroquia)
         : undefined,
@@ -254,7 +254,7 @@ export default function Usuarios() {
 
     isLoadingParroquias,
 
-    mostrarParroquia: true,
+    mostrarParroquia: requiereParroquia,
 
     editing: true,
 
@@ -267,7 +267,7 @@ export default function Usuarios() {
     apellido_materno: usuario.apellido_materno,
     fecha_nacimiento: usuario.fecha_nacimiento,
     id_rol: usuario.id_rol ? Number(usuario.id_rol) : undefined,
-    id_parroquia: usuario.id_parroquia ? Number(usuario.id_parroquia) : null,
+    id_parroquias: usuario.id_parroquias ? usuario.id_parroquias.map(Number) : [],
     activo:
       usuario.activo === true ||
       usuario.activo === 'true' ||
@@ -328,7 +328,7 @@ export default function Usuarios() {
     const entity = {
       ...usuario,
       id_rol: usuario.id_rol || usuario.rol?.id_rol || '',
-      id_parroquia: usuario.id_parroquia || usuario.parroquias?.[0]?.id_parroquia || '',
+      id_parroquias: usuario.parroquias?.map((p) => String(p.id_parroquia)) || [],
       activo:
         usuario.activo === true ||
         usuario.activo === 'true' ||

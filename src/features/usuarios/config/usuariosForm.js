@@ -5,8 +5,8 @@ export const initialUsuarioForm = {
   email: '',
   password: '',
   fecha_nacimiento: '',
-  rol: '',
-  id_parroquia: '',
+  id_rol: '',
+  id_parroquias: [],
   activo: '',
 };
 
@@ -42,7 +42,7 @@ export const buildUsuarioFields = ({
       disabled: editing,
     },
     {
-      name: 'rol',
+      name: 'id_rol',
       label: 'Rol',
       type: 'select',
       options: [
@@ -61,12 +61,23 @@ export const buildUsuarioFields = ({
     name: 'id_parroquias',
     label: 'Parroquias asignadas',
     type: 'multiselect',
-    options: [
-      ...parroquias.map((p) => ({
-        value: String(p.id_parroquia),
-        label: p.nombre,
-      })),
-    ],
+    showIf: (values) => {
+      const rolSeleccionado = roles.find(
+        (r) => String(r.id_rol) === String(values.id_rol || values.rol)
+      );
+
+      const nombreRol = rolSeleccionado?.nombre?.toLowerCase() || '';
+
+      return (
+        nombreRol.includes('PARROCO') ||
+        nombreRol.includes('párroco') ||
+        nombreRol.includes('SECRETARIO_PARROQUIAL')
+      );
+    },
+    options: parroquias.map((p) => ({
+      value: String(p.id_parroquia),
+      label: p.nombre,
+    })),
   });
 }
 
@@ -92,7 +103,7 @@ export const buildUsuarioSearchFields = ({ roles = [] }) => [
   { name: 'email', label: 'Email', type: 'email', placeholder: 'correo@dominio.com' },
   { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date' },
   {
-    name: 'rol',
+    name: 'id_rol',
     label: 'Rol',
     type: 'select',
     options: [

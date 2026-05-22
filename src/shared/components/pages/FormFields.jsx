@@ -1,13 +1,20 @@
+import MultiSelectSearch from '../ui/MultiSelectSearch';
+
 export default function FormFields({ fields = [], values = {}, setValues }) {
   const handleChange = (field, rawValue) => {
     if (field.disabled || field.readOnly) return;
 
+    let value = rawValue;
+
+    if (field.type === 'multiselect') {
+      value = rawValue;
+    } else if (field.valueType === 'boolean') {
+      value = rawValue === 'true';
+    }
+
     setValues({
       ...values,
-      [field.name]:
-        field.valueType === 'boolean'
-          ? rawValue === 'true'
-          : rawValue,
+      [field.name]: value,
     });
   };
 
@@ -72,6 +79,25 @@ export default function FormFields({ fields = [], values = {}, setValues }) {
                     </option>
                   ))}
                 </select>
+
+              ) : field.type === 'autocomplete-multiselect' ? (
+
+                <MultiSelectSearch
+
+                    options={field.options || []}
+
+                    value={value || []}
+
+                    onChange={(newValues) =>
+
+                      handleChange(field, newValues)
+
+                    }
+
+                    placeholder={field.placeholder}
+
+                  />
+
               ) : field.type === 'textarea' ? (
                 <textarea
                   id={field.name}
