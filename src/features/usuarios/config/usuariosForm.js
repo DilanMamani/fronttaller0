@@ -30,9 +30,9 @@ export const buildUsuarioFields = ({
   editing = false,
 }) => {
   const fields = [
-    { name: 'nombre', label: 'Nombre', placeholder: 'Ingrese el nombre' },
-    { name: 'apellido_paterno', label: 'Apellido paterno', placeholder: 'Ingrese el apellido paterno' },
-    { name: 'apellido_materno', label: 'Apellido materno', placeholder: 'Ingrese el apellido materno' },
+    { name: 'nombre', label: 'Nombre', placeholder: 'Ingrese el nombre', disabled: editing },
+    { name: 'apellido_paterno', label: 'Apellido paterno', placeholder: 'Ingrese el apellido paterno', disabled: editing  },
+    { name: 'apellido_materno', label: 'Apellido materno', placeholder: 'Ingrese el apellido materno',disabled: editing  },
     { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date' },
     {
       name: 'email',
@@ -56,30 +56,29 @@ export const buildUsuarioFields = ({
   ];
 
 
-  if (mostrarParroquia) {
   fields.push({
-    name: 'id_parroquias',
-    label: 'Parroquias asignadas',
-    type: 'multiselect',
-    showIf: (values) => {
-      const rolSeleccionado = roles.find(
-        (r) => String(r.id_rol) === String(values.id_rol || values.rol)
-      );
+  name: 'id_parroquias',
+  label: 'Parroquias asignadas',
+  type: 'autocomplete-multiselect',
+  fullWidth: true,
+  showIf: (values) => {
+    const rolSeleccionado = roles.find(
+      (r) => String(r.id_rol) === String(values.id_rol)
+    );
 
-      const nombreRol = rolSeleccionado?.nombre?.toLowerCase() || '';
+    const nombreRol = rolSeleccionado?.nombre?.toLowerCase() || '';
 
-      return (
-        nombreRol.includes('PARROCO') ||
-        nombreRol.includes('párroco') ||
-        nombreRol.includes('SECRETARIO_PARROQUIAL')
-      );
-    },
-    options: parroquias.map((p) => ({
-      value: String(p.id_parroquia),
-      label: p.nombre,
-    })),
-  });
-}
+    return (
+      nombreRol === 'parroco' ||
+      nombreRol === 'párroco' ||
+      nombreRol === 'secretario_parroquial'
+    );
+  },
+  options: parroquias.map((p) => ({
+    value: String(p.id_parroquia),
+    label: p.nombre,
+  })),
+});
 
   fields.push({
     name: 'activo',

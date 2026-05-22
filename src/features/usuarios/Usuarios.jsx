@@ -31,7 +31,7 @@ import {
 import { fetchRoles } from './slicesRol/rolesThunk';
 import { selectRoles, selectRolesLoading } from './slicesRol/rolesSlice';
 
-import { fetchParroquias } from './slicesParroquias/parroquiasThunk';
+import { fetchParroquiasSinParroco } from './slicesParroquias/parroquiasThunk';
 import {
   selectParroquias,
   selectIsLoading as selectParroquiasLoading,
@@ -75,7 +75,7 @@ export default function Usuarios() {
 
   useEffect(() => {
     dispatch(fetchRoles());
-    dispatch(fetchParroquias());
+    dispatch(fetchParroquiasSinParroco());
     dispatch(fetchAllUsuarios());
   }, [dispatch]);
 
@@ -94,7 +94,9 @@ export default function Usuarios() {
   return ROLES_CON_PARROQUIA.includes(nombre);
 };
 
-  const mostrarParroquiaEnAdd = rolRequiereParroquia(formAdd.rol);
+  const mostrarParroquiaEnAdd = rolRequiereParroquia(formAdd.id_rol);
+  console.log('ROL:', formAdd.id_rol);
+  console.log('MOSTRAR:', mostrarParroquiaEnAdd);
 
   const hasFilters = Object.values(filters).some(
     (v) => v !== '' && v !== null && v !== undefined
@@ -102,17 +104,28 @@ export default function Usuarios() {
 
   const users = hasFilters ? usuarios : allUsuarios;
 
-  const usuarioFields = useMemo(
-    () =>
-      buildUsuarioFields({
-        roles,
-        parroquias,
-        isLoadingRoles,
-        isLoadingParroquias,
-        mostrarParroquia: mostrarParroquiaEnAdd,
-      }),
-    [roles, parroquias, isLoadingRoles, isLoadingParroquias, mostrarParroquiaEnAdd]
+  const parroquiasDisponibles = parroquias.filter(
+    (p) => !p.parroco
   );
+
+  const usuarioFields = useMemo(
+  () =>
+    buildUsuarioFields({
+      roles,
+      parroquias: parroquiasDisponibles,
+      isLoadingRoles,
+      isLoadingParroquias,
+      mostrarParroquia: mostrarParroquiaEnAdd,
+      editing: false,
+    }),
+  [
+    roles,
+    parroquias,
+    isLoadingRoles,
+    isLoadingParroquias,
+    mostrarParroquiaEnAdd,
+  ]
+);
 
   const usuarioSearchFields = useMemo(
     () =>
@@ -131,12 +144,12 @@ export default function Usuarios() {
   );
 
   const isCreateValid =
-    formAdd.nombre?.trim() &&
-    formAdd.email?.trim() &&
-    /\S+@\S+\.\S+/.test(formAdd.email) &&
-    formAdd.rol &&
-    formAdd.activo !== '' &&
-    (!mostrarParroquiaEnAdd || formAdd.id_parroquia);
+  formAdd.nombre?.trim() &&
+  formAdd.email?.trim() &&
+  /\S+@\S+\.\S+/.test(formAdd.email) &&
+  formAdd.id_rol &&
+  formAdd.activo !== '' &&
+  (!mostrarParroquiaEnAdd || formAdd.id_parroquias?.length > 0);
 
   const buildCreatePayload = () => ({
     nombre: formAdd.nombre?.trim(),
@@ -145,9 +158,9 @@ export default function Usuarios() {
     email: formAdd.email?.trim(),
     password: formAdd.password || undefined,
     fecha_nacimiento: formAdd.fecha_nacimiento || undefined,
-    id_rol: formAdd.rol ? Number(formAdd.rol) : undefined,
+    id_rol: formAdd.id_rol ? Number(formAdd.id_rol) : undefined,
     id_parroquias:
-      mostrarParroquiaEnAdd && formAdd.id_parroquia
+      mostrarParroquiaEnAdd && formAdd.id_parroquias
         ? Number(formAdd.id_parroquia)
         : undefined,
     activo:
@@ -240,26 +253,24 @@ export default function Usuarios() {
     }
   };
 
-  const buildUsuarioEditFields = (usuario) => {
-    const idRol = usuario.id_rol || usuario.rol?.id_rol || '';
-    const requiereParroquia = rolRequiereParroquia(idRol);
+ const buildUsuarioEditFields = (usuario) => {
+  const nombreRol = usuario.rol?.nombre?.toLowerCase() || '';
 
-    return buildUsuarioFields({
+  const requiereParroquia =
+    nombreRol.includes('parroco') ||
+    nombreRol.includes('párroco') ||
+    nombreRol.includes('secretario_parroquial') ||
+    rolRequiereParroquia(usuario.id_rol);
 
+  return buildUsuarioFields({
     roles,
-
     parroquias,
-
     isLoadingRoles,
-
     isLoadingParroquias,
-
     mostrarParroquia: requiereParroquia,
-
     editing: true,
-
   });
-  };
+};
 
   const buildUpdatePayload = (usuario) => ({
     nombre: usuario.nombre,
@@ -325,17 +336,12 @@ export default function Usuarios() {
 
     const usuario = action.payload?.usuario || action.payload;
 
-    const entity = {
-      ...usuario,
-      id_rol: usuario.id_rol || usuario.rol?.id_rol || '',
-      id_parroquias: usuario.parroquias?.map((p) => String(p.id_parroquia)) || [],
-      activo:
-        usuario.activo === true ||
-        usuario.activo === 'true' ||
-        usuario.activo === 'Activo'
-          ? 'true'
-          : 'false',
-    };
+   const entity = {
+    ...usuario,
+    id_rol: String(usuario.id_rol || usuario.rol?.id_rol || ''),
+    id_parroquias: usuario.parroquias?.map((p) => String(p.id_parroquia)) || [],
+    activo: usuario.activo ? 'true' : 'false',
+  };
 
     open({
       title: 'Editar Usuario',
@@ -345,6 +351,7 @@ export default function Usuarios() {
       onSave: handleSaveUsuario,
     });
   };
+  
 
   async function handleDesbloquear(u, e) {
     e?.stopPropagation();
@@ -443,16 +450,27 @@ export default function Usuarios() {
             onSearch={handleSearch}
             onReset={resetSearch}
           />
+           <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm">
+                      <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Resultados</h3>
+                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Para editar alguno de los resultados, seleccione la fila deseada.</p>
+                      </div>
+                      <div className="overflow-x-auto">
 
-          <DataTable
-            columns={usuarioColumns}
-            data={users}
-            loading={isLoading}
-            loadingMessage="Cargando usuarios..."
-            emptyMessage="Sin resultados"
-            onRowClick={handleSelectUsuario}
-            getRowKey={(u) => u.id_usuario || u.id}
-          />
+                         <DataTable
+                            columns={usuarioColumns}
+                            data={users}
+                            loading={isLoading}
+                            loadingMessage="Cargando usuarios..."
+                            emptyMessage="Sin resultados"
+                            onRowClick={handleSelectUsuario}
+                            getRowKey={(u) => u.id_usuario || u.id}
+                          />
+                        
+                      </div>
+          </div>
+
+         
         </>
       )}
 

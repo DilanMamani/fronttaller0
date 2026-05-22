@@ -380,58 +380,58 @@ useEffect(() => {
                           className="w-full rounded-lg bg-background-light dark:bg-background-dark border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary p-3 pr-10"
                         />
                         {/* DROPDOWN ENCARGADO */}
-{!encargadoSelected && openEncargadoList && (
-  <div
-    style={{
-      position: "absolute",
-      background: "white",
-      border: "1px solid #dcdcdc",
-      borderRadius: "8px",
-      marginTop: "4px",
-      width: "95%",
-      maxHeight: "220px",
-      overflowY: "auto",
-      zIndex: 9999,
-      padding: "5px",
-    }}
-  >
-    {(loadingEncargado || isLoading) && (
-      <div className="flex justify-center items-center py-4">
-        <ClipLoader size={28} color="#4f46e5" />
-      </div>
-    )}
+                      {!encargadoSelected && openEncargadoList && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            background: "white",
+                            border: "1px solid #dcdcdc",
+                            borderRadius: "8px",
+                            marginTop: "4px",
+                            width: "95%",
+                            maxHeight: "220px",
+                            overflowY: "auto",
+                            zIndex: 9999,
+                            padding: "5px",
+                          }}
+                        >
+                          {(loadingEncargado || isLoading) && (
+                            <div className="flex justify-center items-center py-4">
+                              <ClipLoader size={28} color="#4f46e5" />
+                            </div>
+                          )}
 
-    {!encargadoSelected && listaEncargados.length === 0 && queryEncargado.length > 0 && (
-      <div className="py-3 text-center text-sm text-gray-500">
-        No se encontraron posibles encargados con ese valor.
-      </div>
-    )}
+                          {!encargadoSelected && listaEncargados.length === 0 && queryEncargado.length > 0 && (
+                            <div className="py-3 text-center text-sm text-gray-500">
+                              No se encontraron posibles encargados con ese valor.
+                            </div>
+                          )}
 
-    {!loadingEncargado && !isLoading && listaEncargados.length > 0 && (
-      listaEncargados.map((p) => (
-        <div
-          key={p.id_persona}
-          style={{
-            padding: "10px",
-            borderBottom: "1px solid #eee",
-            cursor: "pointer",
-          }}
-          onClick={() => {
-            handleChange("padrinoId", p.id_persona);
-            setQueryPadrino(`${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}`);
-            setListaPadrinos([]);
-            setPadrinoSelected(true);
-            setOpenPadrinoList(false);
-          }}
-        >
-          <strong>{p.nombre} {p.apellido_paterno} {p.apellido_materno}</strong>
-          <div style={{ fontSize: "13px", color: "#666" }}>
-            CI: {p.carnet_identidad}
-          </div>
-        </div>
-      ))
-    )}
-  </div>
+                          {!loadingEncargado && !isLoading && listaEncargados.length > 0 && (
+                            listaEncargados.map((p) => (
+                              <div
+                                key={p.id_persona}
+                                style={{
+                                  padding: "10px",
+                                  borderBottom: "1px solid #eee",
+                                  cursor: "pointer",
+                                }}
+                                onClick={() => {
+                                  handleChange("padrinoId", p.id_persona);
+                                  setQueryPadrino(`${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}`);
+                                  setListaPadrinos([]);
+                                  setPadrinoSelected(true);
+                                  setOpenPadrinoList(false);
+                                }}
+                              >
+                                <strong>{p.nombre} {p.apellido_paterno} {p.apellido_materno}</strong>
+                                <div style={{ fontSize: "13px", color: "#666" }}>
+                                  CI: {p.carnet_identidad}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
 )}
                       <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">search</span>
                     </div>

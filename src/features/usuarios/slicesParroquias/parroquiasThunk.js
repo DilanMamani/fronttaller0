@@ -50,3 +50,26 @@ export const fetchParroquiaById = createAsyncThunk(
     }
   }
 );
+export const fetchParroquiasSinParroco = createAsyncThunk(
+  'parroquias/fetchParroquiasSinParroco',
+  async (filters = {}, { rejectWithValue }) => {
+    try {
+      const response = await parroquiasApi.fetchParroquias(filters);
+
+      const parroquiasSinParroco = (response.parroquias || []).filter(
+        (p) => !p.parroco
+      );
+
+      return {
+        parroquias: parroquiasSinParroco,
+        totalItems: parroquiasSinParroco.length,
+        totalPages: 1,
+        currentPage: 1,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error?.response?.data || { message: 'Error en la carga de parroquias sin párroco' }
+      );
+    }
+  }
+);
