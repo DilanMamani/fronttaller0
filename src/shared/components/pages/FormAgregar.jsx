@@ -1,5 +1,6 @@
 import SearchField from './SearchField';
 import CamposComunes from './CamposComunes';
+import Toast from '../ui/Toast';
 
 /**
  * FormAgregar — formulario de alta de sacramento.
@@ -44,6 +45,51 @@ export default function FormAgregar({ ctx }) {
 
   // Helpers de selección reutilizables
   const nombreCompleto = (p) => `${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}`;
+
+  // ---------------------------------------------------------------------------
+  // Validación — todos los campos obligatorios según tipo
+  // ---------------------------------------------------------------------------
+  const camposBase = form.parroquiaId && form.padrinoId && form.ministroId &&
+    form.foja?.trim() && form.numero?.trim() && form.fecha_sacramento;
+
+  const isFormValid = (() => {
+    if (tipoSacramento === 'bautizo' || tipoSacramento === 'comunion') {
+      return !!(form.personaId && camposBase);
+    }
+    if (tipoSacramento === 'matrimonio') {
+      return !!(
+        matrimonio.esposoId &&
+        matrimonio.esposaId &&
+        matrimonio.lugar_ceremonia?.trim() &&
+        matrimonio.reg_civil?.trim() &&
+        matrimonio.numero_acta?.trim() &&
+        camposBase
+      );
+    }
+    return false;
+  })();
+
+  // Campos faltantes para mostrar en el tooltip
+  const camposFaltantes = (() => {
+    const faltantes = [];
+    if (tipoSacramento === 'bautizo' || tipoSacramento === 'comunion') {
+      if (!form.personaId)        faltantes.push('Persona');
+    }
+    if (tipoSacramento === 'matrimonio') {
+      if (!matrimonio.esposoId)               faltantes.push('Esposo');
+      if (!matrimonio.esposaId)               faltantes.push('Esposa');
+      if (!matrimonio.lugar_ceremonia?.trim()) faltantes.push('Lugar de ceremonia');
+      if (!matrimonio.reg_civil?.trim())       faltantes.push('Acta del registro civil');
+      if (!matrimonio.numero_acta?.trim())     faltantes.push('Número de acta');
+    }
+    if (!form.padrinoId)          faltantes.push('Padrino');
+    if (!form.ministroId)         faltantes.push('Ministro');
+    if (!form.parroquiaId)        faltantes.push('Parroquia');
+    if (!form.foja?.trim())       faltantes.push('Foja');
+    if (!form.numero?.trim())     faltantes.push('Número');
+    if (!form.fecha_sacramento)   faltantes.push('Fecha del Sacramento');
+    return faltantes;
+  })();
 
   return (
     <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm">
@@ -266,12 +312,39 @@ export default function FormAgregar({ ctx }) {
 
         {/* Botones */}
         <div className="flex items-center gap-3 pt-2">
-          <button
-            type="submit"
-            className="inline-flex items-center px-5 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-          >
-            Registrar Sacramento
-          </button>
+          <div className="relative group">
+            <button
+              type="submit"
+              disabled={!isFormValid}
+              className={`inline-flex items-center px-5 py-2.5 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors ${
+                isFormValid
+                  ? 'bg-primary hover:bg-primary/90'
+                  : 'bg-primary/40 cursor-not-allowed'
+              }`}
+            >
+              Registrar Sacramento
+            </button>
+
+            {/* Tooltip con campos faltantes */}
+            {!isFormValid && camposFaltantes.length > 0 && (
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-56">
+                <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg">
+                  <p className="font-semibold mb-1">Campos requeridos:</p>
+                  <ul className="space-y-0.5">
+                    {camposFaltantes.map((c) => (
+                      <li key={c} className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                        {c}
+                      </li>
+                    ))}
+                  </ul>
+                  {/* Flecha del tooltip */}
+                  <div className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={resetForm}

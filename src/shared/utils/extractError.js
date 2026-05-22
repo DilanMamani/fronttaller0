@@ -1,5 +1,6 @@
 export const extractError = (actionOrError) => {
   try {
+    if (actionOrError?.msg && !actionOrError?.meta) return actionOrError.msg;
     if (actionOrError && actionOrError.meta !== undefined) {
       const p = actionOrError.payload;
 

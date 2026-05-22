@@ -78,9 +78,15 @@ export const crearSacramentoCompleto = createAsyncThunk(
       const response = await sacramentosApi.crearSacramentoCompleto(sacramentoData);
       return response;
     }
-    catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
-    }
+   catch (error) {
+    console.log('THUNK ERROR COMPLETO:', {
+      message: error.message,
+      response: error.response?.data,
+      payload: error.response?.data || error.message,
+    });
+    return rejectWithValue(error?.msg ? error : error.response?.data || error.message);
+    
+  }
   }
 );
 

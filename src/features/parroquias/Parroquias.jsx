@@ -28,7 +28,14 @@ import {
   updateParroquia,
 } from './slices/parroquiasThunk';
 
-import { selectIsLoading, selectError } from './slices/parroquiasSlice';
+import {
+  selectIsLoading,
+  selectError,
+  selectParroquias,      // ← agregar
+  selectTotalItems,      // ← agregar
+  selectTotalPages,      // ← agregar
+  selectCurrentPage,     // ← agregar
+} from './slices/parroquiasSlice';
 
 import { buscarPersonasConTodosLosSacramentos } from '../sacramentos/slices/sacramentosTrunk.js';
 
@@ -50,6 +57,11 @@ export default function Parroquias() {
   const [listaEncargados, setListaEncargados] = useState([]);
   const [openEncargadoList, setOpenEncargadoList] = useState(false);
   const [loadingEncargado, setLoadingEncargado] = useState(false);
+
+  const parroquias  = useSelector(selectParroquias);
+  const totalItems  = useSelector(selectTotalItems);
+  const totalPages  = useSelector(selectTotalPages);
+  const currentPage = useSelector(selectCurrentPage);
 
   const [toast, setToast] = useState(null);
 
@@ -89,15 +101,13 @@ export default function Parroquias() {
     return [];
   };
 
-  const cargarParroquias = async (filtros = filters) => {
-    const action = await dispatch(fetchParroquias(filtros));
-
-    if (fetchParroquias.fulfilled.match(action)) {
-      const data = action.payload;
-      setParroquiasLocal(Array.isArray(data) ? data : data.parroquias || []);
-    }
+  const cargarParroquias = (filtros = filters, page = 1) => {
+    dispatch(fetchParroquias({ ...filtros, page }));
   };
 
+  const handlePageChange = (newPage) => {
+    cargarParroquias(filters, newPage);
+  };
   const buildParroquiaEditFields = (usuarios) => [
     ...parroquiaFields,
     {
@@ -380,12 +390,16 @@ export default function Parroquias() {
           ) : (
             <DataTable
               columns={parroquiaColumns}
-              data={parroquiasLocal}
+              data={parroquias}           // ← antes: parroquiasLocal
               loading={isLoading}
               loadingMessage="Cargando parroquias..."
               emptyMessage="No se encontraron resultados"
               onRowClick={handleSelectParroquia}
               getRowKey={(p) => p.id_parroquia}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPageChange={handlePageChange}
             />
           )}
         </>

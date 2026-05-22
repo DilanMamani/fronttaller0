@@ -1,49 +1,83 @@
-import { X } from 'lucide-react';
+import { X, FileText, Clock, Monitor, User, AlertTriangle, CheckCircle } from 'lucide-react';
 import routeDescriptions from '../data/routeDescriptions.json';
 
-const METHOD_LABEL = { GET: 'Obtiene', POST: 'Crea', PUT: 'Modifica', PATCH: 'Actualiza', DELETE: 'Elimina' };
+const METHOD_LABEL = { GET: 'Consultó', POST: 'Creó', PUT: 'Modificó', PATCH: 'Actualizó', DELETE: 'Eliminó' };
 
-const translateRoute = (method, originalUrl) => {
-  let url = originalUrl.trim().replace(/\/\?/, '?').replace(/&&+/g, '&').replace(/\/+$/, '').replace(/\?$/, '');
-  const [rawPath, rawQuery] = url.split('?');
-  const path = rawPath.replace(/\/$/, '');
-  const normalizedPath = path.replace(/\/\d+$/, '/:id');
-  const routeGroup = routeDescriptions[normalizedPath] || routeDescriptions[path];
-
-  if (!routeGroup) return `${METHOD_LABEL[method] || 'Acción'} en ${path}`;
-  if (!rawQuery)   return routeGroup[method] || `${METHOD_LABEL[method] || 'Acción'} en ${path}`;
-
-  const queryParams = {};
-  rawQuery.split('&').forEach(pair => {
-    const [key, value] = pair.split('=');
-    if (key && value !== undefined) queryParams[key] = decodeURIComponent(value || '');
-  });
-
-  for (const jsonKey of Object.keys(routeGroup)) {
-    if (!jsonKey.startsWith(method + '?')) continue;
-    const expectedParams = jsonKey.replace(method + '?', '').split('&');
-    let allMatch = true, output = routeGroup[jsonKey];
-    for (const p of expectedParams) {
-      const [paramName] = p.split('=');
-      if (!queryParams[paramName]) { allMatch = false; break; }
-      output = output.replace('{value}', queryParams[paramName]);
-    }
-    if (allMatch) return output;
-  }
-  return `${METHOD_LABEL[method] || 'Acción'} en ${url}`;
+const ACCION_CONFIG = {
+  CREATE: { label: 'Creación',     color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' },
+  UPDATE: { label: 'Actualización', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' },
+  DELETE: { label: 'Eliminación',  color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200' },
+  READ:   { label: 'Consulta',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200' },
 };
 
-const DetailRow = ({ label, value }) => (
-  <div className="py-3">
-    <dt className="text-xs font-medium text-muted-light dark:text-muted-dark">{label}</dt>
-    <dd className="mt-1 text-sm text-foreground-light dark:text-foreground-dark break-words">{value || 'N/A'}</dd>
-  </div>
-);
+// Reemplaza la función translateRoute completa por esta:
+const buildDescripcion = (data) => {
+  const method = data.http_method;
+  const url    = data.url || '';
+  const entidad = data.entidad || '';
+  const accion  = data.accion  || '';
 
-const JsonBlock = ({ value }) => (
-  <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-auto max-h-48">
-    {value ? JSON.stringify(value, null, 2) : 'Sin datos'}
-  </pre>
+  // Extraer ID de la URL si existe
+  const idMatch = url.match(/\/(\d+)(\?|$)/);
+  const id = idMatch ? idMatch[1] : null;
+
+  // Traducción semántica usando entidad + accion del backend
+  if (entidad && accion) {
+    const entidadLabel = {
+      personas:               'persona',
+      usuarios:               'usuario',
+      sacramentos:            'sacramento',
+      parroquias:             'parroquia',
+      matrimoniodetalles:     'detalle matrimonial',
+      personasacramentos:     'sacramento de persona',
+      tiposacramentos:        'tipo de sacramento',
+      rolsacramentos:         'rol sacramental',
+      configuracion:          'configuración de seguridad',
+      'dominio-permitido':    'dominio permitido',
+      'usuario-parroquia':    'asignación de parroquia',
+    }[entidad] || entidad;
+
+    // Si hay campos modificados, listarlos
+    const campos = data.campos_modificados
+      ? Object.keys(data.campos_modificados).join(', ')
+      : null;
+
+    switch (accion) {
+      case 'CREATE':
+        return `Registró ${articuloIndefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+      case 'UPDATE':
+        return campos
+          ? `Modificó ${campos} de ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`
+          : `Actualizó ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+      case 'DELETE':
+        return `Eliminó ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+      case 'READ':
+        return id
+          ? `Consultó ${articuloDefinido(entidadLabel)} ${entidadLabel} con ID ${id}`
+          : `Consultó la lista de ${entidadLabel}s`;
+      default:
+        return `${accion} sobre ${entidadLabel}`;
+    }
+  }
+
+  // Fallback al JSON si no hay entidad/accion
+  const path = url.split('?')[0].replace(/\/\d+$/, '/:id');
+  const routeGroup = routeDescriptions[path] || routeDescriptions[url.split('?')[0]];
+  if (routeGroup?.[method]) return routeGroup[method];
+
+  return `${METHOD_LABEL[method] || 'Acción'} en ${url.split('?')[0]}`;
+};
+
+// Helpers de artículos
+const articuloDefinido   = (e) => ['usuario', 'sacramento', 'rol sacramental'].includes(e) ? 'el' : 'la';
+const articuloIndefinido = (e) => ['usuario', 'sacramento', 'rol sacramental'].includes(e) ? 'un'  : 'una';
+
+// Fila de detalle — igual al modal de seguridad
+const DetailRow = ({ label, value }) => (
+  <div className="py-2">
+    <dt className="text-xs font-medium text-muted-light dark:text-muted-dark">{label}</dt>
+    <dd className="mt-1 text-sm text-foreground-light dark:text-foreground-dark break-words">{value ?? 'N/A'}</dd>
+  </div>
 );
 
 export default function DetailModal({ isOpen, onClose, data, loading }) {
@@ -60,24 +94,28 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
     );
   }
 
+  const accionConfig = ACCION_CONFIG[data.accion] || { label: data.accion, color: 'bg-gray-100 text-gray-700' };
+  const tieneCambios = data.dato_anterior || data.dato_nuevo || data.campos_modificados;
+
   const requestBody = (() => {
     if (!data.request_body) return null;
     if (typeof data.request_body === 'object') return data.request_body;
     try { return JSON.parse(data.request_body); }
-    catch { return { error: 'JSON inválido', raw: data.request_body }; }
+    catch { return null; }
   })();
-
-  const tieneCambios = data.dato_anterior || data.dato_nuevo || data.campos_modificados;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-3xl rounded-xl border border-border-light bg-card-light shadow-xl dark:border-border-dark dark:bg-card-dark">
+      <div className="relative w-full max-w-lg rounded-xl border border-border-light bg-card-light shadow-xl dark:border-border-dark dark:bg-card-dark">
 
         {/* HEADER */}
         <div className="flex items-center justify-between border-b border-border-light px-6 py-4 dark:border-border-dark">
-          <h3 className="text-xl font-semibold text-foreground-light dark:text-foreground-dark">
-            Detalle de Auditoría
-          </h3>
+          <div className="flex items-center gap-3">
+            <FileText className="h-5 w-5 text-primary" />
+            <h3 className="text-xl font-semibold text-foreground-light dark:text-foreground-dark">
+              Registro de Cambio
+            </h3>
+          </div>
           <button onClick={onClose}
             className="rounded-md p-1 text-muted-light hover:bg-background-light dark:text-muted-dark dark:hover:bg-background-dark">
             <X className="h-5 w-5" />
@@ -85,82 +123,69 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
         </div>
 
         {/* CONTENT */}
-        <div className="max-h-[calc(100vh-180px)] overflow-y-auto px-6 py-6 space-y-8">
+        <div className="max-h-[calc(100vh-180px)] overflow-y-auto px-6 py-6 space-y-6">
 
-          {/* Acción traducida */}
-          <div>
-            <h2 className="text-2xl font-bold text-foreground-light dark:text-foreground-dark">
-              {translateRoute(data.http_method, data.url)}
-            </h2>
-            <p className="text-sm text-muted-light dark:text-muted-dark mt-1">
-              Módulo: <strong>{data.application_name}</strong>
-              {data.entidad && <> · Entidad: <strong>{data.entidad}</strong></>}
-            </p>
-          </div>
+          {/* Acción + resultado */}
+          {/* Acción + resultado */}
+        <div className="flex flex-col gap-3">
+          <span className={`inline-flex w-fit rounded-full px-4 py-1.5 text-sm font-semibold ${accionConfig.color}`}>
+            {accionConfig.label}
+          </span>
+
+          {/* ← antes era translateRoute(data.http_method, data.url) */}
+          <p className="text-base font-medium text-foreground-light dark:text-foreground-dark">
+            {buildDescripcion(data)}
+          </p>
+
+          {(() => {
+            const s = data.http_status;
+            if (s >= 500) return (
+              <span className="inline-flex items-center gap-2 text-rose-600 dark:text-rose-400 text-sm font-medium">
+                <AlertTriangle className="h-4 w-4" /> Error del servidor ({s})
+              </span>
+            );
+            if (s >= 400) return (
+              <span className="inline-flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm font-medium">
+                <AlertTriangle className="h-4 w-4" /> Solicitud rechazada ({s})
+              </span>
+            );
+            return (
+              <span className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
+                <CheckCircle className="h-4 w-4" /> Operación exitosa
+              </span>
+            );
+          })()}
+        </div>
 
           {/* Usuario */}
           <div className="border-b pb-4 border-border-light dark:border-border-dark">
-            <h3 className="text-lg font-semibold text-foreground-light dark:text-foreground-dark">Usuario</h3>
-            <div className="mt-2 space-y-1">
-              <p className="text-base">{data.nombre_usuario || 'Sin nombre'}</p>
-              <p className="text-sm text-muted-light dark:text-muted-dark">{data.username}</p>
+            <div className="flex items-center gap-2 mb-2">
+              <User className="h-4 w-4 text-muted-light dark:text-muted-dark" />
+              <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">Usuario</h4>
             </div>
+            <p className="text-base font-medium">{data.nombre_usuario || 'Sin nombre'}</p>
+            <p className="text-sm text-muted-light dark:text-muted-dark">{data.username || '—'}</p>
           </div>
 
-          {/* Tiempos */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-foreground-light dark:text-foreground-dark">
-              Información temporal
-            </h3>
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <span className="text-xs text-blue-600 dark:text-blue-300">Inicio</span>
-                <p className="font-medium">{new Date(data.fecha_inicio).toLocaleString()}</p>
-              </div>
-              <div>
-                <span className="text-xs text-blue-600 dark:text-blue-300">Fin</span>
-                <p className="font-medium">{new Date(data.fecha_fin).toLocaleString()}</p>
-              </div>
-              <div>
-                <span className="text-xs text-blue-600 dark:text-blue-300">Duración</span>
-                <p className="font-bold text-indigo-600 dark:text-indigo-300">{data.duracion_ms} ms</p>
-              </div>
+          {/* Fecha y duración */}
+          <div className="flex items-center justify-between border-b pb-4 border-border-light dark:border-border-dark">
+            <div className="flex items-center gap-2 text-sm text-muted-light dark:text-muted-dark">
+              <Clock className="h-4 w-4" />
+              <span>{new Date(data.fecha_inicio).toLocaleString()}</span>
             </div>
+            <span className="text-sm font-semibold text-primary">
+              {data.duracion_ms} ms
+            </span>
           </div>
 
-          {/* Técnico */}
-          <div className="space-y-4 border-b pb-6 border-border-light dark:border-border-dark">
-            <h3 className="text-lg font-semibold text-foreground-light dark:text-foreground-dark">
-              Información técnica
-            </h3>
-            <DetailRow label="Método HTTP"     value={data.http_method} />
-            <DetailRow label="Estado HTTP"     value={data.http_status} />
-            <DetailRow label="IP"              value={data.ip_address} />
-            <DetailRow label="URL completa"    value={data.url} />
-            <DetailRow label="ID correlación"  value={data.correlation_id} />
-            <DetailRow label="User-Agent"      value={data.user_agent} />
-            <div>
-              <dt className="text-sm font-medium text-muted-light dark:text-muted-dark">¿Hubo excepción?</dt>
-              <dd className="mt-1">
-                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                  data.has_exception
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                }`}>
-                  {data.has_exception ? 'Sí' : 'No'}
-                </span>
-              </dd>
-            </div>
-          </div>
-
-          {/* ── Cambios realizados ── */}
+          {/* Cambios realizados */}
           {tieneCambios && (
-            <div className="space-y-4 border-b pb-6 border-border-light dark:border-border-dark">
-              <h3 className="text-lg font-semibold text-foreground-light dark:text-foreground-dark">
+            <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
+              <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
                 Cambios realizados
-              </h3>
+              </h4>
 
-              {/* Tabla de diff */}
+              {/* Tabla diff */}
               {data.campos_modificados && (
                 <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
                   <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
@@ -178,10 +203,10 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
                             {campo}
                           </td>
                           <td className="px-4 py-2 text-xs text-rose-600 dark:text-rose-400 line-through">
-                            {anterior === null ? 'null' : String(anterior)}
+                            {anterior === null ? '—' : String(anterior)}
                           </td>
                           <td className="px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            {nuevo === null ? 'null' : String(nuevo)}
+                            {nuevo === null ? '—' : String(nuevo)}
                           </td>
                         </tr>
                       ))}
@@ -189,30 +214,26 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
                   </table>
                 </div>
               )}
-
-              {/* Snapshots completos */}
-              {(data.dato_anterior || data.dato_nuevo) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs font-medium text-rose-600 dark:text-rose-400 mb-1">Estado anterior</p>
-                    <JsonBlock value={data.dato_anterior} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Estado nuevo</p>
-                    <JsonBlock value={data.dato_nuevo} />
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Parámetros enviados */}
-          <div>
-            <h3 className="text-lg font-semibold text-foreground-light dark:text-foreground-dark mb-2">
-              Parámetros enviados
-            </h3>
-            <JsonBlock value={requestBody} />
+          {/* Información técnica */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 mb-3">
+              <Monitor className="h-4 w-4 text-muted-light dark:text-muted-dark" />
+              <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
+                Información técnica
+              </h4>
+            </div>
+            <DetailRow label="Método HTTP"      value={data.http_method} />
+            <DetailRow label="Estado HTTP"      value={data.http_status} />
+            <DetailRow label="Entidad"          value={data.entidad} />
+            <DetailRow label="Dirección IP"     value={data.ip_address} />
+            <DetailRow label="ID correlación"   value={data.correlation_id} />
+            <DetailRow label="Aplicación"       value={data.application_name} />
+            <DetailRow label="User-Agent"       value={data.user_agent} />
           </div>
+
         </div>
 
         {/* FOOTER */}

@@ -50,7 +50,7 @@ export const personaSearchFields = [
 
   { name: 'carnet_identidad', label: 'Carnet de identidad', placeholder: 'CI' },
 
-  { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date' },
+  { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date', max: new Date().toISOString().split('T')[0],  },
 
   { name: 'lugar_nacimiento', label: 'Lugar de nacimiento', placeholder: 'Lugar' },
 

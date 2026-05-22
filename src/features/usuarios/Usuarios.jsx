@@ -26,6 +26,9 @@ import {
   selectAllUsuarios,
   selectIsCreating,
   selectIsUpdating,
+  selectTotalItems,    // ← agregar
+  selectTotalPages,    // ← agregar
+  selectCurrentPage,   // ← agregar
 } from './slices/usuariosSlice';
 
 import { fetchRoles } from './slicesRol/rolesThunk';
@@ -73,10 +76,14 @@ export default function Usuarios() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingPayload, setPendingPayload] = useState(null);
 
+  const totalItems  = useSelector(selectTotalItems);
+  const totalPages  = useSelector(selectTotalPages);
+  const currentPage = useSelector(selectCurrentPage);
+
   useEffect(() => {
     dispatch(fetchRoles());
     dispatch(fetchParroquiasSinParroco());
-    dispatch(fetchAllUsuarios());
+    dispatch(fetchUsuarios({ page: 1 }));
   }, [dispatch]);
 
   useEffect(() => {
@@ -102,7 +109,7 @@ export default function Usuarios() {
     (v) => v !== '' && v !== null && v !== undefined
   );
 
-  const users = hasFilters ? usuarios : allUsuarios;
+  const users = usuarios;
 
   const parroquiasDisponibles = parroquias.filter(
     (p) => !p.parroco
@@ -189,16 +196,17 @@ export default function Usuarios() {
 
   const resetSearch = () => {
     setFilters({ ...initialUsuarioFilters });
-    dispatch(fetchAllUsuarios());
+    dispatch(fetchUsuarios({ page: 1 }));
   };
 
-  const reloadUsers = () => {
-    if (hasFilters) {
-      dispatch(fetchUsuarios(buildSearchQuery()));
-    } else {
-      dispatch(fetchAllUsuarios());
-    }
+  const reloadUsers = (page = currentPage) => {
+    dispatch(fetchUsuarios({ ...buildSearchQuery(), page }));
   };
+
+  const handlePageChange = (newPage) => {
+    dispatch(fetchUsuarios({ ...buildSearchQuery(), page: newPage }));
+  };
+
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -240,16 +248,9 @@ export default function Usuarios() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-
-    const action = hasFilters
-      ? await dispatch(fetchUsuarios(buildSearchQuery()))
-      : await dispatch(fetchAllUsuarios());
-
+    const action = await dispatch(fetchUsuarios({ ...buildSearchQuery(), page: 1 }));
     if (action.meta?.requestStatus !== 'fulfilled') {
-      setToast({
-        type: 'error',
-        message: extractError(action),
-      });
+      setToast({ type: 'error', message: extractError(action) });
     }
   };
 
@@ -465,6 +466,10 @@ export default function Usuarios() {
                             emptyMessage="Sin resultados"
                             onRowClick={handleSelectUsuario}
                             getRowKey={(u) => u.id_usuario || u.id}
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalItems={totalItems}
+                            onPageChange={handlePageChange}
                           />
                         
                       </div>

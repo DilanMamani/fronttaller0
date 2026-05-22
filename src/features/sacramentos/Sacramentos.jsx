@@ -2,6 +2,7 @@ import Layout from '../../shared/components/layout/Layout';
 import { useSacramentos } from './hooks/useSacramentos';
 import FormAgregar from '../../shared/components/pages/FormAgregar';
 import FormBuscarEditar from '../../shared/components/pages/FormBuscarEditar';
+import Toast from '../../shared/components/ui/Toast.jsx';
 
 const TIPO_OPTIONS = [
   { key: 'bautizo',    label: 'Bautizo' },
@@ -16,21 +17,10 @@ const TAB_OPTIONS = [
 
 export default function Sacramentos() {
   const ctx = useSacramentos();
-  const { activeTab, setActiveTab, tipoSacramento, setTipoSacramento, toast } = ctx;
+  const { activeTab, setActiveTab, tipoSacramento, setTipoSacramento, toast, setToast } = ctx;
 
   return (
     <Layout title="Gestión de Sacramentos">
-
-      {/* Toast */}
-      {toast && (
-        <div
-          className={`fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-[9999] text-white transition-all ${
-            toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
 
       {/* Selector de tipo de sacramento */}
       <div className="flex justify-end mb-3">
@@ -79,6 +69,9 @@ export default function Sacramentos() {
       {/* Contenido de la pestaña activa */}
       {activeTab === 'agregar' && <FormAgregar ctx={ctx} />}
       {activeTab === 'buscar'  && <FormBuscarEditar ctx={ctx} />}
+
+      {/* Toast — usa el componente compartido */}
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
     </Layout>
   );

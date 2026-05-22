@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { extractError } from '../../../shared/utils/extractError.js';
 
 import {
   fetchPersonasParaSacramento,
@@ -301,7 +302,7 @@ export function useSacramentos() {
         });
         setResults(planos);
       })
-      .catch(() => setToast({ type: 'error', message: 'No se pudo realizar la búsqueda' }))
+      .catch((err) => setToast({ type: 'error', message: extractError(err) }))
       .finally(() => setLoadingSacramento(false));
   };
 
@@ -330,8 +331,10 @@ export function useSacramentos() {
         resetForm();
       })
       .catch((err) => {
-        setToast({ type: 'error', message: err?.message || 'Error al registrar sacramento' });
+        console.log('HOOK CATCH ERR:', JSON.stringify(err));
+        setToast({ type: 'error', message: err?.msg || err?.message || 'Error' });
       });
+      
   };
 
   const handleBuscar = (e) => {
@@ -399,7 +402,7 @@ export function useSacramentos() {
         resetForm();
         ejecutarBusqueda();
       })
-      .catch(() => setToast({ type: 'error', message: 'No se pudo actualizar el sacramento' }))
+      .catch((err) => setToast({ type: 'error', message: extractError(err) || 'No se pudo actualizar el sacramento' }))
       .finally(() => setTimeout(() => setForceUpdateLoading(false), 500));
   };
 
@@ -423,7 +426,7 @@ export function useSacramentos() {
     tipoSacramento, setTipoSacramento,
     selectedPerson, setSelectedPerson,
     modalOpen, closeModal,
-    toast,
+    toast, setToast,
     forceUpdateLoading,
     loadingSacramento,
     results,
