@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { ClipLoader } from "react-spinners"; 
-const CERT_API = import.meta.env.VITE_CERTIFICADOS_URL;
+const CERT_API = import.meta.env.VITE_AWS_CERTIFICADOS;
 import Layout from '../../shared/components/layout/Layout';
 
 // === IMPORTACIONES DE REDUX ===
@@ -13,62 +13,53 @@ import {
 export default function Certificados() {
   const dispatch = useDispatch();
 
-  // === CONSTANTES DE MAPEO ===
-  // Nota: Se eliminó Confirmación como pediste
   const TIPO_SACRAMENTO_IDS = {
     Bautizo: 1,
     Matrimonio: 2,
     Comunion: 3 
   };
 
-  // === ESTADOS ===
   const [tipo, setTipo] = useState('Bautizo'); 
   
-  // Busqueda
   const [searchNombre, setSearchNombre] = useState('');
   const [searchCI, setSearchCI] = useState('');
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
   const [listaResultados, setListaResultados] = useState([]); 
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
 
-  // Sacramento Seleccionado
   const [sacramentoSeleccionado, setSacramentoSeleccionado] = useState(null);
 
-  // Estados visuales PDF
-  // Inicializamos plantilla en 'bautizo-rellenable' porque el tipo inicial es 'Bautizo'
   const [plantilla, setPlantilla] = useState('bautizo-rellenable');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Efecto para cambiar la plantilla seleccionada automáticamente si cambia el tipo
-  // Esto evita que te quedes con una plantilla de Bautizo seleccionada si cambias a Matrimonio
   useEffect(() => {
     if (tipo === 'Bautizo') setPlantilla('bautizo-rellenable');
-    if (tipo === 'Primera Comunión') setPlantilla('iglesia-rellenable'); // Ajusta este ID según tu backend
-    if (tipo === 'Matrimonio') setPlantilla('iglesia-rellenable');     // Ajusta este ID según tu backend
+    if (tipo === 'Primera Comunión') setPlantilla('iglesia-rellenable');
+    if (tipo === 'Matrimonio') setPlantilla('iglesia-rellenable');
   }, [tipo]);
 
-  const previsualizarCertificado = async (nombre_certificado, nombre_estudiante) => {
+  // === NUEVO: Se actualizó para recibir todo el objeto de datos y procesar el JSON devuelto por Lambda ===
+  const previsualizarCertificado = async (datos) => {
     try {
       setLoading(true);
-      const response = await fetch(
-  `${CERT_API}/mostrar-certificado?filename=${plantilla}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nombre_certificado,
-            nombre_estudiante,
-          }),
-        }
-      );
+      const response = await fetch(`${CERT_API}/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos), // Enviamos el objeto con el formato exacto
+      });
 
       if (!response.ok) throw new Error('Error al obtener certificado');
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      return url;
+      // === NUEVO: Ya no leemos blob, leemos el JSON que tiene la URL ===
+      const data = await response.json(); 
+      if (data.ok && data.url) {
+        return data.url; // Retornamos la URL pre-firmada de S3
+      } else {
+        throw new Error('La respuesta del servidor no contiene la URL');
+      }
+      
     } catch (error) {
       console.error('Error:', error);
       alert('No se pudo generar el certificado');
@@ -77,33 +68,37 @@ export default function Certificados() {
     }
   };
   
-  const descargarCertificado = async (sacramento_nombre, sacramento_fecha) => {
+  // === NUEVO: Se actualizó para manejar el nuevo payload y descargar desde la URL de S3 ===
+  const descargarCertificado = async (datos) => {
     try {
       setLoading(true);
-      const response = await fetch(
-  `${CERT_API}/descargar-certificado?filename=${plantilla}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sacramento_nombre,
-            sacramento_fecha,
-          }),
-        }
-      );
+      const response = await fetch(`${CERT_API}/generar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos),
+      });
 
-      if (!response.ok) throw new Error('Error al descargar certificado');
+      if (!response.ok) throw new Error('Error al generar certificado para descarga');
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const data = await response.json();
+      
+      if (data.ok && data.url) {
+        // === NUEVO: Como la URL es de S3 y tiene content-disposition=inline, 
+        // la obtenemos primero como blob para forzar la descarga en el navegador ===
+        const s3Response = await fetch(data.url);
+        const blob = await s3Response.blob();
+        const blobUrl = URL.createObjectURL(blob);
 
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'certificado.pdf';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `Certificado_${datos.nombre}_${datos.apellidoPaterno}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(blobUrl);
+      } else {
+        throw new Error('No se recibió la URL de descarga');
+      }
     } catch (error) {
       console.error('Error:', error);
       alert('No se pudo descargar el certificado');
@@ -112,8 +107,6 @@ export default function Certificados() {
     }
   };
 
-  
-  // === FUNCIÓN DE BÚSQUEDA ===
   const handleBuscarSacramento = (e) => {
     e.preventDefault();
     if (!searchNombre && !searchCI) {
@@ -143,16 +136,26 @@ export default function Certificados() {
           sac.personaSacramentos.forEach((rel) => {
             if (!rel.persona) return;
             const rolId = rel.rol_sacramento_id_rol_sacra;
-            // Filtro de roles protagonistas
             if ([1, 2, 3, 10, 11, 21].includes(rolId)) {
+                
+                // === NUEVO: Separamos los datos exactos que pide el Lambda ===
                 resultadosProcesados.push({
                   id_sacramento: sac.id_sacramento,
                   nombre_completo: `${rel.persona.nombre} ${rel.persona.apellido_paterno} ${rel.persona.apellido_materno}`,
                   ci: rel.persona.carnet_identidad,
                   fecha: sac.fecha_sacramento,
-                  foja: sac.foja,
-                  numero: sac.numero,
-                  rol: rolId === 11 ? 'Esposo/a' : 'Titular' 
+                  rol: rolId === 11 ? 'Esposo/a' : 'Titular',
+                  
+                  // Campos para el Payload del Lambda
+                  numero: "000000000", // Reemplazar con el valor real si viene en BD (ej: sac.numero_registro)
+                  iglesia: "Iglesia San Bernarndo", // Reemplazar si es dinámico
+                  presbitero: "Don Mario", // Reemplazar si es dinámico
+                  libro: sac.libro?.toString() || "10", // Ajusta si tu BD manda otro campo
+                  pagina: sac.foja?.toString() || "15",
+                  partida: sac.numero?.toString() || "13",
+                  apellidoPaterno: rel.persona.apellido_paterno || "",
+                  apellidoMaterno: rel.persona.apellido_materno || "",
+                  nombre: rel.persona.nombre || ""
                 });
             }
           });
@@ -172,40 +175,60 @@ export default function Certificados() {
     setSacramentoSeleccionado(item);
   };
 
+  // === NUEVO: Enviamos todo el objeto seleccionado en lugar de variables sueltas ===
   const handlePrevisualizar = async () => {
     if (!sacramentoSeleccionado) {
       alert("Primero debes buscar y SELECCIONAR un sacramento de la lista.");
       return;
     }
     setLoadingPdf(true);
-    const url = await previsualizarCertificado(sacramentoSeleccionado.nombre_completo, sacramentoSeleccionado.fecha);
-    if (url) setPdfUrl(url);
+    
+    // Creamos el payload limpiando datos visuales innecesarios si lo deseas, o mandamos todo
+    const payloadLambda = {
+      numero: sacramentoSeleccionado.numero || "---",
+      iglesia: sacramentoSeleccionado.iglesia || "---",
+      presbitero: sacramentoSeleccionado.presbitero || "---",
+      libro: sacramentoSeleccionado.libro || "---",
+      pagina: sacramentoSeleccionado.pagina || "---",
+      partida: sacramentoSeleccionado.partida || "---",
+      apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "---",
+      apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "---",
+      nombre: sacramentoSeleccionado.nombre || "---"
+    };
+
+    const url = await previsualizarCertificado(payloadLambda);
+    if (url) setPdfUrl(url); // El iframe tomará esta URL directamente
     setLoadingPdf(false);
   };
 
   const handleGenerar = async () => {
-    await descargarCertificado(sacramentoSeleccionado.nombre_completo, sacramentoSeleccionado.fecha);
+    const payloadLambda = {
+      numero: sacramentoSeleccionado.numero || "---",
+      iglesia: sacramentoSeleccionado.iglesia || "---",
+      presbitero: sacramentoSeleccionado.presbitero || "---",
+      libro: sacramentoSeleccionado.libro || "---",
+      pagina: sacramentoSeleccionado.pagina || "---",
+      partida: sacramentoSeleccionado.partida || "---",
+      apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "---",
+      apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "---",
+      nombre: sacramentoSeleccionado.nombre || "---"
+    };
+
+    await descargarCertificado(payloadLambda);
   };
 
-  // === HELPER PARA DETERMINAR ESTILO DE PLANTILLA ===
-  // Esta función decide si la tarjeta está activa o deshabilitada
   const getTemplateStyle = (targetTipo, currentTipo, isSelected) => {
     const isActiveType = targetTipo === currentTipo;
-    
-    // Base style (siempre presente)
     let base = "border rounded-lg p-3 flex items-center gap-3 transition-all duration-200 ";
     
     if (!isActiveType) {
-      // ESTILO DESHABILITADO: Opacidad baja, escala de grises, sin cursor
       return base + "border-gray-100 bg-gray-50 opacity-40 grayscale cursor-not-allowed";
     }
 
     if (isSelected) {
-      // ESTILO SELECCIONADO: Borde primario, fondo suave
       return base + "border-primary ring-1 ring-primary bg-primary/5 cursor-pointer shadow-sm";
     }
 
-    // ESTILO DISPONIBLE (pero no seleccionado): Hover effect
     return base + "border-gray-200 hover:border-gray-300 hover:bg-white cursor-pointer";
   };
 
@@ -220,7 +243,6 @@ export default function Certificados() {
             
             <form onSubmit={handleBuscarSacramento} className="space-y-4">
               
-              {/* Selector de Tipo (SIN CONFIRMACIÓN) */}
               <div>
                 <label className="block text-sm font-medium mb-1 text-gray-600 dark:text-gray-300">Tipo de Certificado</label>
                 <select
@@ -230,7 +252,7 @@ export default function Certificados() {
                     setSacramentoSeleccionado(null);
                     setListaResultados([]);
                     setBusquedaRealizada(false);
-                    setPdfUrl(null); // Limpiar PDF anterior al cambiar tipo
+                    setPdfUrl(null); 
                   }}
                   className="w-full p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 >
@@ -240,7 +262,6 @@ export default function Certificados() {
                 </select>
               </div>
 
-              {/* Inputs de Búsqueda */}
               <div className="grid grid-cols-2 gap-2">
                  <div className="col-span-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Buscar por Nombre</label>
@@ -345,12 +366,16 @@ export default function Certificados() {
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
                                     <div>
-                                        <span className="block text-gray-500 text-xs">Foja</span>
-                                        <span className="font-medium">{sacramentoSeleccionado.foja}</span>
+                                        <span className="block text-gray-500 text-xs">Libro</span>
+                                        <span className="font-medium">{sacramentoSeleccionado.libro}</span>
                                     </div>
                                     <div>
-                                        <span className="block text-gray-500 text-xs">Número</span>
-                                        <span className="font-medium">{sacramentoSeleccionado.numero}</span>
+                                        <span className="block text-gray-500 text-xs">Página</span>
+                                        <span className="font-medium">{sacramentoSeleccionado.pagina}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-gray-500 text-xs">Partida</span>
+                                        <span className="font-medium">{sacramentoSeleccionado.partida}</span>
                                     </div>
                                 </div>
                                 <div>
@@ -367,7 +392,6 @@ export default function Certificados() {
                              </label>
                              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                                 
-                                {/* 1. TARJETA BAUTIZO */}
                                 <div 
                                     onClick={() => tipo === 'Bautizo' && setPlantilla('bautizo-rellenable')}
                                     className={getTemplateStyle('Bautizo', tipo, plantilla === 'bautizo-rellenable')}
@@ -379,7 +403,6 @@ export default function Certificados() {
                                     </div>
                                 </div>
 
-                                {/* 2. TARJETA PRIMERA COMUNIÓN */}
                                 <div 
                                     onClick={() => tipo === 'Primera Comunión' && setPlantilla('iglesia-rellenable')}
                                     className={getTemplateStyle('Primera Comunión', tipo, plantilla === 'iglesia-rellenable' && tipo === 'Primera Comunión')}
@@ -391,7 +414,6 @@ export default function Certificados() {
                                     </div>
                                 </div>
 
-                                {/* 3. TARJETA MATRIMONIO */}
                                 <div 
                                     onClick={() => tipo === 'Matrimonio' && setPlantilla('iglesia-rellenable')}
                                     className={getTemplateStyle('Matrimonio', tipo, plantilla === 'iglesia-rellenable' && tipo === 'Matrimonio')}
