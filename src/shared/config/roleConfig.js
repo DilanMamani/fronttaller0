@@ -20,7 +20,8 @@ export const ROUTES = {
   PERSONAS: '/personas',
   SACRAMENTOS: '/sacramentos',
   CERTIFICADOS: '/certificados',
-  AUDITORIA: '/auditoria',
+  AUDITORIA_APLICACION: '/auditoria-aplicacion',
+  AUDITORIA_SEGURIDAD: '/auditoria-seguridad',
   USUARIOS: '/usuarios',
   REPORTES: '/reportes',
   PARROQUIAS: '/parroquias',
@@ -56,7 +57,8 @@ export const ROLE_PERMISSIONS = {
   [ROLES.OSI]: [
     ROUTES.USUARIOS,
     ROUTES.ROL_PERMISOS,
-    ROUTES.AUDITORIA,
+    ROUTES.AUDITORIA_APLICACION,
+    ROUTES.AUDITORIA_SEGURIDAD,
     ROUTES.SEGURIDAD,
     ROUTES.PERSONAS,
     ROUTES.SACRAMENTOS,
@@ -66,7 +68,7 @@ export const ROLE_PERMISSIONS = {
 
   ],
   [ROLES.AUDITOR]: [
-    ROUTES.AUDITORIA,
+    ROUTES.AUDITORIA_APLICACION,
   ],
   
 };

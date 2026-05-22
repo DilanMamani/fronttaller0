@@ -1,65 +1,80 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { auditoriaApi } from '../../../lib/api';
+import { auditoriaAplicacionApi } from '../../../lib/api';
 
-// Thunk para obtener auditorías con filtros y paginación
-export const fetchAuditorias = createAsyncThunk(
-  'auditoria/fetchAuditorias',
+// Thunk para obtener auditoría de aplicación
+export const fetchAuditoriasAplicacion = createAsyncThunk(
+  'auditoriaAplicacion/fetchAuditorias',
   async (params, { rejectWithValue }) => {
     try {
-      // Construir parámetros de query según el backend
       const queryParams = {};
-      
+
       // Fechas
-      if (params.startDate) queryParams.start_date = params.startDate;
-      if (params.endDate) queryParams.end_date = params.endDate;
-      
+      if (params.startDate)      queryParams.start_date        = params.startDate;
+      if (params.endDate)        queryParams.end_date          = params.endDate;
+
       // Duración
-      if (params.minDuration) queryParams.min_duration = params.minDuration;
-      if (params.maxDuration) queryParams.max_duration = params.maxDuration;
-      
-      // Textos de búsqueda
-      if (params.nombre_usuario) queryParams.nombre_usuario= params.nombre_usuario;//Provisional mientras dilan manda nombre en bd
-      if (params.username) queryParams.user_name = params.username;
-      if (params.appName) queryParams.application_name = params.appName;
-      if (params.endpoint) queryParams.url = params.endpoint;
-      if (params.userAgent) queryParams.user_agent = params.userAgent;
-      
-      // Método y status HTTP
-      if (params.httpMethod) queryParams.http_method = params.httpMethod;
-      if (params.httpStatus) queryParams.http_status_code = params.httpStatus;
-      
-      // IP y correlación
-      
-      //if (params.cambio) queryParams.cambio = params.cambio;//Provisional mientras dilan manda nombre en bd
-      if (params.ipAddress) queryParams.ip_address = params.ipAddress; //Deshabilitado temporalmente en ya que no sacamos ip :P
-      if (params.correlationId) queryParams.correlation_id = params.correlationId;
-      
+      if (params.minDuration)    queryParams.min_duration      = params.minDuration;
+      if (params.maxDuration)    queryParams.max_duration      = params.maxDuration;
+
+      // Textos
+      if (params.username)       queryParams.user_name         = params.username;
+      if (params.appName)        queryParams.application_name  = params.appName;
+      if (params.endpoint)       queryParams.url               = params.endpoint;
+      if (params.userAgent)      queryParams.user_agent        = params.userAgent;
+
+      // HTTP
+      if (params.httpMethod)     queryParams.http_method       = params.httpMethod;
+      if (params.httpStatus)     queryParams.http_status_code  = params.httpStatus;
+
+      // Red
+      if (params.ipAddress)      queryParams.ip_address        = params.ipAddress;
+      if (params.correlationId)  queryParams.correlation_id    = params.correlationId;
+
+      // Nuevos filtros de aplicación
+      if (params.entidad)        queryParams.entidad           = params.entidad;
+      if (params.accion)         queryParams.accion            = params.accion;
+
       // Excepción
       if (params.hasException !== '') queryParams.has_exception = params.hasException;
-      
+
       // Paginación
-      queryParams.page = params.page || 1;
+      queryParams.page  = params.page  || 1;
       queryParams.limit = params.limit || 10;
-      
-      const response = await auditoriaApi.fetchAuditorias(queryParams);
+
+      // ← nuevo endpoint
+      const response = await auditoriaAplicacionApi.fetchAuditoriasAplicacion(queryParams);
       return response;
     } catch (error) {
-      return rejectWithValue(error.message || 'Error al obtener auditorías');
+      return rejectWithValue(error.message || 'Error al obtener auditoría de aplicación');
     }
   }
 );
 
-// Slice
-const auditoriaSlice = createSlice({
-  name: 'auditoria',
+// Thunk para obtener el detalle de un registro (dato anterior/nuevo/diff)
+export const fetchAuditoriaAplicacionDetalle = createAsyncThunk(
+  'auditoriaAplicacion/fetchDetalle',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await auditoriaAplicacionApi.fetchAuditoriaAplicacionDetalle(id);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Error al obtener detalle');
+    }
+  }
+);
+
+const auditoriaAplicacionSlice = createSlice({
+  name: 'auditoriaAplicacion',
   initialState: {
-    data: [],
-    total: 0,
-    currentPage: 1,
-    itemsPerPage: 10,
+    data:           [],
+    total:          0,
+    currentPage:    1,
+    itemsPerPage:   10,
     appliedFilters: {},
-    loading: false,
-    error: null,
+    detalle:        null,   // dato_anterior, dato_nuevo, campos_modificados
+    loading:        false,
+    loadingDetalle: false,
+    error:          null,
   },
   reducers: {
     setCurrentPage: (state, action) => {
@@ -67,7 +82,10 @@ const auditoriaSlice = createSlice({
     },
     setItemsPerPage: (state, action) => {
       state.itemsPerPage = action.payload;
-      state.currentPage = 1; // Reset a primera página
+      state.currentPage  = 1;
+    },
+    clearDetalle: (state) => {
+      state.detalle = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -75,26 +93,40 @@ const auditoriaSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchAuditorias.pending, (state) => {
+      // Lista
+      .addCase(fetchAuditoriasAplicacion.pending, (state) => {
         state.loading = true;
-        state.error = null;
+        state.error   = null;
       })
-      .addCase(fetchAuditorias.fulfilled, (state, action) => {
-        state.loading = false;
-        state.data = action.payload.data || [];
-        state.total = action.payload.total || 0;
-        state.currentPage = action.payload.page || 1;
-        state.appliedFilters = action.payload.applied_filters || {};
+      .addCase(fetchAuditoriasAplicacion.fulfilled, (state, action) => {
+        state.loading         = false;
+        state.data            = action.payload.data            || [];
+        state.total           = action.payload.total           || 0;
+        state.currentPage     = action.payload.page            || 1;
+        state.appliedFilters  = action.payload.applied_filters || {};
       })
-      .addCase(fetchAuditorias.rejected, (state, action) => {
+      .addCase(fetchAuditoriasAplicacion.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
-        state.data = [];
-        state.total = 0;
+        state.error   = action.payload;
+        state.data    = [];
+        state.total   = 0;
+      })
+
+      // Detalle
+      .addCase(fetchAuditoriaAplicacionDetalle.pending, (state) => {
+        state.loadingDetalle = true;
+      })
+      .addCase(fetchAuditoriaAplicacionDetalle.fulfilled, (state, action) => {
+        state.loadingDetalle = false;
+        state.detalle        = action.payload.data || null;
+      })
+      .addCase(fetchAuditoriaAplicacionDetalle.rejected, (state, action) => {
+        state.loadingDetalle = false;
+        state.error          = action.payload;
       });
   },
 });
 
-export const { setCurrentPage, setItemsPerPage, clearError } = auditoriaSlice.actions;
-export const auditoriaReducer = auditoriaSlice.reducer;
-export default auditoriaSlice.reducer;
+export const { setCurrentPage, setItemsPerPage, clearDetalle, clearError } = auditoriaAplicacionSlice.actions;
+export const auditoriaAplicacionReducer = auditoriaAplicacionSlice.reducer;
+export default auditoriaAplicacionSlice.reducer;

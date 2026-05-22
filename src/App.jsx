@@ -8,6 +8,7 @@ import Dashboard from './features/dashboard/Dashboard'
 import Login from './features/login/Login'
 import Personas from './features/personas/Personas'
 import Auditoria from './features/auditoria/Auditoria'
+import AuditoriaSeguridad from './features/auditoriaSeguridad/AuditoriaSeguridad'
 import Sacramentos from './features/sacramentos/Sacramentos'
 import Usuarios from './features/usuarios/Usuarios'
 import Reportes from './features/reportes/Reportes'
@@ -58,10 +59,18 @@ export default function App() {
             }
           />
           <Route
-            path={ROUTES.AUDITORIA}
+            path={ROUTES.AUDITORIA_APLICACION}
             element={
-              <ProtectedRoute requiredRoute={ROUTES.AUDITORIA}>
+              <ProtectedRoute requiredRoute={ROUTES.AUDITORIA_APLICACION}>
                 <Auditoria />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={ROUTES.AUDITORIA_SEGURIDAD}
+            element={
+              <ProtectedRoute requiredRoute={ROUTES.AUDITORIA_SEGURIDAD}>
+                <AuditoriaSeguridad />
               </ProtectedRoute>
             }
           />

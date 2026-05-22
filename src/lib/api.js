@@ -166,9 +166,17 @@ export const passwordApi = {
     api.post('/password/cambiar', { token, newPassword }).then((res) => res.data).catch(handleError),
 };
 
-export const auditoriaApi = {
-  fetchAuditorias: (params = {}) =>
-    api.get('/auditoria/', { params }).then((res) => res.data).catch(handleError),
+export const auditoriaAplicacionApi = {
+  fetchAuditoriasAplicacion: (params = {}) =>
+    api.get('/auditoria/aplicacion', { params }).then((res) => res.data).catch(handleError),
+  fetchAuditoriaAplicacionDetalle: (id) =>
+    api.get(`/auditoria/aplicacion/${id}`).then((res) => res.data).catch(handleError),
+};
+export const auditoriaSeguridadApi = {
+  fetchAuditoriasSeguridad: (params = {}) =>
+    api.get('/auditoria/seguridad', { params }).then((res) => res.data).catch(handleError),
+  fetchAuditoriaById: (id) =>
+    api.get(`/auditoria/seguridad/${id}`).then((res) => res.data).catch(handleError),
 };
 
 export const dashboardApi = {

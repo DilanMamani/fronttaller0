@@ -24,10 +24,7 @@ export const personaFields = [
     options: [
       { value: '', label: 'Seleccione' },
       { value: 'Verificado', label: 'Verificado' },
-      { value: 'verificado', label: 'Verificado' },
-
       { value: 'No verificado', label: 'No verificado' },
-      { value: 'no verificado', label: 'No verificado' },
     ],
   },
   ];

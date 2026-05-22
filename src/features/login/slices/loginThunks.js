@@ -33,7 +33,7 @@ export const loginUser = createAsyncThunk(
       };
     } catch (error) {
       return rejectWithValue({
-        message: error.message || 'No se pudo conectar con el servidor',
+        message: error.message || error.msg || 'No se pudo conectar con el servidor',
         type: 'error',
       });
     }
@@ -64,7 +64,7 @@ export const verify2FAUser = createAsyncThunk(
       };
     } catch (error) {
       return rejectWithValue({
-        message: error.message || 'No se pudo verificar el código',
+        message: error.message || error.msg || 'No se pudo verificar el código',
         type: 'error',
       });
     }
