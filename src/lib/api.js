@@ -34,7 +34,7 @@ api.interceptors.response.use(
 
 // manejo de errores
 const handleError = (error) => {
-  throw error.response?.data || { message: error.message };
+  throw error.response?.data || error.data || error;
 };
 
 export const loginApi = {
@@ -166,9 +166,17 @@ export const passwordApi = {
     api.post('/password/cambiar', { token, newPassword }).then((res) => res.data).catch(handleError),
 };
 
-export const auditoriaApi = {
-  fetchAuditorias: (params = {}) =>
-    api.get('/auditoria/', { params }).then((res) => res.data).catch(handleError),
+export const auditoriaAplicacionApi = {
+  fetchAuditoriasAplicacion: (params = {}) =>
+    api.get('/auditoria/aplicacion', { params }).then((res) => res.data).catch(handleError),
+  fetchAuditoriaAplicacionDetalle: (id) =>
+    api.get(`/auditoria/aplicacion/${id}`).then((res) => res.data).catch(handleError),
+};
+export const auditoriaSeguridadApi = {
+  fetchAuditoriasSeguridad: (params = {}) =>
+    api.get('/auditoria/seguridad', { params }).then((res) => res.data).catch(handleError),
+  fetchAuditoriaById: (id) =>
+    api.get(`/auditoria/seguridad/${id}`).then((res) => res.data).catch(handleError),
 };
 
 export const dashboardApi = {
@@ -209,14 +217,12 @@ export const sacramentosApi = {
   // para buscar personas con todos los sacramentos (candidatos a sacerdote)
   buscarPersonasConTodosLosSacramentos: (params = {}) =>
     api
-      .get('/sacramentos/buscar-sacerdotes/todos-sacramentos', { params })
-      .then((res) => res.data)
-      .catch(handleError),  
-      
-    
 
+    .get('/usuarios', { params })
 
-  
+    .then((res) => res.data)
+
+    .catch(handleError),    
 };
 //apis para roles 
 export const rolesApi = {
@@ -262,4 +268,57 @@ export const dominiosApi = {
   updateDominio: (id, data) =>
     api.put(`/dominio-permitido/${id}`, data).then((res) => res.data).catch(handleError),
 
-};  
+};
+
+export const ocrApi = {
+  // PASO 1 — Subir imagen y procesar OCR
+  preview: (formData) =>
+    api
+      .post('/ocr/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // PASO 3 — Asignar parroquia existente al histórico
+  asignarParroquia: (historicoId, data) =>
+    api
+      .put(`/ocr/parroquia/${historicoId}`, data)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // PASO 3 — Crear y asignar nueva parroquia al histórico
+  crearParroquia: (historicoId, data) =>
+    api
+      .post(`/ocr/parroquia/crear/${historicoId}`, data)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // PASO 4 — Confirmar y crear sacramento
+  confirmar: (data) =>
+    api
+      .post('/ocr/confirmar', data)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // Rechazar un histórico OCR
+  rechazar: (historicoId) =>
+    api
+      .put(`/ocr/rechazar/${historicoId}`)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // Listar histórico de registros OCR
+  fetchHistorico: (params = {}) =>
+    api
+      .get('/ocr/historico', { params })
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // Buscar personas por texto (buscador autocomplete del flujo OCR)
+  buscarPersonas: (params = {}) =>
+    api
+      .get('/personas/buscar/sacramento', { params })
+      .then((res) => res.data)
+      .catch(handleError),
+};

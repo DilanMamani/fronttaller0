@@ -148,6 +148,6 @@ export const selectIsLoadingById = (state) => state.parroquias?.isLoadingById ??
 export const selectIsSaving = (state) => state.parroquias.isSaving;
 export const selectError = (state) => state.parroquias?.error ?? null
 
-// 🚀 Exportar reducer
+// Exportar reducer
 export const parroquiasReducer = parroquiasSlice.reducer;
 export default parroquiasSlice.reducer;

@@ -8,6 +8,7 @@ import Dashboard from './features/dashboard/Dashboard'
 import Login from './features/login/Login'
 import Personas from './features/personas/Personas'
 import Auditoria from './features/auditoria/Auditoria'
+import AuditoriaSeguridad from './features/auditoriaSeguridad/AuditoriaSeguridad'
 import Sacramentos from './features/sacramentos/Sacramentos'
 import Usuarios from './features/usuarios/Usuarios'
 import Reportes from './features/reportes/Reportes'
@@ -16,6 +17,7 @@ import Parroquias from './features/parroquias/Parroquias';
 import ResetPassword from './features/password/pages/ResetPassword';
 import RolesPermisos from './features/roles/Roles';
 import ConfiguracionSeguridad from './features/seguridad/Seguridad';
+import Ocr from './features/ocr/Ocr';
 
 export default function App() {
   return (
@@ -58,10 +60,18 @@ export default function App() {
             }
           />
           <Route
-            path={ROUTES.AUDITORIA}
+            path={ROUTES.AUDITORIA_APLICACION}
             element={
-              <ProtectedRoute requiredRoute={ROUTES.AUDITORIA}>
+              <ProtectedRoute requiredRoute={ROUTES.AUDITORIA_APLICACION}>
                 <Auditoria />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={ROUTES.AUDITORIA_SEGURIDAD}
+            element={
+              <ProtectedRoute requiredRoute={ROUTES.AUDITORIA_SEGURIDAD}>
+                <AuditoriaSeguridad />
               </ProtectedRoute>
             }
           />
@@ -102,6 +112,15 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoute="/configuracion-seguridad">
                 <ConfiguracionSeguridad />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={ROUTES.OCR}
+            element={
+              <ProtectedRoute requiredRoute={ROUTES.OCR}>
+                <Ocr />
               </ProtectedRoute>
             }
           />

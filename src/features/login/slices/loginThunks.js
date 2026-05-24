@@ -28,11 +28,12 @@ export const loginUser = createAsyncThunk(
         email: response.email || '',
         rol: response.rol?.nombre || 'Usuario',
         token: response.token,
+        parroquia: response.parroquia || null,
         expiresAt: null,
       };
     } catch (error) {
       return rejectWithValue({
-        message: error.message || 'No se pudo conectar con el servidor',
+        message: error.message || error.msg || 'No se pudo conectar con el servidor',
         type: 'error',
       });
     }
@@ -59,10 +60,11 @@ export const verify2FAUser = createAsyncThunk(
         rol: response.rol?.nombre || 'Usuario',
         token: response.token,
         expiresAt: null,
+        parroquia: response.parroquia || null,  
       };
     } catch (error) {
       return rejectWithValue({
-        message: error.message || 'No se pudo verificar el código',
+        message: error.message || error.msg || 'No se pudo verificar el código',
         type: 'error',
       });
     }
