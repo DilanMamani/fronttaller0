@@ -34,7 +34,7 @@ api.interceptors.response.use(
 
 // manejo de errores
 const handleError = (error) => {
-  throw error.response?.data || { message: error.message };
+  throw error.response?.data || error.data || error;
 };
 
 export const loginApi = {
@@ -166,9 +166,17 @@ export const passwordApi = {
     api.post('/password/cambiar', { token, newPassword }).then((res) => res.data).catch(handleError),
 };
 
-export const auditoriaApi = {
-  fetchAuditorias: (params = {}) =>
-    api.get('/auditoria/', { params }).then((res) => res.data).catch(handleError),
+export const auditoriaAplicacionApi = {
+  fetchAuditoriasAplicacion: (params = {}) =>
+    api.get('/auditoria/aplicacion', { params }).then((res) => res.data).catch(handleError),
+  fetchAuditoriaAplicacionDetalle: (id) =>
+    api.get(`/auditoria/aplicacion/${id}`).then((res) => res.data).catch(handleError),
+};
+export const auditoriaSeguridadApi = {
+  fetchAuditoriasSeguridad: (params = {}) =>
+    api.get('/auditoria/seguridad', { params }).then((res) => res.data).catch(handleError),
+  fetchAuditoriaById: (id) =>
+    api.get(`/auditoria/seguridad/${id}`).then((res) => res.data).catch(handleError),
 };
 
 export const dashboardApi = {
@@ -209,14 +217,12 @@ export const sacramentosApi = {
   // para buscar personas con todos los sacramentos (candidatos a sacerdote)
   buscarPersonasConTodosLosSacramentos: (params = {}) =>
     api
-      .get('/sacramentos/buscar-sacerdotes/todos-sacramentos', { params })
-      .then((res) => res.data)
-      .catch(handleError),  
-      
-    
 
+    .get('/usuarios', { params })
 
-  
+    .then((res) => res.data)
+
+    .catch(handleError),    
 };
 //apis para roles 
 export const rolesApi = {

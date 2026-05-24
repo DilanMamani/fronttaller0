@@ -6,7 +6,8 @@ import { loginReducer } from '../features/login/slices/loginSlice';
 import { dashboardReducer } from '../features/dashboard/slices/dashboardSlice';
 import { personasReducer } from '../features/personas/slices/personasSlice';
 import { passwordReducer } from '../features/password/slices/passwordSlice';
-import { auditoriaReducer } from '../features/auditoria/slices/auditoriaSlice';
+import { auditoriaAplicacionReducer } from '../features/auditoria/slices/auditoriaSlice';
+import { auditoriaSeguriadReducer } from '../features/auditoriaSeguridad/slices/auditoriaSeguridadSlices';
 import { usuariosReducer } from '../features/usuarios/slices/usuariosSlice';
 import { parroquiasReducer } from '../features/parroquias/slices/parroquiasSlice';
 import rolesReducer from '../features/roles/slicesRol/rolesSlice';
@@ -28,7 +29,8 @@ export const rootReducer = combineReducers({
   dashboard: dashboardReducer,
   personas: personasReducer,
   password: passwordReducer,
-  auditoria: auditoriaReducer,
+  auditoriaAplicacion: auditoriaAplicacionReducer,
+  auditoriaSeguridad: auditoriaSeguriadReducer,
   usuarios: usuariosReducer,
   parroquias: parroquiasReducer,
   roles: rolesReducer,
