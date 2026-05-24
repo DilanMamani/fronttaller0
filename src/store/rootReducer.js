@@ -13,6 +13,7 @@ import rolesReducer from '../features/roles/slicesRol/rolesSlice';
 import permisosReducer from '../features/roles/slicesPermiso/permisosSlice';
 import configuracionSeguridadReducer from '../features/seguridad/slices/configuracionSeguridadSlice';
 import dominiosPermitidosReducer from '../features/seguridad/slicesDominio/dominiosPermitidosSlice';
+import { ocrReducer } from '../features/ocr/slices/ocrSlice';
 // Agregar otros reducers aqui sdjalsd
 // Mantener los reducers en sus carpetas pofavo
 
@@ -34,6 +35,7 @@ export const rootReducer = combineReducers({
   permisos: permisosReducer,
   configuracionSeguridad: configuracionSeguridadReducer,
   dominiosPermitidos: dominiosPermitidosReducer,
+  ocr: ocrReducer,
   // Agregar otros reducers aqui sdjalsd
 });
 

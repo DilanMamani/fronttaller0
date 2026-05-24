@@ -16,6 +16,7 @@ import Parroquias from './features/parroquias/Parroquias';
 import ResetPassword from './features/password/pages/ResetPassword';
 import RolesPermisos from './features/roles/Roles';
 import ConfiguracionSeguridad from './features/seguridad/Seguridad';
+import Ocr from './features/ocr/Ocr';
 
 export default function App() {
   return (
@@ -102,6 +103,15 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoute="/configuracion-seguridad">
                 <ConfiguracionSeguridad />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={ROUTES.OCR}
+            element={
+              <ProtectedRoute requiredRoute={ROUTES.OCR}>
+                <Ocr />
               </ProtectedRoute>
             }
           />
