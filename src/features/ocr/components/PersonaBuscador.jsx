@@ -4,7 +4,11 @@ import { fetchPersonasParaSacramento } from '../../sacramentos/slices/sacramento
 import NuevaPersonaModal from './NuevaPersonaModal';
 
 /**
- * Buscador de personas para el flujo OCR.
+ * Roles aceptados por el backend
+ * ─────────────────────────────────────────────────────────────────────────────
+ * tipo=sacramento → rol: bautizo | comunion | matrimonio
+ * tipo=rol        → rol: padrino | ministro | testigo | (cualquier rol del sistema)
+ * ─────────────────────────────────────────────────────────────────────────────
  *
  * Props:
  *  - label               : string
@@ -14,10 +18,10 @@ import NuevaPersonaModal from './NuevaPersonaModal';
  *  - onSelect            : (persona) => void
  *  - onClear             : () => void
  *  - personaSeleccionada : object | null
- *  - advertencia         : string     — aviso opcional (ej. "debe tener bautismo")
+ *  - advertencia         : string     — aviso opcional
  *  - error               : string     — error de validación externo
- *  - rol                 : string     — rol para la búsqueda (default: 'bautismo')
- *  - tipo                : string     — tipo de búsqueda (default: 'sacramento')
+ *  - rol                 : string     — rol para la búsqueda (ver tabla arriba)
+ *  - tipo                : string     — 'sacramento' | 'rol'
  *  - permitirCrear       : bool       — si se permite crear nueva persona (default: true)
  */
 export default function PersonaBuscador({
@@ -30,7 +34,7 @@ export default function PersonaBuscador({
   personaSeleccionada = null,
   advertencia = '',
   error = '',
-  rol = 'bautismo',
+  rol = 'bautizo',
   tipo = 'sacramento',
   permitirCrear = true,
 }) {
@@ -60,7 +64,6 @@ export default function PersonaBuscador({
   // Búsqueda con debounce
   useEffect(() => {
     if (personaSeleccionada) return;
-
     clearTimeout(debounceRef.current);
 
     if (query.trim().length < 3) {
@@ -81,11 +84,15 @@ export default function PersonaBuscador({
           setResultados(personas);
           setOpen(true);
         } else {
-          setSearchError('Error al buscar personas.');
+          // Mostrar mensaje de error del servidor si lo hay
+          const msg = action.payload?.msg || action.payload?.message || 'Error al buscar personas.';
+          setSearchError(msg);
           setResultados([]);
+          setOpen(true);
         }
       } catch {
         setSearchError('Error al buscar personas.');
+        setOpen(true);
       } finally {
         setIsSearching(false);
       }
@@ -96,7 +103,11 @@ export default function PersonaBuscador({
 
   const handleSelect = (persona) => {
     setOpen(false);
-    setQuery(`${persona.nombre} ${persona.apellido_paterno} ${persona.apellido_materno}`);
+    setQuery(
+      [persona.nombre, persona.apellido_paterno, persona.apellido_materno]
+        .filter(Boolean)
+        .join(' ')
+    );
     onSelect(persona);
   };
 
@@ -104,6 +115,7 @@ export default function PersonaBuscador({
     setQuery('');
     setResultados([]);
     setOpen(false);
+    setSearchError('');
     onClear();
   };
 
@@ -121,7 +133,9 @@ export default function PersonaBuscador({
       {/* Advertencia opcional */}
       {advertencia && (
         <div className="flex items-start gap-2 p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-          <span className="material-symbols-outlined text-amber-500 text-[16px] mt-0.5 flex-shrink-0">warning</span>
+          <span className="material-symbols-outlined text-amber-500 text-[16px] mt-0.5 flex-shrink-0">
+            warning
+          </span>
           <p className="text-xs text-amber-700 dark:text-amber-400">{advertencia}</p>
         </div>
       )}
@@ -165,7 +179,7 @@ export default function PersonaBuscador({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => resultados.length > 0 && setOpen(true)}
+              onFocus={() => (resultados.length > 0 || searchError) && setOpen(true)}
               placeholder={placeholder}
               className={[
                 'w-full pl-9 pr-10 py-2 text-sm rounded-lg border bg-white dark:bg-gray-800',
@@ -195,7 +209,22 @@ export default function PersonaBuscador({
           {open && (
             <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg overflow-hidden">
               {searchError ? (
-                <div className="px-4 py-3 text-sm text-red-500">{searchError}</div>
+                <div className="px-4 py-3 space-y-2">
+                  <p className="text-sm text-red-500 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[15px]">error</span>
+                    {searchError}
+                  </p>
+                  {permitirCrear && (
+                    <button
+                      type="button"
+                      onClick={() => { setOpen(false); setModalOpen(true); }}
+                      className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">person_add</span>
+                      Registrar nueva persona
+                    </button>
+                  )}
+                </div>
               ) : resultados.length === 0 ? (
                 <div className="px-4 py-3 space-y-2">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -256,7 +285,7 @@ export default function PersonaBuscador({
         </div>
       )}
 
-      {/* Error de validación */}
+      {/* Error de validación externo */}
       {error && (
         <p className="text-xs text-red-600 flex items-center gap-1">
           <span className="material-symbols-outlined text-[13px]">error</span>
