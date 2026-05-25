@@ -12,7 +12,7 @@ import {
 import PersonaBuscador from './PersonaBuscador';
 
 const ADV_MATRIMONIO =
-  'Esta persona debe tener bautismo y confirmación registrados. Si no los tiene, el registro fallará.';
+  'Esta persona debe tener bautismo y primera comunión registrados en el sistema. Si no los tiene, el registro fallará.';
 
 export default function Paso2Matrimonio() {
   const dispatch = useDispatch();
@@ -21,6 +21,16 @@ export default function Paso2Matrimonio() {
   const isConfirming = useSelector(selectOcrIsConfirming);
   const isRechazando = useSelector(selectOcrIsRechazando);
   const errorGlobal = useSelector(selectOcrError);
+
+  const parseFecha = (str = '') => {
+    if (!str) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (!match) return null;
+    const [, d, m, y] = match;
+    const iso = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    return isNaN(new Date(iso).getTime()) ? null : iso;
+  };
 
   const [campos, setCampos] = useState({
     fecha_sacramento: dd?.fecha_sacramento || '',
@@ -62,23 +72,45 @@ export default function Paso2Matrimonio() {
     if (!contrayente) newErrors.contrayente = 'Selecciona el contrayente (él).';
     if (!contrayenta) newErrors.contrayenta = 'Selecciona la contrayenta (ella).';
     if (Object.keys(newErrors).length) return setErrores(newErrors);
+
+    const fechaISO = parseFecha(campos.fecha_sacramento);
+    if (!fechaISO) {
+      setErrores({ general: 'La fecha del matrimonio no es válida. Usa dd/mm/aaaa.' });
+      return;
+    }
+
     setErrores({});
 
     const rels = relaciones
       .filter((r) => r.persona?.id_persona)
       .map((r) => ({ rol_sacramento_id: r.rol_sacramento_id, persona_id: r.persona.id_persona }));
 
+    // El backend busca personas por nombre_completo en novio_1 y novio_2
+    // Usa buscarPersonaPorNombreCompleto internamente
+    const nombreContrayente =
+      contrayente
+        ? `${contrayente.nombre} ${contrayente.apellido_paterno} ${contrayente.apellido_materno}`.trim()
+        : campos.nombre_contrayente;
+
+    const nombreContrayenta =
+      contrayenta
+        ? `${contrayenta.nombre} ${contrayenta.apellido_paterno} ${contrayenta.apellido_materno}`.trim()
+        : campos.nombre_contrayenta;
+
     dispatch(
       confirmarOcr({
         historico_id: historicoId,
-        fecha_sacramento: campos.fecha_sacramento,
+        fecha_sacramento: fechaISO,
         foja: campos.foja,
         numero: campos.numero,
-        lugar_ceremonia: campos.lugar_ceremonia,
-        reg_civil: campos.reg_civil,
-        numero_acta: campos.numero_acta,
-        novio_1: { nombre_completo: campos.nombre_contrayente, persona_id: contrayente.id_persona },
-        novio_2: { nombre_completo: campos.nombre_contrayenta, persona_id: contrayenta.id_persona },
+        novio_1: {
+          nombre_completo: nombreContrayente,
+          persona_id: contrayente.id_persona,
+        },
+        novio_2: {
+          nombre_completo: nombreContrayenta,
+          persona_id: contrayenta.id_persona,
+        },
         relaciones: rels,
       })
     );
@@ -88,11 +120,16 @@ export default function Paso2Matrimonio() {
     <div className="space-y-8">
       <SectionHeader icon="favorite" title="Matrimonio — Revisión de datos" />
 
-      {/* Datos del documento */}
       <Section title="Datos del documento">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Fecha del matrimonio">
-            <input type="text" value={campos.fecha_sacramento} onChange={(e) => handleCampo('fecha_sacramento', e.target.value)} placeholder="dd/mm/aaaa" className={ic()} />
+            <input
+              type="text"
+              value={campos.fecha_sacramento}
+              onChange={(e) => handleCampo('fecha_sacramento', e.target.value)}
+              placeholder="dd/mm/aaaa"
+              className={ic()}
+            />
           </Field>
           <Field label="Foja">
             <input type="text" value={campos.foja} onChange={(e) => handleCampo('foja', e.target.value)} className={ic()} />
@@ -127,43 +164,47 @@ export default function Paso2Matrimonio() {
         </div>
       </Section>
 
-      {/* Contrayente (él) */}
+      {errores.general && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-300 rounded-lg">
+          <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>
+          <p className="text-sm text-red-700 dark:text-red-400">{errores.general}</p>
+        </div>
+      )}
+
       <Section title="Contrayente (él)">
         <PersonaBuscador
           label="Buscar contrayente *"
           placeholder="Nombre o CI..."
           initialQuery={campos.nombre_contrayente}
           datosOcr={{ nombre_completo: campos.nombre_contrayente }}
+          rol="matrimonio"
+          tipo="sacramento"
           onSelect={(p) => { setContrayente(p); setErrores((e) => ({ ...e, contrayente: '' })); }}
           onClear={() => setContrayente(null)}
           personaSeleccionada={contrayente}
           advertencia={ADV_MATRIMONIO}
           error={errores.contrayente}
+          permitirCrear={false}
         />
-        {errorGlobal?.toLowerCase().includes('contrayente') && (
-          <p className="text-xs text-red-600 mt-1">{errorGlobal}</p>
-        )}
       </Section>
 
-      {/* Contrayenta (ella) */}
       <Section title="Contrayenta (ella)">
         <PersonaBuscador
           label="Buscar contrayenta *"
           placeholder="Nombre o CI..."
           initialQuery={campos.nombre_contrayenta}
           datosOcr={{ nombre_completo: campos.nombre_contrayenta }}
+          rol="matrimonio"
+          tipo="sacramento"
           onSelect={(p) => { setContrayenta(p); setErrores((e) => ({ ...e, contrayenta: '' })); }}
           onClear={() => setContrayenta(null)}
           personaSeleccionada={contrayenta}
           advertencia={ADV_MATRIMONIO}
           error={errores.contrayenta}
+          permitirCrear={false}
         />
-        {errorGlobal?.toLowerCase().includes('contrayenta') && (
-          <p className="text-xs text-red-600 mt-1">{errorGlobal}</p>
-        )}
       </Section>
 
-      {/* Otras relaciones */}
       <Section
         title="Sacerdote / testigos / otras relaciones"
         action={
@@ -179,9 +220,11 @@ export default function Paso2Matrimonio() {
               <PersonaBuscador
                 label={`Relación ${idx + 1}`}
                 datosOcr={{}}
+                rol="bautismo"
                 onSelect={(p) => setRelPersona(idx, p)}
                 onClear={() => setRelPersona(idx, null)}
                 personaSeleccionada={r.persona}
+                permitirCrear={false}
               />
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-gray-500">Rol</label>
@@ -209,8 +252,7 @@ export default function Paso2Matrimonio() {
         ))}
       </Section>
 
-      {/* Error global */}
-      {errorGlobal && !errorGlobal.toLowerCase().includes('contrayent') && (
+      {errorGlobal && (
         <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-300 rounded-lg">
           <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>
           <p className="text-sm text-red-700 dark:text-red-400">{errorGlobal}</p>
@@ -218,15 +260,21 @@ export default function Paso2Matrimonio() {
       )}
 
       <div className="flex justify-between pt-2">
-        <button onClick={handleRechazar} disabled={isRechazando}
-          className="px-4 py-2 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center gap-2">
+        <button
+          onClick={handleRechazar}
+          disabled={isRechazando}
+          className="px-4 py-2 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center gap-2"
+        >
           {isRechazando && <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>}
           Rechazar
         </button>
-        <button onClick={handleConfirmar} disabled={isConfirming}
-          className="px-5 py-2 text-sm rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2">
+        <button
+          onClick={handleConfirmar}
+          disabled={isConfirming}
+          className="px-5 py-2 text-sm rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
+        >
           {isConfirming && <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>}
-          Continuar
+          Confirmar sacramento
           <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
         </button>
       </div>
@@ -242,7 +290,6 @@ function SectionHeader({ icon, title }) {
     </div>
   );
 }
-
 function Section({ title, children, action }) {
   return (
     <div className="space-y-3">
@@ -254,7 +301,6 @@ function Section({ title, children, action }) {
     </div>
   );
 }
-
 function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-1">
@@ -263,6 +309,5 @@ function Field({ label, children }) {
     </div>
   );
 }
-
 const ic = () =>
   'w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors';

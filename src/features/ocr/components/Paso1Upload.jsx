@@ -5,32 +5,33 @@ import {
   selectOcrIsUploading,
   selectOcrError,
   clearError,
-  setTipoSacramentoId as setTipoSacramentoIdAction, 
+  setTipoSacramentoId as setTipoSacramentoIdAction,
 } from '../slices/ocrSlice';
- 
+
+// IDs coinciden con el backend: 1=Bautismo, 2=Matrimonio, 3=Primera Comunión
 const TIPOS_SACRAMENTO = [
   { id: 1, label: 'Bautismo' },
-  { id: 2, label: 'Confirmación' },
-  { id: 3, label: 'Matrimonio' },
+  { id: 2, label: 'Matrimonio' },
+  { id: 3, label: 'Primera Comunión' },
 ];
- 
+
 /**
  * Paso 1 — Subir imagen para procesar OCR.
  * Props:
- *  - parroquias: array de parroquias disponibles
+ *  - parroquias: array de parroquias disponibles (para selector opcional)
  */
 export default function Paso1Upload({ parroquias = [] }) {
   const dispatch = useDispatch();
   const isUploading = useSelector(selectOcrIsUploading);
   const error = useSelector(selectOcrError);
- 
+
   const [tipoSacramentoId, setTipoSacramentoId] = useState('');
   const [parroquiaId, setParroquiaId] = useState('');
   const [archivo, setArchivo] = useState(null);
   const [preview, setPreview] = useState(null);
   const [localError, setLocalError] = useState('');
   const inputRef = useRef(null);
- 
+
   const handleArchivo = (file) => {
     if (!file) return;
     setArchivo(file);
@@ -39,27 +40,28 @@ export default function Paso1Upload({ parroquias = [] }) {
     reader.onload = (e) => setPreview(e.target.result);
     reader.readAsDataURL(file);
   };
- 
+
   const handleDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) handleArchivo(file);
   };
- 
+
   const handleSubmit = () => {
     if (!tipoSacramentoId) return setLocalError('Selecciona el tipo de sacramento.');
     if (!archivo) return setLocalError('Adjunta una imagen del documento.');
- 
+
     dispatch(clearError());
     dispatch(setTipoSacramentoIdAction(parseInt(tipoSacramentoId)));
+
     const fd = new FormData();
     fd.append('imagen', archivo);
     fd.append('tipo_sacramento_id', tipoSacramentoId);
     if (parroquiaId) fd.append('institucion_parroquia_id', parroquiaId);
- 
+
     dispatch(uploadOcrPreview(fd));
   };
- 
+
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div>
@@ -70,7 +72,7 @@ export default function Paso1Upload({ parroquias = [] }) {
           Selecciona el tipo de sacramento y adjunta una imagen clara del documento.
         </p>
       </div>
- 
+
       {/* Tipo de sacramento */}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -79,7 +81,7 @@ export default function Paso1Upload({ parroquias = [] }) {
         <select
           value={tipoSacramentoId}
           onChange={(e) => setTipoSacramentoId(e.target.value)}
-          className={selectCls(!tipoSacramentoId && localError)}
+          className={selectCls(!tipoSacramentoId && !!localError)}
         >
           <option value="">Seleccionar...</option>
           {TIPOS_SACRAMENTO.map((t) => (
@@ -89,12 +91,12 @@ export default function Paso1Upload({ parroquias = [] }) {
           ))}
         </select>
       </div>
- 
-      {/* Parroquia (opcional) */}
+
+      {/* Parroquia (opcional) — solo si hay parroquias cargadas */}
       {parroquias.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-            Parroquia (opcional)
+            Parroquia (opcional — si ya la conoces)
           </label>
           <select
             value={parroquiaId}
@@ -104,13 +106,13 @@ export default function Paso1Upload({ parroquias = [] }) {
             <option value="">Sin especificar</option>
             {parroquias.map((p) => (
               <option key={p.id_parroquia} value={p.id_parroquia}>
-                {p.nombre}
+                {p.nombre ?? p.nombre_parroquia}
               </option>
             ))}
           </select>
         </div>
       )}
- 
+
       {/* Zona de carga */}
       <div
         onDrop={handleDrop}
@@ -129,7 +131,7 @@ export default function Paso1Upload({ parroquias = [] }) {
           className="hidden"
           onChange={(e) => handleArchivo(e.target.files?.[0])}
         />
- 
+
         {preview ? (
           <img
             src={preview}
@@ -147,7 +149,7 @@ export default function Paso1Upload({ parroquias = [] }) {
             </div>
           </>
         )}
- 
+
         {archivo && (
           <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]">check_circle</span>
@@ -155,16 +157,15 @@ export default function Paso1Upload({ parroquias = [] }) {
           </p>
         )}
       </div>
- 
+
       {/* Errores */}
       {(localError || error) && (
         <p className="text-sm text-red-600 flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[16px]">error</span>
-          {localError || error}
+          {localError || (typeof error === 'string' ? error : JSON.stringify(error))}
         </p>
       )}
- 
-      {/* Botón */}
+
       <button
         onClick={handleSubmit}
         disabled={isUploading}
@@ -172,7 +173,9 @@ export default function Paso1Upload({ parroquias = [] }) {
       >
         {isUploading ? (
           <>
-            <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+            <span className="material-symbols-outlined text-[16px] animate-spin">
+              progress_activity
+            </span>
             Procesando imagen...
           </>
         ) : (
@@ -185,7 +188,7 @@ export default function Paso1Upload({ parroquias = [] }) {
     </div>
   );
 }
- 
+
 function selectCls(hasError = false) {
   return [
     'w-full px-3 py-2 text-sm rounded-lg border bg-white dark:bg-gray-800',

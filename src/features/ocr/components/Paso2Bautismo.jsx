@@ -21,9 +21,7 @@ export default function Paso2Bautismo() {
 
   const parseFecha = (str = '') => {
     if (!str) return null;
-    // Si ya viene en formato ISO, devolverla directamente
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-    // Intentar dd/mm/aaaa o dd-mm-aaaa
     const match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (!match) return null;
     const [, d, m, y] = match;
@@ -31,7 +29,6 @@ export default function Paso2Bautismo() {
     return isNaN(new Date(iso).getTime()) ? null : iso;
   };
 
-  // ── Campos del documento ────────────────────────────────────────────────────
   const [campos, setCampos] = useState({
     nombre: datosDetectados?.nombre || '',
     fecha_sacramento: datosDetectados?.fecha_sacramento || '',
@@ -40,34 +37,29 @@ export default function Paso2Bautismo() {
     parroquia: datosDetectados?.parroquia || '',
   });
 
-  // ── Personas ────────────────────────────────────────────────────────────────
-  const [bautizado, setBautizado] = useState(null);   // rol 4
-  const [padrinos, setPadrinos] = useState([]);        // lista dinámica
+  // bautizado → rol 1 en backend (PersonaSacramento rol_sacramento_id = 1)
+  // el backend busca en relaciones: relaciones.find(r => r.rol_sacramento_id === 1)
+  const [bautizado, setBautizado] = useState(null);
+  const [padrinos, setPadrinos] = useState([]);
   const [errorPersona, setErrorPersona] = useState('');
 
-  const handleCampo = (field, value) =>
-    setCampos((prev) => ({ ...prev, [field]: value }));
+  const handleCampo = (field, value) => setCampos((prev) => ({ ...prev, [field]: value }));
 
-  // ── Padrinos dinámicos ──────────────────────────────────────────────────────
   const agregarPadrino = () =>
     setPadrinos((prev) => [...prev, { persona: null, rol_sacramento_id: 5 }]);
 
   const setPadrinoPersona = (idx, persona) =>
-    setPadrinos((prev) =>
-      prev.map((p, i) => (i === idx ? { ...p, persona } : p))
-    );
+    setPadrinos((prev) => prev.map((p, i) => (i === idx ? { ...p, persona } : p)));
 
   const removePadrino = (idx) =>
     setPadrinos((prev) => prev.filter((_, i) => i !== idx));
 
-  // ── Rechazar ────────────────────────────────────────────────────────────────
   const handleRechazar = () => {
     if (confirm('¿Seguro que deseas rechazar este registro OCR?')) {
       dispatch(rechazarOcr(historicoId));
     }
   };
 
-  // ── Confirmar ───────────────────────────────────────────────────────────────
   const handleConfirmar = () => {
     dispatch(clearError());
     setErrorPersona('');
@@ -78,12 +70,13 @@ export default function Paso2Bautismo() {
     }
 
     const fechaISO = parseFecha(campos.fecha_sacramento);
-      if (!fechaISO) {
-        setErrorPersona('La fecha de bautismo no es válida. Usa el formato dd/mm/aaaa.');
-        return;
-      }
+    if (!fechaISO) {
+      setErrorPersona('La fecha de bautismo no es válida. Usa el formato dd/mm/aaaa.');
+      return;
+    }
 
-    const relaciones = [{ rol_sacramento_id: 4, persona_id: bautizado.id_persona }];
+    // rol 1 = bautizado (según backend: relaciones.find(r => r.rol_sacramento_id === 1))
+    const relaciones = [{ rol_sacramento_id: 1, persona_id: bautizado.id_persona }];
     padrinos.forEach((p) => {
       if (p.persona?.id_persona) {
         relaciones.push({ rol_sacramento_id: p.rol_sacramento_id, persona_id: p.persona.id_persona });
@@ -92,7 +85,6 @@ export default function Paso2Bautismo() {
 
     dispatch(
       confirmarOcr({
-        persona_id: bautizado.id_persona,
         historico_id: historicoId,
         fecha_sacramento: fechaISO,
         foja: campos.foja,
@@ -106,7 +98,6 @@ export default function Paso2Bautismo() {
     <div className="space-y-8">
       <SectionHeader icon="church" title="Bautismo — Revisión de datos" />
 
-      {/* Campos del documento */}
       <Section title="Datos del documento">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Nombre del bautizado">
@@ -153,7 +144,6 @@ export default function Paso2Bautismo() {
         </div>
       </Section>
 
-      {/* Persona bautizada */}
       <Section title="Persona bautizada">
         <PersonaBuscador
           label="Buscar persona bautizada *"
@@ -164,14 +154,16 @@ export default function Paso2Bautismo() {
             fecha_nacimiento: datosDetectados?.fecha_nacimiento,
             lugar_nacimiento: datosDetectados?.lugar_nacimiento,
           }}
+          rol="bautismo"
+          tipo="sacramento"
           onSelect={(p) => { setBautizado(p); setErrorPersona(''); }}
           onClear={() => setBautizado(null)}
           personaSeleccionada={bautizado}
           error={!bautizado ? errorPersona : ''}
+          permitirCrear={true}
         />
       </Section>
 
-      {/* Padrinos */}
       <Section
         title="Padrinos / otras relaciones"
         action={
@@ -197,9 +189,11 @@ export default function Paso2Bautismo() {
                 label={`Padrino ${idx + 1}`}
                 placeholder="Buscar padrino..."
                 datosOcr={{}}
+                rol="bautismo"
                 onSelect={(persona) => setPadrinoPersona(idx, persona)}
                 onClear={() => setPadrinoPersona(idx, null)}
                 personaSeleccionada={p.persona}
+                permitirCrear={false}
               />
             </div>
             <button
@@ -212,7 +206,6 @@ export default function Paso2Bautismo() {
         ))}
       </Section>
 
-      {/* Error global */}
       {errorGlobal && (
         <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-800 rounded-lg">
           <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>
@@ -220,7 +213,6 @@ export default function Paso2Bautismo() {
         </div>
       )}
 
-      {/* Botones */}
       <div className="flex justify-between pt-2">
         <button
           onClick={handleRechazar}
@@ -228,7 +220,9 @@ export default function Paso2Bautismo() {
           className="px-4 py-2 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
           {isRechazando && (
-            <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+            <span className="material-symbols-outlined text-[15px] animate-spin">
+              progress_activity
+            </span>
           )}
           Rechazar
         </button>
@@ -238,9 +232,11 @@ export default function Paso2Bautismo() {
           className="px-5 py-2 text-sm rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
           {isConfirming && (
-            <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+            <span className="material-symbols-outlined text-[15px] animate-spin">
+              progress_activity
+            </span>
           )}
-          Continuar
+          Confirmar sacramento
           <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
         </button>
       </div>
@@ -248,7 +244,6 @@ export default function Paso2Bautismo() {
   );
 }
 
-// ── Helpers UI ────────────────────────────────────────────────────────────────
 function SectionHeader({ icon, title }) {
   return (
     <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">

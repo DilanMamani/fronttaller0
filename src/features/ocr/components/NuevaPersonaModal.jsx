@@ -2,25 +2,20 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createPersona } from '../../personas/slices/personasThunk';
 import { selectIsCreating } from '../../personas/slices/personasSlice';
- 
+
 /**
  * Modal para crear una nueva persona desde el flujo OCR.
  *
  * Props:
- *  - isOpen        : bool
- *  - onClose       : () => void            — cancela sin crear
- *  - onPersonaCreada: (persona) => void    — persona recién creada del backend
- *  - datosOcr      : {
- *      nombre_completo?: string,
- *      fecha_nacimiento?: string,
- *      lugar_nacimiento?: string,
- *    }                                     — datos pre-rellenados desde OCR
+ *  - isOpen         : bool
+ *  - onClose        : () => void
+ *  - onPersonaCreada: (persona) => void
+ *  - datosOcr       : { nombre_completo?, fecha_nacimiento?, lugar_nacimiento? }
  */
 export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, datosOcr = {} }) {
   const dispatch = useDispatch();
   const isCreating = useSelector(selectIsCreating);
- 
-  // ── Pre-relleno desde OCR ──────────────────────────────────────────────────
+
   const parsearNombreCompleto = (nombreCompleto = '') => {
     const tokens = nombreCompleto.trim().split(/\s+/).filter(Boolean);
     if (tokens.length === 0) return { nombre: '', apellidoPaterno: '', apellidoMaterno: '' };
@@ -31,18 +26,26 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     const nombre = tokens.slice(0, tokens.length - 2).join(' ');
     return { nombre, apellidoPaterno, apellidoMaterno };
   };
- 
+
+  /**
+   * CI temporal: nombreOCR (sin espacios, mayúsculas) + guion + 6 dígitos aleatorios
+   * Ej: "JUANPEREZLOPEZ-847291"
+   */
   const generarCITemporal = (nombreCompleto = '') => {
-    const sinEspacios = nombreCompleto.replace(/\s+/g, '').toUpperCase();
+    const nombreNormalizado = nombreCompleto
+      .trim()
+      .replace(/\s+/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, ''); // solo alfanumérico
     const aleatorio = Math.floor(100000 + Math.random() * 900000);
-    return `${sinEspacios}-${aleatorio}`;
+    return `${nombreNormalizado || 'PERSONA'}-${aleatorio}`;
   };
- 
+
   const { nombre, apellidoPaterno, apellidoMaterno } = parsearNombreCompleto(
     datosOcr.nombre_completo || ''
   );
   const NA = 'Información no disponible';
- 
+
   const [form, setForm] = useState({
     nombre: nombre || NA,
     apellido_paterno: apellidoPaterno || NA,
@@ -55,30 +58,41 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     activo: true,
     estado: 'no verificado',
   });
- 
+
   const [ciError, setCiError] = useState('');
- 
+
   if (!isOpen) return null;
- 
+
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (field === 'carnet_identidad') setCiError('');
   };
- 
+
   const handleSubmit = async () => {
     setCiError('');
     const result = await dispatch(createPersona({ ...form, activo: true, estado: 'no verificado' }));
     if (createPersona.fulfilled.match(result)) {
-      const persona = result.payload;
-      onPersonaCreada(persona);
+      onPersonaCreada(result.payload);
     } else {
       const msg = result.payload?.message || result.payload?.msg || '';
-      if (msg.toLowerCase().includes('carnet') || msg.toLowerCase().includes('ci') || msg.toLowerCase().includes('duplicado')) {
-        setCiError('El carnet de identidad ya está registrado');
+      if (
+        msg.toLowerCase().includes('carnet') ||
+        msg.toLowerCase().includes('ci') ||
+        msg.toLowerCase().includes('duplicado') ||
+        msg.toLowerCase().includes('unique')
+      ) {
+        // Regenerar CI automáticamente y avisar
+        const nuevoCi = generarCITemporal(
+          `${form.nombre}${form.apellido_paterno}${form.apellido_materno}`
+        );
+        setForm((prev) => ({ ...prev, carnet_identidad: nuevoCi }));
+        setCiError('CI duplicado. Se generó uno nuevo automáticamente, puedes corregirlo.');
+      } else {
+        setCiError(msg || 'Error al registrar la persona.');
       }
     }
   };
- 
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
@@ -97,10 +111,9 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
- 
+
         {/* Body */}
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          {/* Nombre */}
           <Field label="Nombre *">
             <input
               type="text"
@@ -109,8 +122,7 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               className={inputCls()}
             />
           </Field>
- 
-          {/* Apellido paterno */}
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Apellido paterno *">
               <input
@@ -129,8 +141,7 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               />
             </Field>
           </div>
- 
-          {/* Carnet */}
+
           <Field label="Carnet de identidad *">
             <input
               type="text"
@@ -142,36 +153,23 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               <p className="text-xs text-red-600 mt-1">{ciError}</p>
             ) : (
               <p className="text-xs text-amber-600 mt-1">
-                CI temporal generado automáticamente. Corrígelo si tienes el dato real.
+                CI temporal generado desde el nombre OCR. Corrígelo si tienes el dato real.
               </p>
             )}
           </Field>
- 
-          {/* Fecha nacimiento */}
+
           <Field label="Fecha de nacimiento *">
-            {datosOcr.fecha_nacimiento ? (
-              <input
-                type="date"
-                value={form.fecha_nacimiento}
-                onChange={(e) => handleChange('fecha_nacimiento', e.target.value)}
-                className={inputCls()}
-              />
-            ) : (
-              <>
-                <input
-                  type="date"
-                  value={form.fecha_nacimiento}
-                  onChange={(e) => handleChange('fecha_nacimiento', e.target.value)}
-                  className={inputCls()}
-                />
-                <p className="text-xs text-amber-600 mt-1">
-                  Fecha no detectada, ingrésala manualmente.
-                </p>
-              </>
+            <input
+              type="date"
+              value={form.fecha_nacimiento}
+              onChange={(e) => handleChange('fecha_nacimiento', e.target.value)}
+              className={inputCls()}
+            />
+            {!datosOcr.fecha_nacimiento && (
+              <p className="text-xs text-amber-600 mt-1">Fecha no detectada, ingrésala manualmente.</p>
             )}
           </Field>
- 
-          {/* Lugar nacimiento */}
+
           <Field label="Lugar de nacimiento *">
             <input
               type="text"
@@ -180,8 +178,7 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               className={inputCls()}
             />
           </Field>
- 
-          {/* Padres */}
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Nombre del padre">
               <input
@@ -200,17 +197,16 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               />
             </Field>
           </div>
- 
-          {/* Estado (siempre no verificado — solo informativo) */}
+
           <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
             <span className="material-symbols-outlined text-amber-600 text-[18px]">info</span>
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Esta persona se registrará con estado <strong>no verificado</strong>. Sus datos
-              pueden corregirse más adelante desde la sección de Personas.
+              Esta persona se registrará con estado <strong>no verificado</strong>. Sus datos pueden
+              corregirse desde la sección de Personas.
             </p>
           </div>
         </div>
- 
+
         {/* Footer */}
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
           <button
@@ -225,7 +221,9 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
             className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
             {isCreating && (
-              <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+              <span className="material-symbols-outlined text-[16px] animate-spin">
+                progress_activity
+              </span>
             )}
             Registrar persona
           </button>
@@ -234,8 +232,7 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     </div>
   );
 }
- 
-// ── Helpers de UI ─────────────────────────────────────────────────────────────
+
 function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-1">
@@ -244,7 +241,7 @@ function Field({ label, children }) {
     </div>
   );
 }
- 
+
 function inputCls(hasError = false) {
   return [
     'w-full px-3 py-2 text-sm rounded-lg border bg-white dark:bg-gray-800',
