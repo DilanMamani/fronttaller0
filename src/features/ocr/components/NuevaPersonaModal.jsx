@@ -27,16 +27,12 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     return { nombre, apellidoPaterno, apellidoMaterno };
   };
 
-  /**
-   * CI temporal: nombreOCR (sin espacios, mayúsculas) + guion + 6 dígitos aleatorios
-   * Ej: "JUANPEREZLOPEZ-847291"
-   */
   const generarCITemporal = (nombreCompleto = '') => {
     const nombreNormalizado = nombreCompleto
       .trim()
       .replace(/\s+/g, '')
       .toUpperCase()
-      .replace(/[^A-Z0-9]/g, ''); // solo alfanumérico
+      .replace(/[^A-Z0-9]/g, '');
     const aleatorio = Math.floor(100000 + Math.random() * 900000);
     return `${nombreNormalizado || 'PERSONA'}-${aleatorio}`;
   };
@@ -59,6 +55,8 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     estado: 'no verificado',
   });
 
+  const [camposVacios, setCamposVacios] = useState([]);
+  const [errorGeneral, setErrorGeneral] = useState('');
   const [ciError, setCiError] = useState('');
 
   if (!isOpen) return null;
@@ -66,10 +64,26 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (field === 'carnet_identidad') setCiError('');
+    setCamposVacios((prev) => prev.filter((c) => c !== field));
   };
 
   const handleSubmit = async () => {
     setCiError('');
+    setErrorGeneral('');
+
+    const camposRequeridos = [
+      'nombre', 'apellido_paterno', 'apellido_materno',
+      'carnet_identidad', 'fecha_nacimiento', 'lugar_nacimiento',
+      'nombre_padre', 'nombre_madre',
+    ];
+    const vacios = camposRequeridos.filter((c) => !form[c]?.trim());
+    if (vacios.length) {
+      setCamposVacios(vacios);
+      setErrorGeneral('Todos los campos son obligatorios.');
+      return;
+    }
+
+    setCamposVacios([]);
     const result = await dispatch(createPersona({ ...form, activo: true, estado: 'no verificado' }));
     if (createPersona.fulfilled.match(result)) {
       onPersonaCreada(result.payload);
@@ -81,14 +95,13 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
         msg.toLowerCase().includes('duplicado') ||
         msg.toLowerCase().includes('unique')
       ) {
-        // Regenerar CI automáticamente y avisar
         const nuevoCi = generarCITemporal(
           `${form.nombre}${form.apellido_paterno}${form.apellido_materno}`
         );
         setForm((prev) => ({ ...prev, carnet_identidad: nuevoCi }));
         setCiError('CI duplicado. Se generó uno nuevo automáticamente, puedes corregirlo.');
       } else {
-        setCiError(msg || 'Error al registrar la persona.');
+        setErrorGeneral(msg || 'Error al registrar la persona.');
       }
     }
   };
@@ -111,6 +124,12 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
+        {errorGeneral && (
+          <div className="flex items-center gap-2 mx-6 mt-4 px-3 py-2 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg">
+            <span className="material-symbols-outlined text-red-500 text-[18px]">error</span>
+            <p className="text-xs text-red-600 dark:text-red-400">{errorGeneral}</p>
+          </div>
+        )}
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -119,7 +138,8 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               type="text"
               value={form.nombre}
               onChange={(e) => handleChange('nombre', e.target.value)}
-              className={inputCls()}
+              className={inputCls(camposVacios.includes('nombre'))}
+              required
             />
           </Field>
 
@@ -129,7 +149,8 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
                 type="text"
                 value={form.apellido_paterno}
                 onChange={(e) => handleChange('apellido_paterno', e.target.value)}
-                className={inputCls()}
+                className={inputCls(camposVacios.includes('apellido_paterno'))}
+                required
               />
             </Field>
             <Field label="Apellido materno *">
@@ -137,7 +158,8 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
                 type="text"
                 value={form.apellido_materno}
                 onChange={(e) => handleChange('apellido_materno', e.target.value)}
-                className={inputCls()}
+                className={inputCls(camposVacios.includes('apellido_materno'))}
+                required
               />
             </Field>
           </div>
@@ -147,7 +169,8 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               type="text"
               value={form.carnet_identidad}
               onChange={(e) => handleChange('carnet_identidad', e.target.value)}
-              className={inputCls(!!ciError)}
+              className={inputCls(camposVacios.includes('carnet_identidad') || !!ciError)}
+              required
             />
             {ciError ? (
               <p className="text-xs text-red-600 mt-1">{ciError}</p>
@@ -163,7 +186,8 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               type="date"
               value={form.fecha_nacimiento}
               onChange={(e) => handleChange('fecha_nacimiento', e.target.value)}
-              className={inputCls()}
+              className={inputCls(camposVacios.includes('fecha_nacimiento'))}
+              required
             />
             {!datosOcr.fecha_nacimiento && (
               <p className="text-xs text-amber-600 mt-1">Fecha no detectada, ingrésala manualmente.</p>
@@ -175,25 +199,28 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
               type="text"
               value={form.lugar_nacimiento}
               onChange={(e) => handleChange('lugar_nacimiento', e.target.value)}
-              className={inputCls()}
+              className={inputCls(camposVacios.includes('lugar_nacimiento'))}
+              required
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nombre del padre">
+            <Field label="Nombre del padre *">
               <input
                 type="text"
                 value={form.nombre_padre}
                 onChange={(e) => handleChange('nombre_padre', e.target.value)}
-                className={inputCls()}
+                className={inputCls(camposVacios.includes('nombre_padre'))}
+                required
               />
             </Field>
-            <Field label="Nombre de la madre">
+            <Field label="Nombre de la madre *">
               <input
                 type="text"
                 value={form.nombre_madre}
                 onChange={(e) => handleChange('nombre_madre', e.target.value)}
-                className={inputCls()}
+                className={inputCls(camposVacios.includes('nombre_madre'))}
+                required
               />
             </Field>
           </div>

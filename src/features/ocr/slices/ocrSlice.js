@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { extraerMensaje } from '../../../store/middleware/ocrErrorMiddleware';
 import {
   uploadOcrPreview,
   asignarParroquiaOcr,
@@ -130,7 +131,7 @@ const ocrSlice = createSlice({
       })
       .addCase(uploadOcrPreview.rejected, (state, action) => {
         state.isUploading = false;
-        state.error = action.payload || 'Error al procesar la imagen';
+        state.error = state.error = extraerMensaje(action.payload);
       })
 
       // ── PASO 3a: Asignar parroquia existente ─────────────────
@@ -144,7 +145,7 @@ const ocrSlice = createSlice({
       })
       .addCase(asignarParroquiaOcr.rejected, (state, action) => {
         state.isSavingParroquia = false;
-        state.error = action.payload || 'Error al asignar parroquia';
+        state.error = extraerMensaje(action.payload) || 'Error al asignar parroquia';
       })
 
       // ── PASO 3b: Crear y asignar nueva parroquia ─────────────
@@ -159,7 +160,7 @@ const ocrSlice = createSlice({
       })
       .addCase(crearParroquiaOcr.rejected, (state, action) => {
         state.isSavingParroquia = false;
-        state.error = action.payload || 'Error al crear parroquia';
+        state.error = extraerMensaje(action.payload) || 'Error al crear parroquia';
       })
 
       // ── PASO 4: Confirmar sacramento ─────────────────────────
@@ -174,7 +175,7 @@ const ocrSlice = createSlice({
       })
       .addCase(confirmarOcr.rejected, (state, action) => {
         state.isConfirming = false;
-        state.error = action.payload || 'Error al confirmar el sacramento';
+        state.error = extraerMensaje(action.payload);
       })
 
       // ── Rechazar ─────────────────────────────────────────────
@@ -190,7 +191,7 @@ const ocrSlice = createSlice({
       })
       .addCase(rechazarOcr.rejected, (state, action) => {
         state.isRechazando = false;
-        state.error = action.payload || 'Error al rechazar el registro';
+        state.error = extraerMensaje(action.payload);
       })
 
       // ── Histórico ─────────────────────────────────────────────
@@ -207,7 +208,7 @@ const ocrSlice = createSlice({
       })
       .addCase(fetchOcrHistorico.rejected, (state, action) => {
         state.isLoadingHistorico = false;
-        state.error = action.payload || 'Error al cargar histórico';
+        state.error = extraerMensaje(action.payload) || 'Error al cargar histórico';
       })
   },
 });
