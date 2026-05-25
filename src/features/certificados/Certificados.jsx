@@ -10,6 +10,13 @@ import {
   fetchSacramentoCompleto
 } from '../sacramentos/slices/sacramentosTrunk';
 
+import {
+  ROL_IDS,
+  TIPO_SACRAMENTO_IDS,
+  ROLES_SACRAMENTO_IDS,
+  obtenerNombreRol,
+} from '../sacramentos/config/sacramentos.constants';
+
 export default function Certificados() {
   const dispatch = useDispatch();
 
@@ -29,33 +36,32 @@ export default function Certificados() {
 
   const [sacramentoSeleccionado, setSacramentoSeleccionado] = useState(null);
 
-  const [plantilla, setPlantilla] = useState('bautizo-rellenable');
+  const [plantilla, setPlantilla] = useState('templates/plantilla-bautizo.pdf');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Sincroniza dinámicamente la clave S3 de la plantilla según el sacramento activo
   useEffect(() => {
-    if (tipo === 'Bautizo') setPlantilla('bautizo-rellenable');
-    if (tipo === 'Primera Comunión') setPlantilla('iglesia-rellenable');
-    if (tipo === 'Matrimonio') setPlantilla('iglesia-rellenable');
+    if (tipo === 'Bautizo') setPlantilla('templates/plantilla-bautizo.pdf');
+    if (tipo === 'Primera Comunión') setPlantilla('templates/plantilla-comunion.pdf');
+    if (tipo === 'Matrimonio') setPlantilla('templates/plantilla-matrimonio.pdf');
   }, [tipo]);
 
-  // === NUEVO: Se actualizó para recibir todo el objeto de datos y procesar el JSON devuelto por Lambda ===
   const previsualizarCertificado = async (datos) => {
     try {
       setLoading(true);
       const response = await fetch(`${CERT_API}/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos), // Enviamos el objeto con el formato exacto
+        body: JSON.stringify(datos), 
       });
 
       if (!response.ok) throw new Error('Error al obtener certificado');
 
-      // === NUEVO: Ya no leemos blob, leemos el JSON que tiene la URL ===
       const data = await response.json(); 
       if (data.ok && data.url) {
-        return data.url; // Retornamos la URL pre-firmada de S3
+        return data.url; 
       } else {
         throw new Error('La respuesta del servidor no contiene la URL');
       }
@@ -68,7 +74,6 @@ export default function Certificados() {
     }
   };
   
-  // === NUEVO: Se actualizó para manejar el nuevo payload y descargar desde la URL de S3 ===
   const descargarCertificado = async (datos) => {
     try {
       setLoading(true);
@@ -83,15 +88,13 @@ export default function Certificados() {
       const data = await response.json();
       
       if (data.ok && data.url) {
-        // === NUEVO: Como la URL es de S3 y tiene content-disposition=inline, 
-        // la obtenemos primero como blob para forzar la descarga en el navegador ===
         const s3Response = await fetch(data.url);
         const blob = await s3Response.blob();
         const blobUrl = URL.createObjectURL(blob);
 
         const link = document.createElement('a');
         link.href = blobUrl;
-        link.download = `Certificado_${datos.nombre}_${datos.apellidoPaterno}.pdf`;
+        link.download = `Certificado_${datos.nombre || 'Sacramento'}_${datos.apellidoPaterno || ''}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -107,7 +110,7 @@ export default function Certificados() {
     }
   };
 
-  const handleBuscarSacramento = (e) => {
+const handleBuscarSacramento = (e) => {
     e.preventDefault();
     if (!searchNombre && !searchCI) {
       alert("Ingresa al menos un nombre o CI para buscar.");
@@ -118,6 +121,7 @@ export default function Certificados() {
     setSacramentoSeleccionado(null);
     setBusquedaRealizada(true);
 
+    // Ajuste de clave para el diccionario de IDs
     let tipoKey = tipo; 
     if(tipo === 'Primera Comunión') tipoKey = 'Comunion';
 
@@ -126,44 +130,83 @@ export default function Certificados() {
       carnet_identidad: searchCI,
       activo: 'true',
       tipo_sacramento_id_tipo: TIPO_SACRAMENTO_IDS[tipoKey] || 1, 
+      // Si en este componente tienes acceso a ROLES_SACRAMENTO_IDS, 
+      // puedes agregarlo aquí como en tu código funcional:
+      // rol_principal: ROLES_SACRAMENTO_IDS[tipoKey] 
     };
 
     dispatch(buscarSacramentos(payload))
       .unwrap()
       .then((res) => {
         const resultadosProcesados = [];
+        
         res.resultados.forEach((sac) => {
           sac.personaSacramentos.forEach((rel) => {
+            // IGUAL QUE TU CÓDIGO FUNCIONAL: Si no hay persona, salta; si la hay, procesa.
+            // Eliminamos el IF restrictivo de los IDs de rol.
             if (!rel.persona) return;
+            
             const rolId = rel.rol_sacramento_id_rol_sacra;
-            if ([1, 2, 3, 10, 11, 21].includes(rolId)) {
-                
-                // === NUEVO: Separamos los datos exactos que pide el Lambda ===
-                resultadosProcesados.push({
-                  id_sacramento: sac.id_sacramento,
-                  nombre_completo: `${rel.persona.nombre} ${rel.persona.apellido_paterno} ${rel.persona.apellido_materno}`,
-                  ci: rel.persona.carnet_identidad,
-                  fecha: sac.fecha_sacramento,
-                  rol: rolId === 11 ? 'Esposo/a' : 'Titular',
-                  
-                  // Campos para el Payload del Lambda
-                  numero: "000000000", // Reemplazar con el valor real si viene en BD (ej: sac.numero_registro)
-                  iglesia: "Iglesia San Bernarndo", // Reemplazar si es dinámico
-                  presbitero: "Don Mario", // Reemplazar si es dinámico
-                  libro: sac.libro?.toString() || "10", // Ajusta si tu BD manda otro campo
-                  pagina: sac.foja?.toString() || "15",
-                  partida: sac.numero?.toString() || "13",
-                  apellidoPaterno: rel.persona.apellido_paterno || "",
-                  apellidoMaterno: rel.persona.apellido_materno || "",
-                  nombre: rel.persona.nombre || ""
-                });
-            }
+            
+            // Asignación de rol visual amigable para la lista
+            let nombreRolUI = 'Participante / Titular';
+            if ([4, 5, 10, 11, 12].includes(rolId)) nombreRolUI = 'Contrayente (Esposo/a)';
+            if ([20, 21, 22].includes(rolId)) nombreRolUI = 'Comulgante';
+            if ([1].includes(rolId)) nombreRolUI = 'Bautizado';
+            // Alternativa: Si importas tu función, puedes usar:
+            // const nombreRolUI = obtenerNombreRol(rolId);
+
+            resultadosProcesados.push({
+              // --- 1. Datos para renderizar la lista en la UI ---
+              id_sacramento: sac.id_sacramento,
+              nombre_completo: `${rel.persona.nombre} ${rel.persona.apellido_paterno} ${rel.persona.apellido_materno}`,
+              ci: rel.persona.carnet_identidad,
+              fecha: sac.fecha_sacramento,
+              rol: nombreRolUI,
+              
+              // --- 2. Datos específicos para inyectar en el PDF (Lambda) ---
+              numero: sac.numero || sac.numero_registro || "000000", 
+              iglesia: sac.parroquia?.nombre || sac.parroquia || "Iglesia San Miguel", 
+              presbitero: sac.sacerdote || "Don Mario", 
+              libro: sac.libro?.toString() || "12", 
+              pagina: sac.foja?.toString() || "3",
+              partida: sac.numero?.toString() || "11",
+              apellidoPaterno: rel.persona.apellido_paterno || "",
+              apellidoMaterno: rel.persona.apellido_materno || "",
+              nombre: rel.persona.nombre || "",
+              
+              // Extracción directa del detalle del sacramento (previniendo nulos)
+              padre: sac.nombre_padre || "",
+              madre: sac.nombre_madre || "",
+              padrino: sac.nombre_padrino || "",
+              madrina: sac.nombre_madrina || "",
+              catequista: sac.nombre_catequista || "",
+              parroco: sac.nombre_parroco || "",
+              testigos1: sac.testigo_uno || "",
+              testigos2: sac.testigo_dos || "",
+              oficialiaRC: sac.oficialia || "",
+              libroRC: sac.libro_rc || "",
+              partidaRC: sac.partida_rc || "",
+              notas1: sac.observaciones || "",
+              
+              // Datos de expedición
+              ciudadExpedicion: "La Paz",
+              diaExpedicion: new Date().getDate().toString(),
+              mesExpedicion: new Date().toLocaleString('es-ES', { month: 'long' })
+            });
           });
         });
-        setListaResultados(resultadosProcesados);
+        
+        // Limpiamos resultados duplicados en caso de que la misma persona 
+        // esté vinculada varias veces en el mismo registro por error de BD
+        const resultadosUnicos = resultadosProcesados.filter((v, i, a) => 
+            a.findIndex(t => (t.id_sacramento === v.id_sacramento && t.nombre_completo === v.nombre_completo)) === i
+        );
+        
+        setListaResultados(resultadosUnicos);
       })
       .catch((err) => {
-        console.error("Error buscando:", err);
+        console.error("Error buscando sacramentos:", err);
         setListaResultados([]);
       })
       .finally(() => {
@@ -175,7 +218,85 @@ export default function Certificados() {
     setSacramentoSeleccionado(item);
   };
 
-  // === NUEVO: Enviamos todo el objeto seleccionado en lugar de variables sueltas ===
+  // === AUXILIAR DE CONSTRUCCIÓN DINÁMICA DE PAYLOAD ===
+  const construirPayloadLambda = () => {
+    if (!sacramentoSeleccionado) return null;
+
+    // Campos comunes transversales a todos los certificados
+    const basePayload = {
+      templateKey: plantilla, // Enviamos dinámicamente la ruta S3 guardada en el estado
+      numero: sacramentoSeleccionado.numero || "",
+      iglesia: sacramentoSeleccionado.iglesia || "",
+      presbitero: sacramentoSeleccionado.presbitero || "",
+      libro: sacramentoSeleccionado.libro || "",
+      pagina: sacramentoSeleccionado.pagina || "",
+      partida: sacramentoSeleccionado.partida || "",
+      oficialiaRC: sacramentoSeleccionado.oficialiaRC || "",
+      libroRC: sacramentoSeleccionado.libroRC || "",
+      partidaRC: sacramentoSeleccionado.partidaRC || "",
+      firmado: sacramentoSeleccionado.presbitero || ""
+    };
+
+    // Estructuras extendidas independientes según el tipo de sacramento
+    if (tipo === 'Bautizo') {
+      return {
+        ...basePayload,
+        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "",
+        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "",
+        nombre: sacramentoSeleccionado.nombre || "",
+        lugarFechaBautismo: `La Paz, ${sacramentoSeleccionado.fecha || ""}`,
+        lugarNacimiento: "La Paz",
+        fechaNacimiento: "Verificar en BD",
+        padre: sacramentoSeleccionado.padre || "",
+        madre: sacramentoSeleccionado.madre || "",
+        padrino: sacramentoSeleccionado.padrino || "",
+        madrina: sacramentoSeleccionado.madrina || "",
+        notas: sacramentoSeleccionado.notas1 || ""
+      };
+    }
+
+    if (tipo === 'Primera Comunión') {
+      return {
+        ...basePayload,
+        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "",
+        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "",
+        nombre: sacramentoSeleccionado.nombre || "",
+        lugarFechaComunion1: `La Paz, ${sacramentoSeleccionado.fecha || ""}`,
+        lugarFechaComunion2: "",
+        padre: sacramentoSeleccionado.padre || "",
+        madre: sacramentoSeleccionado.madre || "",
+        catequista: sacramentoSeleccionado.catequista || "",
+        parroco: sacramentoSeleccionado.parroco || "",
+        notas1: sacramentoSeleccionado.notas1 || "",
+        notas2: "",
+        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion || "La Paz",
+        diaExpedicion: sacramentoSeleccionado.diaExpedicion || "",
+        mesExpedicion: sacramentoSeleccionado.mesExpedicion || ""
+      };
+    }
+
+    if (tipo === 'Matrimonio') {
+      return {
+        ...basePayload,
+        nombreEsposo: sacramentoSeleccionado.rol === 'Esposo/a' ? sacramentoSeleccionado.nombre_completo : "Verificar Contrayente A",
+        fechaNacimientoEsposo: "",
+        nombreEsposa: sacramentoSeleccionado.rol !== 'Esposo/a' ? sacramentoSeleccionado.nombre_completo : "Verificar Contrayente B",
+        fechaNacimientoEsposa: "",
+        lugarFechaMatrimonio: `La Paz, ${sacramentoSeleccionado.fecha || ""}`,
+        celebradoPor: sacramentoSeleccionado.presbitero || "",
+        testigos1: sacramentoSeleccionado.testigos1 || "",
+        testigos2: sacramentoSeleccionado.testigos2 || "",
+        notas1: sacramentoSeleccionado.notas1 || "",
+        notas2: "",
+        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion || "La Paz",
+        diaExpedicion: sacramentoSeleccionado.diaExpedicion || "",
+        mesExpedicion: sacramentoSeleccionado.mesExpedicion || ""
+      };
+    }
+
+    return basePayload;
+  };
+
   const handlePrevisualizar = async () => {
     if (!sacramentoSeleccionado) {
       alert("Primero debes buscar y SELECCIONAR un sacramento de la lista.");
@@ -183,37 +304,18 @@ export default function Certificados() {
     }
     setLoadingPdf(true);
     
-    // Creamos el payload limpiando datos visuales innecesarios si lo deseas, o mandamos todo
-    const payloadLambda = {
-      numero: sacramentoSeleccionado.numero || "---",
-      iglesia: sacramentoSeleccionado.iglesia || "---",
-      presbitero: sacramentoSeleccionado.presbitero || "---",
-      libro: sacramentoSeleccionado.libro || "---",
-      pagina: sacramentoSeleccionado.pagina || "---",
-      partida: sacramentoSeleccionado.partida || "---",
-      apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "---",
-      apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "---",
-      nombre: sacramentoSeleccionado.nombre || "---"
-    };
-
+    const payloadLambda = construirPayloadLambda();
     const url = await previsualizarCertificado(payloadLambda);
-    if (url) setPdfUrl(url); // El iframe tomará esta URL directamente
+    if (url) setPdfUrl(url); 
     setLoadingPdf(false);
   };
 
   const handleGenerar = async () => {
-    const payloadLambda = {
-      numero: sacramentoSeleccionado.numero || "---",
-      iglesia: sacramentoSeleccionado.iglesia || "---",
-      presbitero: sacramentoSeleccionado.presbitero || "---",
-      libro: sacramentoSeleccionado.libro || "---",
-      pagina: sacramentoSeleccionado.pagina || "---",
-      partida: sacramentoSeleccionado.partida || "---",
-      apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "---",
-      apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "---",
-      nombre: sacramentoSeleccionado.nombre || "---"
-    };
-
+    if (!sacramentoSeleccionado) {
+      alert("Primero debes buscar y SELECCIONAR un sacramento de la lista.");
+      return;
+    }
+    const payloadLambda = construirPayloadLambda();
     await descargarCertificado(payloadLambda);
   };
 
@@ -349,15 +451,15 @@ export default function Certificados() {
                     </div>
                 ) : (
                     <div className="space-y-6 animate-fadeIn">
-                        {/* DATOS RECUPERADOS */}
+                        {/* DATOS RECUPERADOS VISUALES */}
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
                             <h4 className="text-primary font-bold mb-3 flex items-center gap-2">
                                 <span className="material-symbols-outlined">verified</span>
-                                Datos Recuperados
+                                Datos Recuperados ({tipo})
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                 <div>
-                                    <span className="block text-gray-500 text-xs uppercase">Nombre Completo</span>
+                                    <span className="block text-gray-500 text-xs uppercase">Nombre Registrado</span>
                                     <span className="font-semibold text-gray-900 dark:text-white text-lg">{sacramentoSeleccionado.nombre_completo}</span>
                                 </div>
                                 <div>
@@ -388,40 +490,31 @@ export default function Certificados() {
                         {/* === SELECCIÓN DE PLANTILLA CONDICIONAL === */}
                         <div>
                              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                                Seleccionar Diseño / Plantilla
+                                Plantilla Asignada por Sistema
                              </label>
                              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                                 
-                                <div 
-                                    onClick={() => tipo === 'Bautizo' && setPlantilla('bautizo-rellenable')}
-                                    className={getTemplateStyle('Bautizo', tipo, plantilla === 'bautizo-rellenable')}
-                                >
-                                    <div className="h-10 w-8 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600">PDF</div>
+                                <div className={getTemplateStyle('Bautizo', tipo, plantilla === 'templates/plantilla-bautizo.pdf')}>
+                                    <div className="h-10 w-8 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600 font-bold">PDF</div>
                                     <div>
                                         <div className="text-sm font-medium">Oficial Bautizo</div>
-                                        {tipo !== 'Bautizo' && <div className="text-[10px] text-red-400">No disponible</div>}
+                                        <div className="text-[10px] text-gray-400">S3: ...bautizo.pdf</div>
                                     </div>
                                 </div>
 
-                                <div 
-                                    onClick={() => tipo === 'Primera Comunión' && setPlantilla('iglesia-rellenable')}
-                                    className={getTemplateStyle('Primera Comunión', tipo, plantilla === 'iglesia-rellenable' && tipo === 'Primera Comunión')}
-                                >
-                                    <div className="h-10 w-8 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600">PDF</div>
+                                <div className={getTemplateStyle('Primera Comunión', tipo, plantilla === 'templates/plantilla-comunion.pdf')}>
+                                    <div className="h-10 w-8 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600 font-bold">PDF</div>
                                     <div>
                                         <div className="text-sm font-medium">Oficial P. Comunión</div>
-                                        {tipo !== 'Primera Comunión' && <div className="text-[10px] text-red-400">No disponible</div>}
+                                        <div className="text-[10px] text-gray-400">S3: ...comunion.pdf</div>
                                     </div>
                                 </div>
 
-                                <div 
-                                    onClick={() => tipo === 'Matrimonio' && setPlantilla('iglesia-rellenable')}
-                                    className={getTemplateStyle('Matrimonio', tipo, plantilla === 'iglesia-rellenable' && tipo === 'Matrimonio')}
-                                >
-                                    <div className="h-10 w-8 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600">PDF</div>
+                                <div className={getTemplateStyle('Matrimonio', tipo, plantilla === 'templates/plantilla-matrimonio.pdf')}>
+                                    <div className="h-10 w-8 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600 font-bold">PDF</div>
                                     <div>
                                         <div className="text-sm font-medium">Oficial Matrimonio</div>
-                                        {tipo !== 'Matrimonio' && <div className="text-[10px] text-red-400">No disponible</div>}
+                                        <div className="text-[10px] text-gray-400">S3: ...matrimonio.pdf</div>
                                     </div>
                                 </div>
 
@@ -435,11 +528,11 @@ export default function Certificados() {
                               src={pdfUrl}
                               title="Vista previa del certificado"
                               width="100%"
-                              height="300px"
-                              className="rounded-lg border"
+                              height="450px"
+                              className="rounded-lg border shadow-inner"
                             />
                           ) : (
-                            <p className="text-center text-muted-foreground-light dark:text-muted-foreground-dark">
+                            <p className="text-center text-muted-foreground-light dark:text-muted-foreground-dark py-12">
                               No hay certificado cargado. Verifica los datos y haz clic en <strong>Previsualizar</strong>.
                             </p>
                           )}
@@ -453,13 +546,13 @@ export default function Certificados() {
                 <button
                     disabled={!sacramentoSeleccionado || loadingPdf}
                     onClick={handlePrevisualizar}
-                    className="px-6 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                    {loadingPdf ? 'Cargando...' : 'Previsualizar'}
+                    {loadingPdf ? 'Generando Preview...' : 'Previsualizar'}
                 </button>
                 <button
                     disabled={!sacramentoSeleccionado || loadingPdf}
-                    className="px-6 py-2.5 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-6 py-2.5 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
                     onClick={handleGenerar}
                 >
                       <span className="material-symbols-outlined text-lg">print</span>
