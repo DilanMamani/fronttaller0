@@ -3,14 +3,16 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchParroquias } from '../../parroquias/slices/parroquiasThunk';
 import { selectParroquias, selectIsLoading } from '../../parroquias/slices/parroquiasSlice';
 
-function FiltrosReporte({ filtros, setFiltros }) {
+function FiltrosReporte({ filtros, setFiltros, parroquiaId, parroquiaNombre }) {
   const dispatch = useDispatch();
   const parroquias = useSelector(selectParroquias);
   const isLoadingParroquias = useSelector(selectIsLoading);
 
+  const parroquiaFija = parroquiaId != null;
+
   useEffect(() => {
-    dispatch(fetchParroquias());
-  }, [dispatch]);
+    if (!parroquiaFija) dispatch(fetchParroquias());
+  }, [dispatch, parroquiaFija]);
 
   const handleChange = (field, value) => {
     setFiltros(prev => ({ ...prev, [field]: value }));
@@ -19,7 +21,7 @@ function FiltrosReporte({ filtros, setFiltros }) {
   const limpiarFiltros = () => {
     setFiltros({
       tipo_sacramento_id_tipo: '',
-      institucion_parroquia_id_parroquia: '',
+      institucion_parroquia_id_parroquia: parroquiaFija ? parroquiaId : '',
       usuario_id_usuario: '',
       activo: '',
       foja: '',
@@ -82,26 +84,35 @@ function FiltrosReporte({ filtros, setFiltros }) {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Parroquia
             </label>
-            <select
-              value={filtros.institucion_parroquia_id_parroquia}
-              onChange={(e) => handleChange('institucion_parroquia_id_parroquia', e.target.value)}
-              className="w-full rounded-lg bg-background-light dark:bg-background-dark border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary p-2.5 text-sm"
-              disabled={isLoadingParroquias}
-            >
-              <option value="">Todas</option>
-              {parroquias && parroquias.length > 0 ? (
-                parroquias.map((parroquia) => (
-                  <option 
-                    key={parroquia.id_parroquia} 
-                    value={parroquia.id_parroquia}
-                  >
-                    {parroquia.nombre}
-                  </option>
-                ))
-              ) : (
-                !isLoadingParroquias && <option disabled>No hay parroquias disponibles</option>
-              )}
-            </select>
+            {parroquiaFija ? (
+              <input
+                type="text"
+                value={parroquiaNombre ?? ''}
+                disabled
+                className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-2.5 text-sm text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              />
+            ) : (
+              <select
+                value={filtros.institucion_parroquia_id_parroquia}
+                onChange={(e) => handleChange('institucion_parroquia_id_parroquia', e.target.value)}
+                className="w-full rounded-lg bg-background-light dark:bg-background-dark border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary p-2.5 text-sm"
+                disabled={isLoadingParroquias}
+              >
+                <option value="">Todas</option>
+                {parroquias && parroquias.length > 0 ? (
+                  parroquias.map((parroquia) => (
+                    <option
+                      key={parroquia.id_parroquia}
+                      value={parroquia.id_parroquia}
+                    >
+                      {parroquia.nombre}
+                    </option>
+                  ))
+                ) : (
+                  !isLoadingParroquias && <option disabled>No hay parroquias disponibles</option>
+                )}
+              </select>
+            )}
           </div>
 
           {/* Foja */}
