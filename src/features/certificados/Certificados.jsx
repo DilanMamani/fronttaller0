@@ -115,7 +115,6 @@ export default function Certificados() {
 
     let tipoKey = tipo; 
     let rolBusqueda = ROL_IDS.COMULGADO;
-    // Asignación de llaves y roles para el payload de búsqueda
     if(tipo === 'Primera Comunión') {
         rolBusqueda = ROL_IDS.COMULGADO;
     } 
@@ -123,8 +122,14 @@ export default function Certificados() {
         rolBusqueda = ROL_IDS.BAUTIZADO;
     }
     else if (tipo === 'Matrimonio') {
-        rolBusqueda = ROL_IDS.ESPOSO; // Por defecto busca por el esposo
+        rolBusqueda = ROL_IDS.ESPOSO;
     }
+
+    const notasPorDefecto = {
+      'Bautizo': "Renacido por el agua y el Espíritu Santo, incorporado a la santa Iglesia de Cristo.",
+      'Primera Comunión': "Ha recibido el Sagrado Cuerpo de Cristo por primera vez, como alimento para su alma.",
+      'Matrimonio': "La unión por la Iglesia es el acto sagrado de unir dos vidas en la comunidad de Dios."
+    };
 
     const payload = {
       nombre: searchNombre,
@@ -136,16 +141,13 @@ export default function Certificados() {
 
     dispatch(buscarSacramentos(payload))
       .unwrap()
-      .then((res) => {
+      .then(async (res) => {
         const resultadosProcesados = [];
-        
-        // Helper para dar formato rápido al nombre completo
         const formatearNombre = (p) => p ? `${p.nombre} ${p.apellido_paterno || ''} ${p.apellido_materno || ''}`.trim() : "";
 
-        res.resultados.forEach((sac) => {
+        for (const sac of res.resultados) {
           const relaciones = sac.todasRelaciones || [];
 
-          // Extraemos los roles específicos de las relaciones
           const relEsposo = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.ESPOSO);
           const relEsposa = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.ESPOSA);
           const relTitular = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.BAUTIZADO || r.rol_sacramento_id_rol_sacra === ROL_IDS.COMULGADO);
@@ -162,18 +164,45 @@ export default function Certificados() {
           const nacTitular = relTitular?.persona?.fecha_nacimiento || "";
           const lugarNacTitular = relTitular?.persona?.lugar_nacimiento || "La Paz";
 
-          // Extraemos los padres del titular directamente de su registro de persona
           const padreCalculado = relTitular?.persona?.nombre_padre || "";
           const madreCalculada = relTitular?.persona?.nombre_madre || "";
 
-          // Iteramos sobre las personas del sacramento para armar la lista de UI
+          // BUSCAR ESPOSA DEL PADRINO
+          let madrinaFinal = sac.nombre_madrina || "";
+
+          // Si no hay madrina registrada en este bautizo, pero sí tenemos un padrino con carnet de identidad:
+          if (!madrinaFinal && relPadrino?.persona?.carnet_identidad) {
+            try {
+              // Hacemos una consulta rápida buscando un matrimonio donde el Padrino sea el ESPOSO
+              const matrimonioPadrinoRes = await dispatch(buscarSacramentos({
+                carnet_identidad: relPadrino.persona.carnet_identidad,
+                activo: 'true',
+                tipo_sacramento_id_tipo: 2, // 2 = Matrimonio
+                rol_sacramento_id_rol_sacra: ROL_IDS.ESPOSO 
+              })).unwrap();
+
+              // Si encontramos su matrimonio, extraemos a la esposa
+              if (matrimonioPadrinoRes?.resultados?.length > 0) {
+                const matSac = matrimonioPadrinoRes.resultados[0];
+                const relEsposaMadrina = (matSac.todasRelaciones || []).find(
+                  r => r.rol_sacramento_id_rol_sacra === ROL_IDS.ESPOSA
+                );
+                
+                if (relEsposaMadrina?.persona) {
+                  // Guardamos el nombre de su esposa como la madrina del certificado
+                  madrinaFinal = formatearNombre(relEsposaMadrina.persona);
+                }
+              }
+            } catch (error) {
+              console.error("Error intentando buscar la esposa del padrino:", error);
+            }
+          }
+
           sac.personaSacramentos.forEach((rel) => {
             if (!rel.persona) return;
             
             const rolId = rel.rol_sacramento_id_rol_sacra;
-            
-            // NUEVO FILTRO: Solo procesamos a los titulares principales.
-            const rolesTitulares = [ROL_IDS.BAUTIZADO, ROL_IDS.COMULGADO, ROL_IDS.ESPOSO,ROL_IDS.ESPOSA];
+            const rolesTitulares = [ROL_IDS.BAUTIZADO, ROL_IDS.COMULGADO, ROL_IDS.ESPOSO, ROL_IDS.ESPOSA];
             if (!rolesTitulares.includes(rolId)) return;
 
             let nombreRolUI = 'Participante / Titular';
@@ -181,7 +210,6 @@ export default function Certificados() {
             if ([ROL_IDS.COMULGADO].includes(rolId)) nombreRolUI = 'Comulgante';
             if ([ROL_IDS.BAUTIZADO].includes(rolId)) nombreRolUI = 'Bautizado';
 
-            // --- Fechas y desgloses ---
             const fechaActual = new Date();
             const diaStr = fechaActual.getDate().toString();
             const mesStrLetras = fechaActual.toLocaleString('es-ES', { month: 'long' });
@@ -189,59 +217,53 @@ export default function Certificados() {
             const anioStr = fechaActual.getFullYear().toString();
 
             resultadosProcesados.push({
-              // UI Listado
               id_sacramento: sac.id_sacramento,
               nombre_completo: formatearNombre(rel.persona),
               ci: rel.persona.carnet_identidad,
               fecha: sac.fecha_sacramento,
               rol: nombreRolUI,
               
-              // Datos Generales Parroquia
-              numero: sac.numero || sac.numero_registro || Math.floor(100000 + Math.random() * 900000).toString(),
+              numero: sac.numero || Math.floor(100000 + Math.random() * 900000).toString() || "",
               iglesia: sac.parroquia?.nombre || "Parroquia", 
               presbitero: nombreMinistroCalculado || sac.sacerdote || "Pbro.", 
               libro: sac.libro?.toString() || "", 
               pagina: sac.foja?.toString() || "",
               partida: sac.numero?.toString() || "",
               
-              // Titular Bautizo/Comunion
               apellidoPaterno: relTitular?.persona?.apellido_paterno || rel.persona.apellido_paterno || "",
               apellidoMaterno: relTitular?.persona?.apellido_materno || rel.persona.apellido_materno || "",
               nombre: relTitular?.persona?.nombre || rel.persona.nombre || "",
               fechaNacimientoPrincipal: nacTitular, 
               lugarNacimientoPrincipal: lugarNacTitular,
               
-              // Familia / Apoderados (Sacados dinámicamente)
               padre: padreCalculado || sac.nombre_padre || "",
               madre: madreCalculada || sac.nombre_madre || "",
               padrino: nombrePadrinoCalculado || sac.nombre_padrino || "",
-              madrina: sac.nombre_madrina || "",
+              madrina: madrinaFinal || "",
+              
               catequista: sac.nombre_catequista || "",
               parroco: nombreMinistroCalculado || sac.nombre_parroco || "",
               testigos1: sac.testigo_uno || "",
               testigos2: sac.testigo_dos || "",
               
-              // Registro Civil
               oficialiaRC: sac.matrimonioDetalle?.reg_civil || sac.oficialia || "",
               libroRC: sac.libro_rc || "",
               partidaRC: sac.partida_rc || "",
-              notas1: sac.observaciones || "",
+              notas1: sac.observaciones || notasPorDefecto[tipo] || "",
               
-              // Expedición
               ciudadExpedicion: "La Paz",
               diaExpedicion: diaStr,
               mesExpedicionLetras: mesStrLetras,
               mesExpedicionNum: mesStrNum,
               anioExpedicion: anioStr,
 
-              // Contrayentes Matrimonio
               nombreEsposoMatrimonio: nombreEsposoCalculado,
               nombreEsposaMatrimonio: nombreEsposaCalculada,
               fechaNacimientoEsposo: nacEsposo,   
               fechaNacimientoEsposa: nacEsposa,
             });
           });
-        });
+        }
         
         const resultadosUnicos = resultadosProcesados.filter((v, i, a) => 
             a.findIndex(t => (t.id_sacramento === v.id_sacramento && t.nombre_completo === v.nombre_completo)) === i
