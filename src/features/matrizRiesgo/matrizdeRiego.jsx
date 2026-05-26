@@ -417,8 +417,11 @@ function TabTabla({ riesgos, loading, onEdit }) {
         <table className="w-full text-sm text-left">
           <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400">
             <tr>
+
               <th className="px-4 py-3">#</th>
               <th className="px-4 py-3">Activo</th>
+              <th className="px-4 py-3">Fecha</th>
+              <th className="px-4 py-3">Registrado por</th>
               <th className="px-4 py-3 min-w-[180px]">Amenaza</th>
               <th className="px-4 py-3 min-w-[160px]">Consecuencia</th>
               <th className="px-4 py-3 text-center">P</th>
@@ -428,8 +431,6 @@ function TabTabla({ riesgos, loading, onEdit }) {
               <th className="px-4 py-3 text-center">P res.</th>
               <th className="px-4 py-3 text-center">I res.</th>
               <th className="px-4 py-3 text-center">R. Residual</th>
-              <th className="px-4 py-3">Fecha</th>
-              <th className="px-4 py-3">Registrado por</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
@@ -441,6 +442,12 @@ function TabTabla({ riesgos, loading, onEdit }) {
                 <tr key={r.id_riesgo} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <td className="px-4 py-3 font-medium">{r.numero}</td>
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{r.activo_info}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {fmtFecha(r.created_at)}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                    {r.usuario ? `${r.usuario.nombre} ${r.usuario.apellido_paterno} ${r.usuario.apellido_materno}` : '—'} {r.usuario?.email && <span className="text-gray-400">({r.usuario.email})</span>}
+                  </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.amenaza_vulnerabilidad}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.consecuencia}</td>
                   <td className="px-4 py-3 text-center">{r.probabilidad_inherente}</td>
@@ -464,12 +471,7 @@ function TabTabla({ riesgos, loading, onEdit }) {
                       <NivelBadge nivel={nivelRiesgo(rr)} />
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {fmtFecha(r.created_at)}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                    {r.usuario_id ?? '—'}
-                  </td>
+                  
                   <td className="px-4 py-3">
                     <button
                       onClick={() => onEdit(r)}
