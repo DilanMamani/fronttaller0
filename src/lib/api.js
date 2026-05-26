@@ -261,7 +261,9 @@ const publicApi = axios.create({
 // api para configuracion de seguridad
 export const seguridadApi = {
   fetchConfiguracion: () =>
-    publicApi.get('/configuracion-seguridad').then((res) => res.data).catch(handleError),
+    api.get('/configuracion-seguridad').then((res) => res.data).catch(handleError),
+  fetchConfigutacionReset: () =>
+    publicApi.get('/configuracion-seguridad/reset').then((res) => res.data).catch(handleError),
   updateConfiguracion: (data) =>
     api.put(`/configuracion-seguridad`, data).then((res) => res.data).catch(handleError),
 };
