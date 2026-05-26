@@ -1,21 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { ClipLoader } from "react-spinners"; 
-const CERT_API = import.meta.env.VITE_AWS_CERTIFICADOS;
+//const CERT_API = import.meta.env.VITE_AWS_CERTIFICADOS;
+const CERT_API = "https://3lx4xvmaug4jowyyf5qlavxq2y0rkkou.lambda-url.us-east-2.on.aws";
 import Layout from '../../shared/components/layout/Layout';
 
 // === IMPORTACIONES DE REDUX ===
-import {
-  buscarSacramentos,
-  fetchSacramentoCompleto
-} from '../sacramentos/slices/sacramentosTrunk';
-
-import {
-  ROL_IDS,
-  TIPO_SACRAMENTO_IDS,
-  ROLES_SACRAMENTO_IDS,
-  obtenerNombreRol,
-} from '../sacramentos/config/sacramentos.constants';
+import { buscarSacramentos } from '../sacramentos/slices/sacramentosTrunk';
 
 export default function Certificados() {
   const dispatch = useDispatch();
@@ -110,7 +101,7 @@ export default function Certificados() {
     }
   };
 
-const handleBuscarSacramento = (e) => {
+  const handleBuscarSacramento = (e) => {
     e.preventDefault();
     if (!searchNombre && !searchCI) {
       alert("Ingresa al menos un nombre o CI para buscar.");
@@ -121,7 +112,6 @@ const handleBuscarSacramento = (e) => {
     setSacramentoSeleccionado(null);
     setBusquedaRealizada(true);
 
-    // Ajuste de clave para el diccionario de IDs
     let tipoKey = tipo; 
     if(tipo === 'Primera Comunión') tipoKey = 'Comunion';
 
@@ -130,9 +120,6 @@ const handleBuscarSacramento = (e) => {
       carnet_identidad: searchCI,
       activo: 'true',
       tipo_sacramento_id_tipo: TIPO_SACRAMENTO_IDS[tipoKey] || 1, 
-      // Si en este componente tienes acceso a ROLES_SACRAMENTO_IDS, 
-      // puedes agregarlo aquí como en tu código funcional:
-      // rol_principal: ROLES_SACRAMENTO_IDS[tipoKey] 
     };
 
     dispatch(buscarSacramentos(payload))
@@ -141,41 +128,63 @@ const handleBuscarSacramento = (e) => {
         const resultadosProcesados = [];
         
         res.resultados.forEach((sac) => {
+          const relaciones = sac.todasRelaciones || [];
+
+          const relEsposo = relaciones.find(r => r.rol_sacramento_id_rol_sacra === 2);
+          const relEsposa = relaciones.find(r => r.rol_sacramento_id_rol_sacra === 3);
+          const relTitular = relaciones.find(r => r.rol_sacramento_id_rol_sacra === 1 || r.rol_sacramento_id_rol_sacra === 4);
+          
+          const nombreEsposoCalculado = relEsposo?.persona ? `${relEsposo.persona.nombre} ${relEsposo.persona.apellido_paterno} ${relEsposo.persona.apellido_materno}` : "";
+          const nombreEsposaCalculada = relEsposa?.persona ? `${relEsposa.persona.nombre} ${relEsposa.persona.apellido_paterno} ${relEsposa.persona.apellido_materno}` : "";
+
+          const nacEsposo = relEsposo?.persona?.fecha_nacimiento || "";
+          const nacEsposa = relEsposa?.persona?.fecha_nacimiento || "";
+          const nacTitular = relTitular?.persona?.fecha_nacimiento || "";
+          const lugarNacTitular = relTitular?.persona?.lugar_nacimiento || "La Paz";
+
           sac.personaSacramentos.forEach((rel) => {
-            // IGUAL QUE TU CÓDIGO FUNCIONAL: Si no hay persona, salta; si la hay, procesa.
-            // Eliminamos el IF restrictivo de los IDs de rol.
             if (!rel.persona) return;
             
             const rolId = rel.rol_sacramento_id_rol_sacra;
             
-            // Asignación de rol visual amigable para la lista
             let nombreRolUI = 'Participante / Titular';
-            if ([4, 5, 10, 11, 12].includes(rolId)) nombreRolUI = 'Contrayente (Esposo/a)';
+            if ([2, 3, 4, 5, 10, 11, 12].includes(rolId)) nombreRolUI = 'Contrayente (Esposo/a)';
             if ([20, 21, 22].includes(rolId)) nombreRolUI = 'Comulgante';
             if ([1].includes(rolId)) nombreRolUI = 'Bautizado';
-            // Alternativa: Si importas tu función, puedes usar:
-            // const nombreRolUI = obtenerNombreRol(rolId);
+
+            // --- Fechas y desgloses ---
+            const fechaActual = new Date();
+            const diaStr = fechaActual.getDate().toString();
+            // Para el mes en letras:
+            const mesStrLetras = fechaActual.toLocaleString('es-ES', { month: 'long' });
+            // Para mes en numero o abreviado si lo pide el PDF:
+            const mesStrNum = (fechaActual.getMonth() + 1).toString();
+            const anioStr = fechaActual.getFullYear().toString();
 
             resultadosProcesados.push({
-              // --- 1. Datos para renderizar la lista en la UI ---
+              // UI Listado
               id_sacramento: sac.id_sacramento,
               nombre_completo: `${rel.persona.nombre} ${rel.persona.apellido_paterno} ${rel.persona.apellido_materno}`,
               ci: rel.persona.carnet_identidad,
               fecha: sac.fecha_sacramento,
               rol: nombreRolUI,
               
-              // --- 2. Datos específicos para inyectar en el PDF (Lambda) ---
-              numero: sac.numero || sac.numero_registro || "000000", 
-              iglesia: sac.parroquia?.nombre || sac.parroquia || "Iglesia San Miguel", 
-              presbitero: sac.sacerdote || "Don Mario", 
-              libro: sac.libro?.toString() || "12", 
-              pagina: sac.foja?.toString() || "3",
-              partida: sac.numero?.toString() || "11",
-              apellidoPaterno: rel.persona.apellido_paterno || "",
-              apellidoMaterno: rel.persona.apellido_materno || "",
-              nombre: rel.persona.nombre || "",
+              // Datos Generales Parroquia
+              numero: sac.numero || sac.numero_registro || Math.floor(100000 + Math.random() * 900000).toString(),
+              iglesia: sac.parroquia?.nombre || "Parroquia", 
+              presbitero: sac.sacerdote || "Pbro. Mario", 
+              libro: sac.libro?.toString() || "", 
+              pagina: sac.foja?.toString() || "",
+              partida: sac.numero?.toString() || "",
               
-              // Extracción directa del detalle del sacramento (previniendo nulos)
+              // Titular Bautizo/Comunion
+              apellidoPaterno: relTitular?.persona?.apellido_paterno || rel.persona.apellido_paterno || "",
+              apellidoMaterno: relTitular?.persona?.apellido_materno || rel.persona.apellido_materno || "",
+              nombre: relTitular?.persona?.nombre || rel.persona.nombre || "",
+              fechaNacimientoPrincipal: nacTitular, 
+              lugarNacimientoPrincipal: lugarNacTitular,
+              
+              // Familia / Apoderados
               padre: sac.nombre_padre || "",
               madre: sac.nombre_madre || "",
               padrino: sac.nombre_padrino || "",
@@ -184,21 +193,29 @@ const handleBuscarSacramento = (e) => {
               parroco: sac.nombre_parroco || "",
               testigos1: sac.testigo_uno || "",
               testigos2: sac.testigo_dos || "",
-              oficialiaRC: sac.oficialia || "",
+              
+              // Registro Civil
+              oficialiaRC: sac.matrimonioDetalle?.reg_civil || sac.oficialia || "",
               libroRC: sac.libro_rc || "",
               partidaRC: sac.partida_rc || "",
               notas1: sac.observaciones || "",
               
-              // Datos de expedición
+              // Expedición
               ciudadExpedicion: "La Paz",
-              diaExpedicion: new Date().getDate().toString(),
-              mesExpedicion: new Date().toLocaleString('es-ES', { month: 'long' })
+              diaExpedicion: diaStr,
+              mesExpedicionLetras: mesStrLetras,
+              mesExpedicionNum: mesStrNum,
+              anioExpedicion: anioStr,
+
+              // Contrayentes Matrimonio
+              nombreEsposoMatrimonio: nombreEsposoCalculado,
+              nombreEsposaMatrimonio: nombreEsposaCalculada,
+              fechaNacimientoEsposo: nacEsposo,   
+              fechaNacimientoEsposa: nacEsposa,
             });
           });
         });
         
-        // Limpiamos resultados duplicados en caso de que la misma persona 
-        // esté vinculada varias veces en el mismo registro por error de BD
         const resultadosUnicos = resultadosProcesados.filter((v, i, a) => 
             a.findIndex(t => (t.id_sacramento === v.id_sacramento && t.nombre_completo === v.nombre_completo)) === i
         );
@@ -222,75 +239,86 @@ const handleBuscarSacramento = (e) => {
   const construirPayloadLambda = () => {
     if (!sacramentoSeleccionado) return null;
 
-    // Campos comunes transversales a todos los certificados
+    // Campos transversales obligatorios en todas las plantillas
     const basePayload = {
-      templateKey: plantilla, // Enviamos dinámicamente la ruta S3 guardada en el estado
-      numero: sacramentoSeleccionado.numero || "",
-      iglesia: sacramentoSeleccionado.iglesia || "",
-      presbitero: sacramentoSeleccionado.presbitero || "",
-      libro: sacramentoSeleccionado.libro || "",
-      pagina: sacramentoSeleccionado.pagina || "",
-      partida: sacramentoSeleccionado.partida || "",
-      oficialiaRC: sacramentoSeleccionado.oficialiaRC || "",
-      libroRC: sacramentoSeleccionado.libroRC || "",
-      partidaRC: sacramentoSeleccionado.partidaRC || "",
-      firmado: sacramentoSeleccionado.presbitero || ""
+      templateKey: plantilla,
+      numero: sacramentoSeleccionado.numero,
+      iglesia: sacramentoSeleccionado.iglesia,
+      presbitero: sacramentoSeleccionado.presbitero,
+      libro: sacramentoSeleccionado.libro,
+      pagina: sacramentoSeleccionado.pagina,
+      partida: sacramentoSeleccionado.partida,
+      oficialiaRC: sacramentoSeleccionado.oficialiaRC,
+      libroRC: sacramentoSeleccionado.libroRC,
+      partidaRC: sacramentoSeleccionado.partidaRC,
+      firmado: sacramentoSeleccionado.presbitero 
     };
 
-    // Estructuras extendidas independientes según el tipo de sacramento
     if (tipo === 'Bautizo') {
       return {
         ...basePayload,
-        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "",
-        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "",
-        nombre: sacramentoSeleccionado.nombre || "",
-        lugarFechaBautismo: `La Paz, ${sacramentoSeleccionado.fecha || ""}`,
-        lugarNacimiento: "La Paz",
-        fechaNacimiento: "Verificar en BD",
-        padre: sacramentoSeleccionado.padre || "",
-        madre: sacramentoSeleccionado.madre || "",
-        padrino: sacramentoSeleccionado.padrino || "",
-        madrina: sacramentoSeleccionado.madrina || "",
-        notas: sacramentoSeleccionado.notas1 || ""
+        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno,
+        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno,
+        nombre: sacramentoSeleccionado.nombre,
+        lugarFechaBautismo: `La Paz, ${sacramentoSeleccionado.fecha}`,
+        fechaNacimiento: sacramentoSeleccionado.fechaNacimientoPrincipal, // <--- Aplicado
+        lugarNacimiento: sacramentoSeleccionado.lugarNacimientoPrincipal,
+        padre: sacramentoSeleccionado.padre,
+        madre: sacramentoSeleccionado.madre,
+        padrino: sacramentoSeleccionado.padrino,
+        madrina: sacramentoSeleccionado.madrina,
+        notas: sacramentoSeleccionado.notas1,
+        // Fechas desglosadas requeridas por Bautizo
+        //ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion,
+        dia: sacramentoSeleccionado.ciudadExpedicion,
+        mes: sacramentoSeleccionado.mesExpedicionNum,
+        mesTexto: sacramentoSeleccionado.mesExpedicionLetras,
+        anio: sacramentoSeleccionado.anioExpedicion,
       };
     }
 
     if (tipo === 'Primera Comunión') {
       return {
         ...basePayload,
-        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno || "",
-        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno || "",
-        nombre: sacramentoSeleccionado.nombre || "",
-        lugarFechaComunion1: `La Paz, ${sacramentoSeleccionado.fecha || ""}`,
-        lugarFechaComunion2: "",
-        padre: sacramentoSeleccionado.padre || "",
-        madre: sacramentoSeleccionado.madre || "",
-        catequista: sacramentoSeleccionado.catequista || "",
-        parroco: sacramentoSeleccionado.parroco || "",
-        notas1: sacramentoSeleccionado.notas1 || "",
-        notas2: "",
-        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion || "La Paz",
-        diaExpedicion: sacramentoSeleccionado.diaExpedicion || "",
-        mesExpedicion: sacramentoSeleccionado.mesExpedicion || ""
+        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno,
+        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno,
+        nombre: sacramentoSeleccionado.nombre,
+        lugarFechaComunion1: `La Paz, ${sacramentoSeleccionado.fecha}`,
+        lugarFechaComunion2: "", 
+        padre: sacramentoSeleccionado.padre,
+        madre: sacramentoSeleccionado.madre,
+        catequista: sacramentoSeleccionado.catequista,
+        parroco: sacramentoSeleccionado.parroco,
+        notas: sacramentoSeleccionado.notas1, 
+        // Fechas Primera Comunión
+        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion,
+        diaExpedicion: sacramentoSeleccionado.diaExpedicion,
+        mesExpedicion: sacramentoSeleccionado.mesExpedicionLetras,
+        anioExpedicion: sacramentoSeleccionado.anioExpedicion,
       };
     }
 
     if (tipo === 'Matrimonio') {
       return {
         ...basePayload,
-        nombreEsposo: sacramentoSeleccionado.rol === 'Esposo/a' ? sacramentoSeleccionado.nombre_completo : "Verificar Contrayente A",
-        fechaNacimientoEsposo: "",
-        nombreEsposa: sacramentoSeleccionado.rol !== 'Esposo/a' ? sacramentoSeleccionado.nombre_completo : "Verificar Contrayente B",
-        fechaNacimientoEsposa: "",
-        lugarFechaMatrimonio: `La Paz, ${sacramentoSeleccionado.fecha || ""}`,
-        celebradoPor: sacramentoSeleccionado.presbitero || "",
-        testigos1: sacramentoSeleccionado.testigos1 || "",
-        testigos2: sacramentoSeleccionado.testigos2 || "",
-        notas1: sacramentoSeleccionado.notas1 || "",
-        notas2: "",
-        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion || "La Paz",
-        diaExpedicion: sacramentoSeleccionado.diaExpedicion || "",
-        mesExpedicion: sacramentoSeleccionado.mesExpedicion || ""
+        nombreEsposo: sacramentoSeleccionado.nombreEsposoMatrimonio,
+        fechaNacimientoEsposo: sacramentoSeleccionado.fechaNacimientoEsposo, // <--- Aplicado
+        
+        nombreEsposa: sacramentoSeleccionado.nombreEsposaMatrimonio,
+        fechaNacimientoEsposa: sacramentoSeleccionado.fechaNacimientoEsposa, // <--- Aplicado
+        
+        lugarFechaMatrimonio: `La Paz, ${sacramentoSeleccionado.fecha}`,
+        celebradoPor: sacramentoSeleccionado.presbitero,
+        testigos1: sacramentoSeleccionado.testigos1,
+        testigos2: sacramentoSeleccionado.testigos2,
+        notas1: sacramentoSeleccionado.notas1,
+        notas2: "", // La plantilla exige esto aunque este vacío
+        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion,
+        //mesExpedicion: `${sacramentoSeleccionado.diaExpedicion} de ${sacramentoSeleccionado.mesExpedicionLetras} de ${sacramentoSeleccionado.anioExpedicion}`,
+        
+        diaExpedicion: sacramentoSeleccionado.diaExpedicion,
+        mesExpedicion: sacramentoSeleccionado.mesExpedicionLetras,
+        anioExpedicion: sacramentoSeleccionado.anioExpedicion,
       };
     }
 
