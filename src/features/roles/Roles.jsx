@@ -47,6 +47,8 @@ const getModuloPermiso = (nombre = "") => {
   if (nombre.includes("CONFIG_SEGURIDAD")) return "Configuración de seguridad";
   if (nombre.includes("REPORTE")) return "Reportes";
   if (nombre.includes("DASHBOARD")) return "Dashboard";
+  if (nombre.includes("MATRIZ")) return "Matriz de riesgos";
+  if (nombre.includes("OCR")) return "OCR";
   return "Otros";
 };
 
