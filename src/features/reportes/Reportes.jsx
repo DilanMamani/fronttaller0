@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { gql } from 'graphql-request';
 import getGraphQLClient from '../../lib/client';
 import Swal from 'sweetalert2';
@@ -6,6 +7,7 @@ import Layout from '../../shared/components/layout/Layout';
 import FiltrosReporte from './componentes/FiltrosReporte';
 import SeleccionCampos from './componentes/SeleccionCampos';
 import ConfiguracionReporte from './componentes/ConfiguracionReporte';
+import { selectUser } from '../login/slices/loginSelectors';
 
 const ESTADISTICAS_SACRAMENTOS = gql`
   query EstadisticasSacramentos($filter: SacramentoFilter) {
@@ -51,9 +53,13 @@ const GENERAR_REPORTE_PDF = gql`
 `;
 
 export default function Reportes() {
+  const user = useSelector(selectUser);
+  const parroquiaId = user?.parroquia?.id_parroquia ?? null;
+  const parroquiaNombre = user?.parroquia?.nombre ?? null;
+
   const [filtros, setFiltros] = useState({
     tipo_sacramento_id_tipo: null,
-    institucion_parroquia_id_parroquia: null,
+    institucion_parroquia_id_parroquia: parroquiaId,
     usuario_id_usuario: null,
     activo: null,
     foja: '',
@@ -206,7 +212,7 @@ const url = `${BASE_URL}${data.generarReportePDF.downloadUrl}`;
     <Layout title="Generación de Reportes">
       {/* filtros*/}
       <div className="mb-6">
-        <FiltrosReporte filtros={filtros} setFiltros={setFiltros} />
+        <FiltrosReporte filtros={filtros} setFiltros={setFiltros} parroquiaId={parroquiaId} parroquiaNombre={parroquiaNombre} />
       </div>
 
       {/* campos y configuración */}
