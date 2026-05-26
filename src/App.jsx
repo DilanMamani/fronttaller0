@@ -17,6 +17,7 @@ import Parroquias from './features/parroquias/Parroquias';
 import ResetPassword from './features/password/pages/ResetPassword';
 import RolesPermisos from './features/roles/Roles';
 import ConfiguracionSeguridad from './features/seguridad/Seguridad';
+import Ocr from './features/ocr/Ocr';
 import MatrizRiesgos from './features/matrizRiesgo/matrizdeRiego';
 
 export default function App() {
@@ -120,6 +121,15 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoute={ROUTES.MATRIZ_RIESGOS}>
                 <MatrizRiesgos />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={ROUTES.OCR}
+            element={
+              <ProtectedRoute requiredRoute={ROUTES.OCR}>
+                <Ocr />
               </ProtectedRoute>
             }
           />

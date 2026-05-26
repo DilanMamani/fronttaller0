@@ -27,6 +27,7 @@ export const ROUTES = {
   PARROQUIAS: '/parroquias',
   ROL_PERMISOS: '/roles-permisos',
   SEGURIDAD: '/configuracion-seguridad',
+  OCR: '/ocr',
   MATRIZ_RIESGOS: '/matriz-riesgos',
 };
 
@@ -42,6 +43,7 @@ export const ROLE_PERMISSIONS = {
   [ROLES.DIGITADOR]: [
     ROUTES.PERSONAS,
     ROUTES.SACRAMENTOS,
+    ROUTES.OCR,
   ],
   
   [ROLES.PARROCO]: [

@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { persistStore } from 'redux-persist';
 import rootReducer from './rootReducer';
+import { ocrErrorMiddleware } from './middleware/ocrErrorMiddleware';
 
 export const store = configureStore({
   reducer: rootReducer,
@@ -9,7 +10,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', 'persist/PAUSE'],
       },
-    }),
+    }).concat(ocrErrorMiddleware),
 });
 
 export const persistor = persistStore(store);

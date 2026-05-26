@@ -283,4 +283,57 @@ export const dominiosApi = {
   updateDominio: (id, data) =>
     api.put(`/dominio-permitido/${id}`, data).then((res) => res.data).catch(handleError),
 
-};  
+};
+
+export const ocrApi = {
+  // PASO 1 — Subir imagen y procesar OCR
+  preview: (formData) =>
+    api
+      .post('/ocr/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // PASO 3 — Asignar parroquia existente al histórico
+  asignarParroquia: (historicoId, data) =>
+    api
+      .put(`/ocr/parroquia/${historicoId}`, data)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // PASO 3 — Crear y asignar nueva parroquia al histórico
+  crearParroquia: (historicoId, data) =>
+    api
+      .post(`/ocr/parroquia/crear/${historicoId}`, data)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // PASO 4 — Confirmar y crear sacramento
+  confirmar: (data) =>
+    api
+      .post('/ocr/confirmar', data)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // Rechazar un histórico OCR
+  rechazar: (historicoId) =>
+    api
+      .put(`/ocr/rechazar/${historicoId}`)
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // Listar histórico de registros OCR
+  fetchHistorico: (params = {}) =>
+    api
+      .get('/ocr/historico', { params })
+      .then((res) => res.data)
+      .catch(handleError),
+ 
+  // Buscar personas por texto (buscador autocomplete del flujo OCR)
+  buscarPersonas: (params = {}) =>
+    api
+      .get('/personas/buscar/sacramento', { params })
+      .then((res) => res.data)
+      .catch(handleError),
+};
