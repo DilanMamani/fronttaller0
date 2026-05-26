@@ -94,13 +94,13 @@ export default function FilterSection({ filters, onFilterChange, onApplyFilters,
               <Label>Estatus HTTP</Label>
               <select value={filters.httpStatus} onChange={e => set('httpStatus', e.target.value)} className={INPUT_CLASS}>
                 <option value="">Todos</option>
-                <option value="200">200 - OK</option>
-                <option value="201">201 - Created</option>
-                <option value="400">400 - Bad Request</option>
-                <option value="401">401 - Unauthorized</option>
-                <option value="403">403 - Forbidden</option>
-                <option value="404">404 - Not Found</option>
-                <option value="500">500 - Server Error</option>
+                <option value="200">200 — Exitoso</option>
+                <option value="201">201 — Creado</option>
+                <option value="400">400 — Solicitud inválida</option>
+                <option value="401">401 — No autenticado</option>
+                <option value="403">403 — Sin permiso</option>
+                <option value="404">404 — No encontrado</option>
+                <option value="500">500 — Error del servidor</option>
               </select>
             </div>
 

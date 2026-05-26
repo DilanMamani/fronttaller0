@@ -1,6 +1,15 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { loginApi } from '../../../lib/api';
 
+const fetchAccesos = async (token) => {
+  try {
+    const accesos = await loginApi.fetchMisAccesosWithToken(token);
+    return { permisos: accesos.permisos || [], menu: accesos.menu || [] };
+  } catch {
+    return { permisos: [], menu: [] };
+  }
+};
+
 export const loginUser = createAsyncThunk(
   'login/loginUser',
   async (credentials, { rejectWithValue }) => {
@@ -22,6 +31,7 @@ export const loginUser = createAsyncThunk(
         };
       }
 
+      const accesos = await fetchAccesos(response.token);
       return {
         uid: response.uid || '',
         name: response.nombre || 'Usuario',
@@ -30,6 +40,7 @@ export const loginUser = createAsyncThunk(
         token: response.token,
         parroquia: response.parroquia || null,
         expiresAt: null,
+        ...accesos,
       };
     } catch (error) {
       return rejectWithValue({
@@ -53,6 +64,7 @@ export const verify2FAUser = createAsyncThunk(
         });
       }
 
+      const accesos = await fetchAccesos(response.token);
       return {
         uid: response.uid || '',
         name: response.nombre || 'Usuario',
@@ -60,7 +72,8 @@ export const verify2FAUser = createAsyncThunk(
         rol: response.rol?.nombre || 'Usuario',
         token: response.token,
         expiresAt: null,
-        parroquia: response.parroquia || null,  
+        parroquia: response.parroquia || null,
+        ...accesos,
       };
     } catch (error) {
       return rejectWithValue({

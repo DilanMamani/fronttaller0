@@ -6,11 +6,12 @@ const EVENTO_CONFIG = {
   LOGIN_2FA_ENVIADO:         { label: '2FA enviado',            color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' },
   LOGOUT:                    { label: 'Logout',                 color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200' },
   PASSWORD_RESET_SOLICITADO: { label: 'Reset solicitado',       color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' },
-  PASSWORD_SETUP_SOLICITADO: { label: 'Setup solicitado',       color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' },
+  PASSWORD_SETUP_SOLICITADO: { label: 'Cambio de contraseña solicitado',       color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' },
   PASSWORD_CHANGE_OK:        { label: 'Contraseña cambiada',    color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' },
   PASSWORD_SETUP_OK:         { label: 'Contraseña configurada', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' },
   PASSWORD_CHANGE_FAIL:      { label: 'Cambio fallido',         color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200' },
   PASSWORD_TOKEN_INVALIDO:   { label: 'Token inválido',         color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200' },
+  ROLE_CHANGE:               { label: 'Cambio de rol',          color: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200' },
 };
 
 const TH = ({ children, className = '' }) => (

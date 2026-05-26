@@ -34,11 +34,11 @@ import {
 import { fetchRoles } from './slicesRol/rolesThunk';
 import { selectRoles, selectRolesLoading } from './slicesRol/rolesSlice';
 
-import { fetchParroquiasSinParroco } from './slicesParroquias/parroquiasThunk';
+import { fetchParroquias } from '../parroquias/slices/parroquiasThunk';
 import {
-  selectParroquias,
+  selectParroquias as selectAllParroquias,
   selectIsLoading as selectParroquiasLoading,
-} from './slicesParroquias/parroquiasSlice';
+} from '../parroquias/slices/parroquiasSlice';
 
 import {
   initialUsuarioForm,
@@ -63,7 +63,7 @@ export default function Usuarios() {
   const roles = useSelector(selectRoles);
   const isLoadingRoles = useSelector(selectRolesLoading);
 
-  const parroquias = useSelector(selectParroquias);
+  const allParroquias = useSelector(selectAllParroquias);
   const isLoadingParroquias = useSelector(selectParroquiasLoading);
 
   const { open, close, modal } = useEditEntityModal();
@@ -82,7 +82,7 @@ export default function Usuarios() {
 
   useEffect(() => {
     dispatch(fetchRoles());
-    dispatch(fetchParroquiasSinParroco());
+    dispatch(fetchParroquias({}));
     dispatch(fetchUsuarios({ page: 1 }));
   }, [dispatch]);
 
@@ -111,7 +111,7 @@ export default function Usuarios() {
 
   const users = usuarios;
 
-  const parroquiasDisponibles = parroquias.filter(
+  const parroquiasDisponibles = allParroquias.filter(
     (p) => !p.parroco
   );
 
@@ -127,7 +127,7 @@ export default function Usuarios() {
     }),
   [
     roles,
-    parroquias,
+    allParroquias,
     isLoadingRoles,
     isLoadingParroquias,
     mostrarParroquiaEnAdd,
@@ -182,7 +182,7 @@ export default function Usuarios() {
     apellido_materno: filters.apellido_materno?.trim() || undefined,
     email: filters.email?.trim() || undefined,
     fecha_nacimiento: filters.fecha_nacimiento || undefined,
-    rol: filters.rol || undefined,
+    rol: filters.rol || filters.id_rol || undefined,
     id_parroquia: filters.id_parroquia ? Number(filters.id_parroquia) : undefined,
     activo:
       filters.activo === ''
@@ -263,9 +263,19 @@ export default function Usuarios() {
     nombreRol.includes('secretario_parroquial') ||
     rolRequiereParroquia(usuario.id_rol);
 
+  // Base: parroquias disponibles (sin párroco asignado).
+  // Se agregan las parroquias actuales del usuario que no estén en esa lista
+  // (ya tienen párroco: este mismo usuario, por eso no aparecen en disponibles).
+  const parroquiasParaEditar = [
+    ...parroquiasDisponibles,
+    ...(usuario.parroquias || []).filter(
+      (up) => !parroquiasDisponibles.some((p) => p.id_parroquia === up.id_parroquia)
+    ),
+  ];
+
   return buildUsuarioFields({
     roles,
-    parroquias,
+    parroquias: parroquiasParaEditar,
     isLoadingRoles,
     isLoadingParroquias,
     mostrarParroquia: requiereParroquia,

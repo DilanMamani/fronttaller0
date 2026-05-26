@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { extractError } from '../../../shared/utils/extractError.js';
 
 import {
   fetchPersonasParaSacramento,
@@ -199,7 +198,7 @@ export function useSacramentos() {
     const relaciones = [];
 
     if (form.personaId) {
-      relaciones.push({ persona_id: form.personaId, rol_sacramento_id: TIPO_SACRAMENTO_IDS[tipoSacramento] });
+      relaciones.push({ persona_id: form.personaId, rol_sacramento_id: ROLES_SACRAMENTO_IDS[tipoSacramento] });
     }
     if (form.padrinoId) {
       relaciones.push({ persona_id: form.padrinoId, rol_sacramento_id: ROL_IDS.PADRINO });
@@ -302,7 +301,7 @@ export function useSacramentos() {
         });
         setResults(planos);
       })
-      .catch((err) => setToast({ type: 'error', message: extractError(err) }))
+      .catch(() => setToast({ type: 'error', message: 'No se pudo realizar la búsqueda' }))
       .finally(() => setLoadingSacramento(false));
   };
 
@@ -331,10 +330,8 @@ export function useSacramentos() {
         resetForm();
       })
       .catch((err) => {
-        console.log('HOOK CATCH ERR:', JSON.stringify(err));
-        setToast({ type: 'error', message: err?.msg || err?.message || 'Error' });
+        setToast({ type: 'error', message: err?.message || 'Error al registrar sacramento' });
       });
-      
   };
 
   const handleBuscar = (e) => {
@@ -402,7 +399,7 @@ export function useSacramentos() {
         resetForm();
         ejecutarBusqueda();
       })
-      .catch((err) => setToast({ type: 'error', message: extractError(err) || 'No se pudo actualizar el sacramento' }))
+      .catch(() => setToast({ type: 'error', message: 'No se pudo actualizar el sacramento' }))
       .finally(() => setTimeout(() => setForceUpdateLoading(false), 500));
   };
 
@@ -426,7 +423,7 @@ export function useSacramentos() {
     tipoSacramento, setTipoSacramento,
     selectedPerson, setSelectedPerson,
     modalOpen, closeModal,
-    toast, setToast,
+    toast,
     forceUpdateLoading,
     loadingSacramento,
     results,

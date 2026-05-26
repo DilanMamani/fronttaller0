@@ -17,6 +17,7 @@ import Parroquias from './features/parroquias/Parroquias';
 import ResetPassword from './features/password/pages/ResetPassword';
 import RolesPermisos from './features/roles/Roles';
 import ConfiguracionSeguridad from './features/seguridad/Seguridad';
+import MatrizRiesgos from './features/matrizRiesgo/matrizdeRiego';
 
 export default function App() {
   return (
@@ -107,10 +108,18 @@ export default function App() {
             }
           />
           <Route
-            path="/configuracion-seguridad"
+            path={ROUTES.SEGURIDAD}
             element={
-              <ProtectedRoute requiredRoute="/configuracion-seguridad">
+              <ProtectedRoute requiredRoute={ROUTES.SEGURIDAD}>
                 <ConfiguracionSeguridad />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={ROUTES.MATRIZ_RIESGOS}
+            element={
+              <ProtectedRoute requiredRoute={ROUTES.MATRIZ_RIESGOS}>
+                <MatrizRiesgos />
               </ProtectedRoute>
             }
           />

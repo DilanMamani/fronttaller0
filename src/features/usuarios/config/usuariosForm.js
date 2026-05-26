@@ -102,13 +102,13 @@ export const buildUsuarioSearchFields = ({ roles = [] }) => [
   { name: 'email', label: 'Email', type: 'email', placeholder: 'correo@dominio.com' },
   { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date' },
   {
-    name: 'id_rol',
+    name: 'rol',
     label: 'Rol',
     type: 'select',
     options: [
       { value: '', label: 'Todos' },
       ...roles.map((r) => ({
-        value: r.id_rol,
+        value: r.nombre,
         label: r.nombre,
       })),
     ],

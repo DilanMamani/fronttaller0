@@ -1,9 +1,4 @@
-import DatePicker, { registerLocale } from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { es } from 'date-fns/locale';
 import MultiSelectSearch from '../ui/MultiSelectSearch';
-
-registerLocale('es', es);
 
 export default function FormFields({ fields = [], values = {}, setValues }) {
   const handleChange = (field, rawValue) => {
@@ -57,34 +52,16 @@ export default function FormFields({ fields = [], values = {}, setValues }) {
               </label>
 
               {field.type === 'date' ? (
-                // ── DatePicker personalizado ──────────────────────
-                <DatePicker
+                <input
                   id={field.name}
-                  locale="es"
-                  selected={value ? new Date(value + 'T00:00:00') : null}
-                  onChange={(date) => {
-                    if (!date) { handleChange(field, ''); return; }
-                    const yyyy = date.getFullYear();
-                    const mm   = String(date.getMonth() + 1).padStart(2, '0');
-                    const dd   = String(date.getDate()).padStart(2, '0');
-                    handleChange(field, `${yyyy}-${mm}-${dd}`);
-                  }}
-                  maxDate={field.max ? new Date(field.max) : undefined}
-                  minDate={field.min ? new Date(field.min) : undefined}
+                  type="date"
+                  value={value || ''}
+                  max={field.max || undefined}
+                  min={field.min || undefined}
                   disabled={isDisabled}
                   readOnly={isReadOnly}
-                  placeholderText="dd/mm/aaaa"
-                  dateFormat="dd/MM/yyyy"
-                  showMonthDropdown
-                  showYearDropdown
-                  dropdownMode="select"
-                  yearDropdownItemNumber={100}
-                  scrollableYearDropdown
-                  autoComplete="off"
+                  onChange={(e) => handleChange(field, e.target.value)}
                   className={inputClass}
-                  wrapperClassName="w-full"
-                  popperClassName="z-50"
-                  calendarClassName="!font-sans !text-sm !rounded-xl !border !border-gray-200 !shadow-lg"
                 />
 
               ) : field.type === 'select' ? (

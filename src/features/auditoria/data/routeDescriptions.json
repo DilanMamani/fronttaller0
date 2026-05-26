@@ -271,5 +271,102 @@
 
   "/api/password/cambiar": {
     "POST": "Cambió su contraseña"
+  },
+
+  "/api/usuarios/verificar-2fa": {
+    "POST": "Completó la verificación en dos pasos"
+  },
+
+  "/api/usuarios/desbloquear/:id": {
+    "POST": "Desbloqueó al usuario con ID {value}"
+  },
+
+  "/api/rol": {
+    "GET": "Consultó la lista de roles"
+  },
+
+  "/api/rol/new": {
+    "POST": "Registró un nuevo rol"
+  },
+
+  "/api/rol/:id": {
+    "GET": "Consultó los datos del rol con ID {value}",
+    "PUT": "Actualizó el rol con ID {value}"
+  },
+
+  "/api/permiso": {
+    "GET": "Consultó la lista de permisos"
+  },
+
+  "/api/permiso/new": {
+    "POST": "Registró un nuevo permiso"
+  },
+
+  "/api/permiso/:id": {
+    "GET": "Consultó los datos del permiso con ID {value}",
+    "PUT": "Actualizó el permiso con ID {value}"
+  },
+
+  "/api/configuracion-seguridad": {
+    "GET": "Consultó la configuración de seguridad del sistema",
+    "PUT": "Actualizó la configuración de seguridad del sistema"
+  },
+
+  "/api/dominio-permitido": {
+    "GET": "Consultó la lista de dominios de correo permitidos"
+  },
+
+  "/api/dominio-permitido/new": {
+    "POST": "Registró un nuevo dominio de correo permitido"
+  },
+
+  "/api/dominio-permitido/:id": {
+    "GET": "Consultó el dominio permitido con ID {value}",
+    "PUT": "Actualizó el dominio permitido con ID {value}",
+    "DELETE": "Eliminó el dominio permitido con ID {value}"
+  },
+
+  "/api/riesgos": {
+    "GET": "Consultó la matriz de riesgos",
+    "POST": "Registró un nuevo riesgo en la matriz"
+  },
+
+  "/api/riesgos/:id": {
+    "GET": "Consultó el riesgo con ID {value}",
+    "PUT": "Actualizó el riesgo con ID {value}"
+  },
+
+  "/api/sacramentos/completo": {
+    "POST": "Registró un sacramento completo con todos sus datos asociados"
+  },
+
+  "/api/sacramentos/completo/:id": {
+    "GET": "Consultó el detalle completo del sacramento con ID {value}",
+    "PUT": "Actualizó el sacramento completo con ID {value}"
+  },
+
+  "/api/auditoria/aplicacion": {
+    "GET": "Consultó los registros de auditoría de la aplicación"
+  },
+
+  "/api/auditoria/seguridad": {
+    "GET": "Consultó los registros de auditoría de seguridad"
+  },
+
+  "/api/parroquias/new": {
+    "POST": "Registró una nueva parroquia"
+  },
+
+  "/api/parroquias/:id": {
+    "GET": "Consultó los datos de la parroquia con ID {value}",
+    "PUT": "Actualizó la información de la parroquia con ID {value}"
+  },
+
+  "/api/dashboard/summary": {
+    "GET": "Consultó el resumen general del dashboard"
+  },
+
+  "/api/dashboard/summary/": {
+    "GET": "Consultó el resumen general del dashboard"
   }
 }

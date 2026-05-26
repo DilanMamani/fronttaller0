@@ -9,5 +9,6 @@ export const navItems = [
   { to: '/reportes', label: 'Reportes', icon: 'bar_chart' },
   { to: '/parroquias', label: 'Parroquias', icon: 'church' },
   { to: '/roles-permisos', label: 'Roles y permisos', icon: 'manage_accounts'},
-  { to: '/configuracion-seguridad', label: 'Configuración de seguridad', icon: 'security' }
+  { to: '/configuracion-seguridad', label: 'Configuración de seguridad', icon: 'security' },
+  { to: '/matriz-riesgos', label: 'Matriz de riesgos', icon: 'warning' }
 ];
