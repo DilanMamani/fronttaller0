@@ -16,11 +16,12 @@ const EVENTOS = [
   { value: 'LOGIN_2FA_ENVIADO',         label: '2FA enviado' },
   { value: 'LOGOUT',                    label: 'Logout' },
   { value: 'PASSWORD_RESET_SOLICITADO', label: 'Reset solicitado' },
-  { value: 'PASSWORD_SETUP_SOLICITADO', label: 'Setup solicitado' },
+  { value: 'PASSWORD_SETUP_SOLICITADO', label: 'Cambio de contraseña solicitado' },
   { value: 'PASSWORD_CHANGE_OK',        label: 'Contraseña cambiada' },
   { value: 'PASSWORD_SETUP_OK',         label: 'Contraseña configurada' },
   { value: 'PASSWORD_CHANGE_FAIL',      label: 'Cambio fallido' },
   { value: 'PASSWORD_TOKEN_INVALIDO',   label: 'Token inválido' },
+  { value: 'ROLE_CHANGE',               label: 'Cambio de rol' }
 ];
 
 export default function SecurityFilterSection({ filters, onFilterChange, onApplyFilters, onClearFilters, hasActiveFilters }) {

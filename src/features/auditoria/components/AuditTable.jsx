@@ -24,7 +24,25 @@ const getAccionColor = (a) => ({
 }[a] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200');
 
 const ACCION_LABEL = { CREATE: 'Creó', UPDATE: 'Actualizó', DELETE: 'Eliminó', READ: 'Consultó' };
-const METHOD_LABEL = { GET: 'Obtiene', POST: 'Crea', PUT: 'Modifica', PATCH: 'Actualiza', DELETE: 'Elimina' };
+const METHOD_LABEL = { GET: 'Consulta', POST: 'Crea', PUT: 'Modifica', PATCH: 'Actualiza', DELETE: 'Elimina' };
+
+const ENTIDAD_LABEL = {
+  personas:               'Personas',
+  usuarios:               'Usuarios',
+  sacramentos:            'Sacramentos',
+  parroquias:             'Parroquias',
+  matrimoniodetalles:     'Detalles matrimoniales',
+  personasacramentos:     'Sacramentos por persona',
+  tiposacramentos:        'Tipos de sacramento',
+  rolsacramentos:         'Roles sacramentales',
+  configuracion:          'Configuración de seguridad',
+  'dominio-permitido':    'Dominios permitidos',
+  'usuario-parroquia':    'Asignación de parroquia',
+  roles:                  'Roles',
+  permisos:               'Permisos',
+  riesgos:                'Riesgos',
+  auditoria:              'Auditoría',
+};
 
 const translateRoute = (method, originalUrl) => {
   let url = originalUrl.trim().replace(/\+/g, ' ').replace(/\/\?/, '?').replace(/&&+/g, '&').replace(/\/+$/, '').replace(/\?$/, '');
@@ -56,6 +74,45 @@ const translateRoute = (method, originalUrl) => {
 
   const readable = Object.entries(queryParams).map(([k, v]) => `${k}: ${v}`).join(', ');
   return readable ? `${METHOD_LABEL[method] || 'Acción'} en ${path} — filtros: ${readable}` : `${METHOD_LABEL[method] || 'Acción'} en ${path}`;
+};
+
+const FILTER_LABEL = {
+  nombre: 'nombre', apellido_paterno: 'apellido paterno', apellido_materno: 'apellido materno',
+  email: 'correo', fecha_nacimiento: 'fecha de nacimiento', rol: 'rol',
+  activo: 'activo', id_parroquia: 'parroquia', username: 'correo',
+};
+const IGNORED_PARAMS = new Set(['page', 'limit', 'offset', 'size', 'per_page']);
+
+const extractFilters = (url) => {
+  const query = url?.split('?')[1];
+  if (!query) return null;
+  const entries = query.split('&').flatMap((pair) => {
+    const [k, v] = pair.split('=');
+    if (!k || !v || IGNORED_PARAMS.has(k)) return [];
+    const label = FILTER_LABEL[k] || k;
+    return [`${label}: ${decodeURIComponent(v.replace(/\+/g, ' '))}`];
+  });
+  return entries.length ? entries.join(', ') : null;
+};
+
+const buildRowDescription = (item) => {
+  const { entidad, accion, http_method, url } = item;
+
+  if (entidad && accion) {
+    const label = ENTIDAD_LABEL[entidad] || entidad;
+    switch (accion) {
+      case 'CREATE': return `Registró en ${label}`;
+      case 'UPDATE': return `Actualizó en ${label}`;
+      case 'DELETE': return `Eliminó de ${label}`;
+      case 'READ': {
+        const filters = extractFilters(url);
+        return filters ? `Consultó ${label} — ${filters}` : `Consultó ${label}`;
+      }
+      default: return `${accion} sobre ${label}`;
+    }
+  }
+
+  return translateRoute(http_method, url);
 };
 
 const TH = ({ children, className = '' }) => (
@@ -103,7 +160,7 @@ export default function AuditTable({ data, onViewDetails }) {
                       </span>
                     </div>
                     <span className="text-sm text-foreground-light dark:text-foreground-dark">
-                      {translateRoute(item.http_method, item.url)}
+                      {buildRowDescription(item)}
                     </span>
                   </div>
                 </td>
@@ -117,7 +174,7 @@ export default function AuditTable({ data, onViewDetails }) {
                       </span>
                     )}
                     <span className="text-sm text-muted-light dark:text-muted-dark">
-                      {item.entidad || '—'}
+                      {ENTIDAD_LABEL[item.entidad] || item.entidad || '—'}
                     </span>
                   </div>
                 </td>
