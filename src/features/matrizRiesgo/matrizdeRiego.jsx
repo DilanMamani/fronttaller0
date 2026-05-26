@@ -15,6 +15,12 @@ import {
 
 const calcRiesgo = (p, i) => Number(p) * Number(i);
 
+const fmtFecha = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 const nivelRiesgo = (valor) => {
   if (valor <= 4)  return 'Bajo';
   if (valor <= 9)  return 'Moderado';
@@ -422,6 +428,8 @@ function TabTabla({ riesgos, loading, onEdit }) {
               <th className="px-4 py-3 text-center">P res.</th>
               <th className="px-4 py-3 text-center">I res.</th>
               <th className="px-4 py-3 text-center">R. Residual</th>
+              <th className="px-4 py-3">Fecha</th>
+              <th className="px-4 py-3">Registrado por</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
@@ -455,6 +463,12 @@ function TabTabla({ riesgos, loading, onEdit }) {
                       <span className="font-bold">{rr}</span>
                       <NivelBadge nivel={nivelRiesgo(rr)} />
                     </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {fmtFecha(r.created_at)}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                    {r.usuario_id ?? '—'}
                   </td>
                   <td className="px-4 py-3">
                     <button
@@ -548,6 +562,17 @@ function TabTarjetas({ riesgos, loading, onEdit }) {
                       >
                         Editar
                       </button>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">calendar_today</span>
+                        {fmtFecha(r.created_at)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">person</span>
+                        {r.usuario_id ?? 'Sin usuario'}
+                      </span>
                     </div>
                   </div>
                 );
