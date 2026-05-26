@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { asignarParroquiaOcr, crearParroquiaOcr } from '../slices/ocrThunk';
 import {
@@ -7,23 +7,25 @@ import {
   selectOcrError,
   clearError,
 } from '../slices/ocrSlice';
+import { parroquiasApi } from '../../../lib/api';
 
 /**
  * Paso 3 — Confirmar parroquia.
- * Se llega aquí cuando el OCR no pudo determinar la parroquia con certeza
- * (requiere_confirmacion_parroquia: true).
- *
- * Props:
- *  - parroquias: array de parroquias disponibles para selección
+ * Usa campo de texto con búsqueda para seleccionar parroquia existente
+ * o crear una nueva.
  */
-export default function Paso3Parroquia({ parroquias = [] }) {
+export default function Paso3Parroquia() {
   const dispatch = useDispatch();
   const historicoId = useSelector(selectOcrHistoricoId);
   const isSaving = useSelector(selectOcrIsSavingParroquia);
   const errorGlobal = useSelector(selectOcrError);
 
-  const [modo, setModo] = useState('existente'); // 'existente' | 'nueva'
-  const [parroquiaId, setParroquiaId] = useState('');
+  const [modo, setModo] = useState('existente');
+  const [query, setQuery] = useState('');
+  const [resultados, setResultados] = useState([]);
+  const [parroquiaSeleccionada, setParroquiaSeleccionada] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(false);
   const [nuevaParroquia, setNuevaParroquia] = useState({
     nombre_parroquia: '',
     direccion: '',
@@ -31,16 +33,74 @@ export default function Paso3Parroquia({ parroquias = [] }) {
   });
   const [localError, setLocalError] = useState('');
 
+  const containerRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpenDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Búsqueda con debounce
+  useEffect(() => {
+    if (parroquiaSeleccionada || modo !== 'existente') return;
+    clearTimeout(debounceRef.current);
+
+    if (query.trim().length < 2) {
+      setResultados([]);
+      setOpenDropdown(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const data = await parroquiasApi.fetchParroquias({ search: query.trim(), limit: 20 });
+        const lista = data?.parroquias ?? data?.rows ?? [];
+        setResultados(lista);
+        setOpenDropdown(true);
+      } catch {
+        setResultados([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(debounceRef.current);
+  }, [query, parroquiaSeleccionada, modo]);
+
+  const handleSelectParroquia = (p) => {
+    setParroquiaSeleccionada(p);
+    setQuery(p.nombre ?? p.nombre_parroquia ?? '');
+    setOpenDropdown(false);
+    setLocalError('');
+  };
+
+  const handleClearParroquia = () => {
+    setParroquiaSeleccionada(null);
+    setQuery('');
+    setResultados([]);
+  };
+
   const handleSubmit = () => {
     dispatch(clearError());
     setLocalError('');
 
     if (modo === 'existente') {
-      if (!parroquiaId) return setLocalError('Selecciona una parroquia.');
-      console.log('>>> enviando:', { historicoId, parroquiaId: Number(parroquiaId) });
-      dispatch(asignarParroquiaOcr({ historicoId, parroquiaId: Number(parroquiaId) }));
-    }
-    else {
+      if (!parroquiaSeleccionada) return setLocalError('Selecciona una parroquia.');
+      dispatch(
+        asignarParroquiaOcr({
+          historicoId,
+          parroquiaId: parroquiaSeleccionada.id_parroquia,
+        })
+      );
+    } else {
       if (!nuevaParroquia.nombre_parroquia.trim())
         return setLocalError('Ingresa el nombre de la parroquia.');
       dispatch(crearParroquiaOcr({ historicoId, data: nuevaParroquia }));
@@ -54,8 +114,8 @@ export default function Paso3Parroquia({ parroquias = [] }) {
           Confirmar parroquia
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          El OCR no pudo identificar la parroquia con certeza. Selecciona una existente o registra
-          una nueva.
+          El OCR no pudo identificar la parroquia con certeza. Búscala por nombre o registra una
+          nueva.
         </p>
       </div>
 
@@ -67,10 +127,7 @@ export default function Paso3Parroquia({ parroquias = [] }) {
         ].map((opt) => (
           <button
             key={opt.key}
-            onClick={() => {
-              setModo(opt.key);
-              setLocalError('');
-            }}
+            onClick={() => { setModo(opt.key); setLocalError(''); }}
             className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${
               modo === opt.key
                 ? 'bg-primary/10 border-primary text-primary font-medium'
@@ -82,80 +139,88 @@ export default function Paso3Parroquia({ parroquias = [] }) {
         ))}
       </div>
 
-      {/* Parroquia existente — lista scrolleable */}
+      {/* Búsqueda de parroquia existente */}
       {modo === 'existente' && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" ref={containerRef}>
           <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-            Seleccionar parroquia *
+            Buscar parroquia *
           </label>
 
-          <div
-            className={`rounded-xl border-2 overflow-hidden transition-colors ${
-              localError && !parroquiaId
-                ? 'border-red-500'
-                : 'border-gray-300 dark:border-gray-600'
-            }`}
-          >
-            {parroquias.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 p-8 bg-gray-50 dark:bg-gray-800/40">
-                <span className="material-symbols-outlined text-3xl text-gray-400">church</span>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No hay parroquias disponibles
-                </p>
+          {parroquiaSeleccionada ? (
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
+                <div>
+                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                    {parroquiaSeleccionada.nombre ?? parroquiaSeleccionada.nombre_parroquia}
+                  </p>
+                  <p className="text-xs text-emerald-600">ID: {parroquiaSeleccionada.id_parroquia}</p>
+                </div>
               </div>
-            ) : (
-              <ul className="max-h-56 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/60">
-                {parroquias.map((p) => {
-                  const selected = String(p.id_parroquia) === String(parroquiaId);
-                  return (
-                    <li key={p.id_parroquia}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setParroquiaId(p.id_parroquia);
-                          setLocalError('');
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
-                          selected
-                            ? 'bg-emerald-50 dark:bg-emerald-950/20'
-                            : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/60'
-                        }`}
-                      >
-                        <span
-                          className={`material-symbols-outlined text-[18px] flex-shrink-0 ${
-                            selected
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-gray-400'
-                          }`}
-                        >
-                          {selected ? 'check_circle' : 'church'}
-                        </span>
-                        <span
-                          className={`font-medium ${
-                            selected
-                              ? 'text-emerald-700 dark:text-emerald-400'
-                              : 'text-gray-900 dark:text-white'
-                          }`}
-                        >
-                          {p.nombre_parroquia ?? p.nombre}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={handleClearParroquia}
+                className="text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px] pointer-events-none">
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() => resultados.length > 0 && setOpenDropdown(true)}
+                  placeholder="Escribir nombre de parroquia (mín. 2 caracteres)..."
+                  className={[
+                    'w-full pl-9 pr-9 py-2 text-sm rounded-lg border bg-white dark:bg-gray-800',
+                    'text-gray-900 dark:text-white outline-none transition-colors',
+                    localError && !parroquiaSeleccionada
+                      ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                      : 'border-gray-300 dark:border-gray-600 focus:border-primary focus:ring-2 focus:ring-primary/20',
+                  ].join(' ')}
+                />
+                {isSearching && (
+                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-primary text-[18px] animate-spin">
+                    progress_activity
+                  </span>
+                )}
+              </div>
 
-          {parroquiaId && (
-            <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]">check_circle</span>
-              {parroquias.find(
-                (p) => String(p.id_parroquia) === String(parroquiaId)
-              )?.nombre_parroquia ?? parroquias.find(
-                (p) => String(p.id_parroquia) === String(parroquiaId)
-              )?.nombre}
-            </p>
+              {openDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg overflow-hidden">
+                  {resultados.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                      Sin resultados para "{query}". Puedes crear una nueva parroquia.
+                    </div>
+                  ) : (
+                    <ul className="max-h-52 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                      {resultados.map((p) => (
+                        <li key={p.id_parroquia}>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectParroquia(p)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-gray-400 text-[18px]">
+                              church
+                            </span>
+                            <span className="text-sm text-gray-900 dark:text-white">
+                              {p.nombre ?? p.nombre_parroquia}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -163,10 +228,7 @@ export default function Paso3Parroquia({ parroquias = [] }) {
       {/* Nueva parroquia */}
       {modo === 'nueva' && (
         <div className="space-y-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              Nombre de la parroquia *
-            </label>
+          <Field label="Nombre de la parroquia *">
             <input
               type="text"
               value={nuevaParroquia.nombre_parroquia}
@@ -175,33 +237,23 @@ export default function Paso3Parroquia({ parroquias = [] }) {
               }
               className={ic(!!localError && !nuevaParroquia.nombre_parroquia)}
             />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              Dirección
-            </label>
+          </Field>
+          <Field label="Dirección">
             <input
               type="text"
               value={nuevaParroquia.direccion}
-              onChange={(e) =>
-                setNuevaParroquia((p) => ({ ...p, direccion: e.target.value }))
-              }
+              onChange={(e) => setNuevaParroquia((p) => ({ ...p, direccion: e.target.value }))}
               className={ic()}
             />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              Ciudad
-            </label>
+          </Field>
+          <Field label="Ciudad">
             <input
               type="text"
               value={nuevaParroquia.ciudad}
-              onChange={(e) =>
-                setNuevaParroquia((p) => ({ ...p, ciudad: e.target.value }))
-              }
+              onChange={(e) => setNuevaParroquia((p) => ({ ...p, ciudad: e.target.value }))}
               className={ic()}
             />
-          </div>
+          </Field>
         </div>
       )}
 
@@ -213,7 +265,6 @@ export default function Paso3Parroquia({ parroquias = [] }) {
         </p>
       )}
 
-      {/* Botón */}
       <button
         onClick={handleSubmit}
         disabled={isSaving}
@@ -221,9 +272,7 @@ export default function Paso3Parroquia({ parroquias = [] }) {
       >
         {isSaving ? (
           <>
-            <span className="material-symbols-outlined text-[16px] animate-spin">
-              progress_activity
-            </span>
+            <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
             Guardando...
           </>
         ) : (
@@ -233,6 +282,15 @@ export default function Paso3Parroquia({ parroquias = [] }) {
           </>
         )}
       </button>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</label>
+      {children}
     </div>
   );
 }

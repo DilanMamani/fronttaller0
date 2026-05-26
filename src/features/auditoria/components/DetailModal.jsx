@@ -68,6 +68,24 @@ const buildDescripcion = (data) => {
   return `${METHOD_LABEL[method] || 'Acción'} en ${url.split('?')[0]}`;
 };
 
+const ENTIDAD_LABEL = {
+  personas:               'Personas',
+  usuarios:               'Usuarios',
+  sacramentos:            'Sacramentos',
+  parroquias:             'Parroquias',
+  matrimoniodetalles:     'Detalles matrimoniales',
+  personasacramentos:     'Sacramentos por persona',
+  tiposacramentos:        'Tipos de sacramento',
+  rolsacramentos:         'Roles sacramentales',
+  configuracion:          'Configuración de seguridad',
+  'dominio-permitido':    'Dominios permitidos',
+  'usuario-parroquia':    'Asignación de parroquia',
+  roles:                  'Roles',
+  permisos:               'Permisos',
+  riesgos:                'Riesgos',
+  auditoria:              'Auditoría',
+};
+
 // Helpers de artículos
 const articuloDefinido   = (e) => ['usuario', 'sacramento', 'rol sacramental'].includes(e) ? 'el' : 'la';
 const articuloIndefinido = (e) => ['usuario', 'sacramento', 'rol sacramental'].includes(e) ? 'un'  : 'una';
@@ -227,7 +245,7 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
             </div>
             <DetailRow label="Método HTTP"      value={data.http_method} />
             <DetailRow label="Estado HTTP"      value={data.http_status} />
-            <DetailRow label="Entidad"          value={data.entidad} />
+            <DetailRow label="Entidad"          value={ENTIDAD_LABEL[data.entidad] || data.entidad} />
             <DetailRow label="Dirección IP"     value={data.ip_address} />
             <DetailRow label="ID correlación"   value={data.correlation_id} />
             <DetailRow label="Aplicación"       value={data.application_name} />

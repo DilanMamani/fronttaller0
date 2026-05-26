@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { extraerMensaje } from '../../../store/middleware/ocrErrorMiddleware';
 import {
   uploadOcrPreview,
   asignarParroquiaOcr,
@@ -7,6 +8,14 @@ import {
   rechazarOcr,
   fetchOcrHistorico,
 } from './ocrThunk';
+
+// Mapa canónico de tipos de sacramento (coincide con el backend)
+// 1 = Bautismo, 2 = Matrimonio, 3 = Primera Comunión
+const TIPO_ID_MAP = {
+  1: 'bautismo',
+  2: 'matrimonio',
+  3: 'primera_comunion',
+};
 
 const initialState = {
   // ── Flujo activo ──────────────────────────────────────────────
@@ -67,6 +76,35 @@ const ocrSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
+
+    /**
+     * Reanuda el flujo OCR desde un registro histórico.
+     * esperando_parroquia → paso 3
+     * pendiente           → paso 2
+     */
+    reanudarFlujo(state, action) {
+      const item = action.payload;
+      state.error = null;
+      state.successData = null;
+      state.historicoId = item.id;
+      state.datosDetectados = item.datos_extraidos ?? null;
+      state.parroquiaId = item.institucion_parroquia_id ?? null;
+
+      const tipoId = item.tipo_sacramento_id ?? item.tipoSacramento?.id_tipo ?? null;
+      state.tipoSacramentoId = tipoId;
+      state.tipoSacramento = tipoId ? (TIPO_ID_MAP[tipoId] ?? '') : '';
+
+      if (item.estado === 'esperando_parroquia') {
+        state.requiereConfirmacionParroquia = true;
+        state.paso = 3;
+      } else {
+        // pendiente → ir a revisar datos
+        state.requiereConfirmacionParroquia = false;
+        state.paso = 2;
+      }
+
+      state.activeTab = 'registrar';
+    },
   },
 
   extraReducers: (builder) => {
@@ -80,12 +118,11 @@ const ocrSlice = createSlice({
         state.isUploading = false;
         const payload = action.payload;
 
-        state.historicoId     = payload.historico_id ?? payload.historicoId ?? null;
+        state.historicoId = payload.historico_id ?? payload.historicoId ?? null;
         state.datosDetectados = payload.datos_ocr ?? payload.datosDetectados ?? null;
 
         if (payload.tipo_sacramento_id != null) {
           state.tipoSacramentoId = payload.tipo_sacramento_id;
-          const TIPO_ID_MAP = { 1: 'bautismo', 2: 'matrimonio', 3: 'confirmacion' };
           state.tipoSacramento = TIPO_ID_MAP[payload.tipo_sacramento_id] ?? '';
         }
 
@@ -94,7 +131,7 @@ const ocrSlice = createSlice({
       })
       .addCase(uploadOcrPreview.rejected, (state, action) => {
         state.isUploading = false;
-        state.error = action.payload || 'Error al procesar la imagen';
+        state.error = state.error = extraerMensaje(action.payload);
       })
 
       // ── PASO 3a: Asignar parroquia existente ─────────────────
@@ -108,7 +145,7 @@ const ocrSlice = createSlice({
       })
       .addCase(asignarParroquiaOcr.rejected, (state, action) => {
         state.isSavingParroquia = false;
-        state.error = action.payload || 'Error al asignar parroquia';
+        state.error = extraerMensaje(action.payload) || 'Error al asignar parroquia';
       })
 
       // ── PASO 3b: Crear y asignar nueva parroquia ─────────────
@@ -123,7 +160,7 @@ const ocrSlice = createSlice({
       })
       .addCase(crearParroquiaOcr.rejected, (state, action) => {
         state.isSavingParroquia = false;
-        state.error = action.payload || 'Error al crear parroquia';
+        state.error = extraerMensaje(action.payload) || 'Error al crear parroquia';
       })
 
       // ── PASO 4: Confirmar sacramento ─────────────────────────
@@ -138,7 +175,7 @@ const ocrSlice = createSlice({
       })
       .addCase(confirmarOcr.rejected, (state, action) => {
         state.isConfirming = false;
-        state.error = action.payload || 'Error al confirmar el sacramento';
+        state.error = extraerMensaje(action.payload);
       })
 
       // ── Rechazar ─────────────────────────────────────────────
@@ -154,7 +191,7 @@ const ocrSlice = createSlice({
       })
       .addCase(rechazarOcr.rejected, (state, action) => {
         state.isRechazando = false;
-        state.error = action.payload || 'Error al rechazar el registro';
+        state.error = extraerMensaje(action.payload);
       })
 
       // ── Histórico ─────────────────────────────────────────────
@@ -164,40 +201,48 @@ const ocrSlice = createSlice({
       })
       .addCase(fetchOcrHistorico.fulfilled, (state, action) => {
         state.isLoadingHistorico = false;
-        state.historico    = action.payload.historico || action.payload.items || [];
-        state.totalItems   = action.payload.totalItems  ?? 0;
-        state.totalPages   = action.payload.totalPages  ?? 1;
-        state.currentPage  = action.payload.currentPage ?? 1;
+        state.historico = action.payload.historico || action.payload.items || [];
+        state.totalItems = action.payload.totalItems ?? 0;
+        state.totalPages = action.payload.totalPages ?? 1;
+        state.currentPage = action.payload.currentPage ?? 1;
       })
       .addCase(fetchOcrHistorico.rejected, (state, action) => {
         state.isLoadingHistorico = false;
-        state.error = action.payload || 'Error al cargar histórico';
-      });
+        state.error = extraerMensaje(action.payload) || 'Error al cargar histórico';
+      })
   },
 });
 
-export const { resetFlujo, setPaso, setParroquiaId, clearError, setActiveTab, setTipoSacramentoId } = ocrSlice.actions;
+export const {
+  resetFlujo,
+  setPaso,
+  setParroquiaId,
+  clearError,
+  setActiveTab,
+  setTipoSacramentoId,
+  reanudarFlujo,
+} = ocrSlice.actions;
 
 // ── Selectores ────────────────────────────────────────────────────────────────
-export const selectOcrPaso                 = (state) => state.ocr.paso;
-export const selectOcrHistoricoId          = (state) => state.ocr.historicoId;
-export const selectOcrDatosDetectados      = (state) => state.ocr.datosDetectados;
-export const selectOcrTipoSacramento       = (state) => state.ocr.tipoSacramento;
-export const selectOcrTipoSacramentoId     = (state) => state.ocr.tipoSacramentoId;
-export const selectOcrParroquiaId          = (state) => state.ocr.parroquiaId;
-export const selectOcrRequiereParroquia    = (state) => state.ocr.requiereConfirmacionParroquia;
-export const selectOcrError                = (state) => state.ocr.error;
-export const selectOcrSuccessData          = (state) => state.ocr.successData;
-export const selectOcrIsUploading          = (state) => state.ocr.isUploading;
-export const selectOcrIsConfirming         = (state) => state.ocr.isConfirming;
-export const selectOcrIsRechazando         = (state) => state.ocr.isRechazando;
-export const selectOcrIsSavingParroquia    = (state) => state.ocr.isSavingParroquia;
-export const selectOcrHistorico            = (state) => state.ocr.historico;
-export const selectOcrIsLoadingHistorico   = (state) => state.ocr.isLoadingHistorico;
-// Selectores de paginación (server-side)
-export const selectOcrTotalItems           = (state) => state.ocr.totalItems;
-export const selectOcrTotalPages           = (state) => state.ocr.totalPages;
-export const selectOcrCurrentPage          = (state) => state.ocr.currentPage;
+export const selectOcrPaso = (state) => state.ocr.paso;
+export const selectOcrHistoricoId = (state) => state.ocr.historicoId;
+export const selectOcrDatosDetectados = (state) => state.ocr.datosDetectados;
+export const selectOcrTipoSacramento = (state) => state.ocr.tipoSacramento;
+export const selectOcrTipoSacramentoId = (state) => state.ocr.tipoSacramentoId;
+export const selectOcrParroquiaId = (state) => state.ocr.parroquiaId;
+export const selectOcrRequiereParroquia = (state) => state.ocr.requiereConfirmacionParroquia;
+export const selectOcrError = (state) => state.ocr.error;
+export const selectOcrSuccessData = (state) => state.ocr.successData;
+export const selectOcrIsUploading = (state) => state.ocr.isUploading;
+export const selectOcrIsConfirming = (state) => state.ocr.isConfirming;
+export const selectOcrIsRechazando = (state) => state.ocr.isRechazando;
+export const selectOcrIsSavingParroquia = (state) => state.ocr.isSavingParroquia;
+export const selectOcrHistorico = (state) => state.ocr.historico;
+export const selectOcrIsLoadingHistorico = (state) => state.ocr.isLoadingHistorico;
+export const selectOcrTotalItems = (state) => state.ocr.totalItems;
+export const selectOcrTotalPages = (state) => state.ocr.totalPages;
+export const selectOcrCurrentPage = (state) => state.ocr.currentPage;
 
+export { ocrSlice };
 export const ocrReducer = ocrSlice.reducer;
 export default ocrSlice.reducer;

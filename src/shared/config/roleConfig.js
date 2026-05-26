@@ -28,6 +28,7 @@ export const ROUTES = {
   ROL_PERMISOS: '/roles-permisos',
   SEGURIDAD: '/configuracion-seguridad',
   OCR: '/ocr',
+  MATRIZ_RIESGOS: '/matriz-riesgos',
 };
 
 // ===============================
@@ -62,6 +63,7 @@ export const ROLE_PERMISSIONS = {
     ROUTES.AUDITORIA_APLICACION,
     ROUTES.AUDITORIA_SEGURIDAD,
     ROUTES.SEGURIDAD,
+    ROUTES.MATRIZ_RIESGOS,
     ROUTES.PERSONAS,
     ROUTES.SACRAMENTOS,
     ROUTES.CERTIFICADOS,

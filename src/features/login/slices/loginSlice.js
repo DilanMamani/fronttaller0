@@ -8,6 +8,8 @@ const initialState = {
     email: '',
     token: null,
     parroquia: null,
+    permisos: [],
+    menu: [],
   },
   isLoading: false,
   error: null,
@@ -18,7 +20,7 @@ const loginSlice = createSlice({
   initialState,
   reducers: {
     logout(state) {
-    state.user = { uid: '', name: '', email: '', rol: '', parroquia: null, token: null };
+    state.user = { uid: '', name: '', email: '', rol: '', parroquia: null, token: null, permisos: [], menu: [] };
     state.isLoading = false;
     state.error = null;
   },

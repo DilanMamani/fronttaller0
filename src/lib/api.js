@@ -43,6 +43,11 @@ export const loginApi = {
 
   verificar2FA: (data) =>
     api.post('/usuarios/verificar-2fa', data).then((res) => res.data).catch(handleError),
+
+  fetchMisAccesosWithToken: (token) =>
+    api.get('/usuarios/mis-accesos', { headers: { 'x-token': token } })
+      .then((res) => res.data)
+      .catch(handleError),
 };
 
 // pa colocar el header
@@ -255,6 +260,16 @@ export const seguridadApi = {
     api.get('/configuracion-seguridad').then((res) => res.data).catch(handleError),
   updateConfiguracion: (data) =>
     api.put(`/configuracion-seguridad`, data).then((res) => res.data).catch(handleError),
+};
+
+// api para riesgos
+export const riesgosApi = {
+  fetchRiesgos: (params = {}) =>
+    api.get('/riesgos', { params }).then((res) => res.data).catch(handleError),
+  createRiesgo: (data) =>
+    api.post('/riesgos', data).then((res) => res.data).catch(handleError),
+  updateRiesgo: (id, data) =>
+    api.put(`/riesgos/${id}`, data).then((res) => res.data).catch(handleError),
 };
 
 // api para los dominios de correos

@@ -12,12 +12,12 @@ import {
 import PersonaBuscador from './PersonaBuscador';
 
 /**
- * Roles de relaciones adicionales para bautismo
- * tipo=rol → el backend acepta: padrino, madrina, ministro
+ * Roles adicionales para primera comunión
+ * tipo=rol → padrino, madrina, ministro
  */
-const ROLES_ADICIONALES_BAUTISMO = [
-  { value: 'padrino',  label: 'Padrino',   rol_sacramento_id: 5 },
-  { value: 'madrina',  label: 'Madrina',   rol_sacramento_id: 6 },
+const ROLES_ADICIONALES_COMUNION = [
+  { value: 'padrino',  label: 'Padrino',             rol_sacramento_id: 5 },
+  { value: 'madrina',  label: 'Madrina',             rol_sacramento_id: 6 },
   { value: 'ministro', label: 'Ministro / Sacerdote', rol_sacramento_id: 9 },
 ];
 
@@ -31,7 +31,10 @@ const parseFecha = (str = '') => {
   return isNaN(new Date(iso).getTime()) ? null : iso;
 };
 
-export default function Paso2Bautismo() {
+const ADVERTENCIA_COMUNION =
+  'La persona debe tener un bautismo registrado en el sistema para poder recibir la primera comunión.';
+
+export default function Paso2PrimeraComunion() {
   const dispatch = useDispatch();
   const historicoId = useSelector(selectOcrHistoricoId);
   const datosDetectados = useSelector(selectOcrDatosDetectados);
@@ -47,15 +50,11 @@ export default function Paso2Bautismo() {
     parroquia: datosDetectados?.parroquia || '',
   });
 
-  // Persona principal bautizada
-  const [bautizado, setBautizado] = useState(null);
-
-  // Relaciones adicionales: { rolKey, persona, rol_sacramento_id }
+  const [comulgado, setComulgado] = useState(null);
   const [relaciones, setRelaciones] = useState([]);
-
   const [errorPersona, setErrorPersona] = useState('');
 
-  const handleCampo = (field, value) => setCampos((prev) => ({ ...prev, [field]: value }));
+  const handleCampo = (f, v) => setCampos((p) => ({ ...p, [f]: v }));
 
   const agregarRelacion = () =>
     setRelaciones((prev) => [
@@ -70,41 +69,34 @@ export default function Paso2Bautismo() {
     setRelaciones((prev) => prev.filter((_, i) => i !== idx));
 
   const handleRolChange = (idx, rolKey) => {
-    const def = ROLES_ADICIONALES_BAUTISMO.find((r) => r.value === rolKey);
-    updateRelacion(idx, {
-      rolKey,
-      rol_sacramento_id: def?.rol_sacramento_id ?? 5,
-      persona: null, // limpiar persona al cambiar rol
-    });
+    const def = ROLES_ADICIONALES_COMUNION.find((r) => r.value === rolKey);
+    updateRelacion(idx, { rolKey, rol_sacramento_id: def?.rol_sacramento_id ?? 5, persona: null });
   };
 
   const handleRechazar = () => {
-    if (confirm('¿Seguro que deseas rechazar este registro OCR?')) {
-      dispatch(rechazarOcr(historicoId));
-    }
+    if (confirm('¿Rechazar este registro OCR?')) dispatch(rechazarOcr(historicoId));
   };
 
   const handleConfirmar = () => {
     dispatch(clearError());
     setErrorPersona('');
 
-    if (!bautizado) {
-      setErrorPersona('Debes seleccionar o crear la persona bautizada.');
+    if (!comulgado) {
+      setErrorPersona('Debes seleccionar la persona que recibió la primera comunión.');
       return;
     }
 
     const fechaISO = parseFecha(campos.fecha_sacramento);
     if (!fechaISO) {
-      setErrorPersona('La fecha de bautismo no es válida. Usa el formato dd/mm/aaaa o aaaa-mm-dd.');
+      setErrorPersona('La fecha no es válida. Usa el formato dd/mm/aaaa.');
       return;
     }
 
-    // rol 1 = bautizado (backend: relaciones.find(r => r.rol_sacramento_id === 1))
-    const rels = [{ rol_sacramento_id: 1, persona_id: bautizado.id_persona }];
+    // rol 4 = comulgado (backend: relaciones.find(r => r.rol_sacramento_id === 4))
+    const rels = [{ rol_sacramento_id: 4, persona_id: comulgado.id_persona }];
     relaciones.forEach((r) => {
-      if (r.persona?.id_persona) {
+      if (r.persona?.id_persona)
         rels.push({ rol_sacramento_id: r.rol_sacramento_id, persona_id: r.persona.id_persona });
-      }
     });
 
     dispatch(
@@ -120,16 +112,15 @@ export default function Paso2Bautismo() {
 
   return (
     <div className="space-y-8">
-      <SectionHeader icon="church" title="Bautismo — Revisión de datos" />
+      <SectionHeader icon="volunteer_activism" title="Primera Comunión — Revisión de datos" />
 
-      {/* ── Datos del documento ── */}
       <Section title="Datos del documento">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Nombre del bautizado">
+          <Field label="Nombre del comulgado">
             <input type="text" value={campos.nombre}
               onChange={(e) => handleCampo('nombre', e.target.value)} className={ic()} />
           </Field>
-          <Field label="Fecha de bautismo">
+          <Field label="Fecha de la primera comunión">
             <input type="text" value={campos.fecha_sacramento}
               onChange={(e) => handleCampo('fecha_sacramento', e.target.value)}
               placeholder="dd/mm/aaaa" className={ic()} />
@@ -149,10 +140,9 @@ export default function Paso2Bautismo() {
         </div>
       </Section>
 
-      {/* ── Persona bautizada ── */}
-      <Section title="Persona bautizada">
+      <Section title="Persona que recibió la primera comunión">
         <PersonaBuscador
-          label="Buscar persona bautizada *"
+          label="Buscar persona comulgada *"
           placeholder="Nombre o CI (mín. 3 caracteres)..."
           initialQuery={campos.nombre}
           datosOcr={{
@@ -160,19 +150,19 @@ export default function Paso2Bautismo() {
             fecha_nacimiento: datosDetectados?.fecha_nacimiento,
             lugar_nacimiento: datosDetectados?.lugar_nacimiento,
           }}
-          rol="bautizo"
+          rol="comunion"
           tipo="sacramento"
-          onSelect={(p) => { setBautizado(p); setErrorPersona(''); }}
-          onClear={() => setBautizado(null)}
-          personaSeleccionada={bautizado}
-          error={!bautizado ? errorPersona : ''}
-          permitirCrear={true}
+          onSelect={(p) => { setComulgado(p); setErrorPersona(''); }}
+          onClear={() => setComulgado(null)}
+          personaSeleccionada={comulgado}
+          advertencia={ADVERTENCIA_COMUNION}
+          error={!comulgado ? errorPersona : ''}
+          permitirCrear={false}
         />
       </Section>
 
-      {/* ── Relaciones adicionales ── */}
       <Section
-        title="Padrinos / Ministro (opcional)"
+        title="Padrino / Madrina / Ministro (opcional)"
         action={
           <button onClick={agregarRelacion}
             className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
@@ -182,22 +172,16 @@ export default function Paso2Bautismo() {
         }
       >
         {relaciones.length === 0 && (
-          <p className="text-xs text-gray-400">
-            Sin relaciones adicionales. Puedes agregar padrinos o el ministro.
-          </p>
+          <p className="text-xs text-gray-400">Sin relaciones adicionales.</p>
         )}
         {relaciones.map((r, idx) => (
           <div key={idx}
             className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
-            {/* Selector de rol */}
             <div className="flex items-center gap-2">
-              <Field label="Rol" className="flex-1">
-                <select
-                  value={r.rolKey}
-                  onChange={(e) => handleRolChange(idx, e.target.value)}
-                  className={ic()}
-                >
-                  {ROLES_ADICIONALES_BAUTISMO.map((opt) => (
+              <Field label="Rol">
+                <select value={r.rolKey} onChange={(e) => handleRolChange(idx, e.target.value)}
+                  className={ic()}>
+                  {ROLES_ADICIONALES_COMUNION.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
@@ -207,10 +191,9 @@ export default function Paso2Bautismo() {
                 <span className="material-symbols-outlined text-[18px]">delete</span>
               </button>
             </div>
-            {/* Buscador — tipo=rol, rol=padrino|madrina|ministro */}
             <PersonaBuscador
-              key={r.rolKey} // remonta al cambiar rol para limpiar query
-              label={`Buscar ${ROLES_ADICIONALES_BAUTISMO.find(x => x.value === r.rolKey)?.label ?? 'persona'}`}
+              key={r.rolKey}
+              label={`Buscar ${ROLES_ADICIONALES_COMUNION.find(x => x.value === r.rolKey)?.label ?? 'persona'}`}
               datosOcr={{}}
               rol={r.rolKey}
               tipo="rol"
@@ -223,7 +206,6 @@ export default function Paso2Bautismo() {
         ))}
       </Section>
 
-      {/* Error / feedback global */}
       {(errorPersona || errorGlobal) && (
         <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-800 rounded-lg">
           <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>

@@ -3,55 +3,59 @@ import { useDispatch, useSelector } from 'react-redux';
 import Layout from '../../shared/components/layout/Layout';
 import { useOcr } from './hooks/useOcr';
 import { resetFlujo, setActiveTab } from './slices/ocrSlice';
-import { fetchParroquias } from '../sacramentos/slices/sacramentosTrunk';
- 
+
 import Paso1Upload from './components/Paso1Upload';
 import Paso2Bautismo from './components/Paso2Bautismo';
-import Paso2Confirmacion from './components/Paso2Confirmacion';
+import Paso2PrimeraComunion from './components/Paso2PrimeraComunion';
 import Paso2Matrimonio from './components/Paso2Matrimonio';
 import Paso3Parroquia from './components/Paso3Parroquia';
 import OcrSuccess from './components/OcrSuccess';
 import OcrHistorico from './components/OcrHistorico';
- 
+import { fetchParroquias } from '../sacramentos/slices/sacramentosTrunk';
+
 const TABS = [
   { key: 'registrar', label: 'Registrar documento', icon: 'document_scanner' },
   { key: 'historico', label: 'Histórico OCR', icon: 'history' },
 ];
- 
+
+// Mapa canónico — debe coincidir con el backend y con ocrSlice
+// 1 = Bautismo, 2 = Matrimonio, 3 = Primera Comunión
+const TIPO_ID_MAP = {
+  1: 'bautismo',
+  2: 'matrimonio',
+  3: 'primera_comunion',
+};
+
 export default function Ocr() {
   const dispatch = useDispatch();
   const { paso, tipoSacramento, tipoSacramentoId } = useOcr();
   const activeTab = useSelector((s) => s.ocr.activeTab);
-  const parroquias = useSelector((s) => s.sacramentos?.parroquias ?? s.parroquias?.parroquias ?? []);
+  const parroquias = useSelector(
+    (s) => s.sacramentos?.parroquias ?? s.parroquias?.parroquias ?? []
+  );
 
-  const TIPO_ID_MAP = { 1: 'bautismo', 2: 'matrimonio', 3: 'confirmacion' };
- 
-  // Cargar parroquias al montar
+  // Cargar parroquias para Paso1 (selector opcional)
   useEffect(() => {
     dispatch(fetchParroquias({ page: 1, limit: 200 }));
   }, [dispatch]);
 
+  // Determinar componente de paso 2
   const tipoKey =
-    TIPO_ID_MAP[parseInt(tipoSacramentoId)] ??   // ← parseInt aquí
+    TIPO_ID_MAP[parseInt(tipoSacramentoId)] ??
     (() => {
       const t = tipoSacramento?.toLowerCase() ?? '';
-      if (t.includes('bautis'))   return 'bautismo';
+      if (t.includes('bautis')) return 'bautismo';
       if (t.includes('matrimon')) return 'matrimonio';
-      if (t.includes('confirm') || t.includes('comuni')) return 'confirmacion';
+      if (t.includes('primera') || t.includes('comuni')) return 'primera_comunion';
       return null;
     })();
 
-  console.log('tipoSacramentoId:', tipoSacramentoId, typeof tipoSacramentoId);
-  console.log('tipoSacramento:', tipoSacramento);
-  console.log('tipoKey:', tipoKey);
-
-
   const Paso2Component = {
-    bautismo:     Paso2Bautismo,
-    confirmacion: Paso2Confirmacion,
-    matrimonio:   Paso2Matrimonio,
+    bautismo: Paso2Bautismo,
+    primera_comunion: Paso2PrimeraComunion,
+    matrimonio: Paso2Matrimonio,
   }[tipoKey] || null;
- 
+
   return (
     <Layout title="Registro OCR de Sacramentos">
       {/* Tabs principales */}
@@ -71,26 +75,27 @@ export default function Ocr() {
           </button>
         ))}
       </div>
- 
+
       {activeTab === 'historico' && <OcrHistorico />}
- 
+
       {activeTab === 'registrar' && (
         <div className="max-w-2xl mx-auto">
           {/* Barra de progreso */}
           {paso !== 'success' && <StepIndicator paso={paso} />}
- 
+
           {/* Paso 1 — Subir imagen */}
           {paso === 1 && <Paso1Upload parroquias={parroquias} />}
- 
-          {/* Paso 3 — Confirmar parroquia (cuando OCR no la detectó) */}
-          {paso === 3 && <Paso3Parroquia parroquias={parroquias} />}
- 
-          {/* Paso 2 — Revisión de datos según tipo de sacramento */}
+
+          {/* Paso 3 — Confirmar parroquia */}
+          {paso === 3 && <Paso3Parroquia />}
+
+          {/* Paso 2 — Revisión de datos según tipo */}
           {paso === 2 && Paso2Component && <Paso2Component />}
           {paso === 2 && !Paso2Component && (
             <div className="flex items-center gap-2 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 rounded-xl text-amber-700 text-sm">
               <span className="material-symbols-outlined">warning</span>
-              Tipo de sacramento no reconocido: <strong>{tipoSacramento || '(vacío)'}</strong>.
+              Tipo de sacramento no reconocido:{' '}
+              <strong>{tipoSacramento || tipoSacramentoId || '(vacío)'}</strong>.
               <button
                 onClick={() => dispatch(resetFlujo())}
                 className="ml-auto text-xs underline"
@@ -99,7 +104,7 @@ export default function Ocr() {
               </button>
             </div>
           )}
- 
+
           {/* Éxito */}
           {paso === 'success' && <OcrSuccess />}
         </div>
@@ -107,7 +112,8 @@ export default function Ocr() {
     </Layout>
   );
 }
- 
+
+/* ── Indicador de pasos ────────────────────────────────────────────────────────── */
 function StepIndicator({ paso }) {
   const pasos = [
     { num: 1, label: 'Subir imagen' },
@@ -116,7 +122,7 @@ function StepIndicator({ paso }) {
   ];
   const ordenLineal = { 1: 0, 3: 1, 2: 2 };
   const current = ordenLineal[paso] ?? 0;
- 
+
   return (
     <div className="flex items-center mb-8">
       {pasos.map((p, idx) => {
