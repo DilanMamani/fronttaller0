@@ -69,7 +69,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user?.token && !requires2FA) {
-      const defaultRoute = getDefaultRoute(user.rol);
+      const defaultRoute = user.menu?.[0]?.to || getDefaultRoute(user.rol);
       navigate(defaultRoute, { replace: true });
     }
   }, [user, navigate, requires2FA]);
@@ -139,7 +139,7 @@ export default function Login() {
         showConfirmButton: false,
       });
 
-      const defaultRoute = getDefaultRoute(data.rol);
+      const defaultRoute = data.menu?.[0]?.to || getDefaultRoute(data.rol);
       navigate(defaultRoute, { replace: true });
       return;
     }
@@ -189,7 +189,7 @@ export default function Login() {
 
       reset2FAStates();
 
-      const defaultRoute = getDefaultRoute(data.rol);
+      const defaultRoute = data.menu?.[0]?.to || getDefaultRoute(data.rol);
       navigate(defaultRoute, { replace: true });
       return;
     }
