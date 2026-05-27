@@ -4,10 +4,10 @@ import routeDescriptions from '../data/routeDescriptions.json';
 const METHOD_LABEL = { GET: 'Consultó', POST: 'Creó', PUT: 'Modificó', PATCH: 'Actualizó', DELETE: 'Eliminó' };
 
 const ACCION_CONFIG = {
-  CREATE: { label: 'Creación',     color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' },
-  UPDATE: { label: 'Actualización', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' },
-  DELETE: { label: 'Eliminación',  color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200' },
-  READ:   { label: 'Consulta',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200' },
+  CREATE: { label: 'Creación',     color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200', titulo: 'Registro de Creación' },
+  UPDATE: { label: 'Actualización', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200',       titulo: 'Registro de Cambio' },
+  DELETE: { label: 'Eliminación',  color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200',           titulo: 'Registro de Eliminación' },
+  READ:   { label: 'Consulta',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200',               titulo: 'Registro de Consulta' },
 };
 
 // Reemplaza la función translateRoute completa por esta:
@@ -131,7 +131,7 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
           <div className="flex items-center gap-3">
             <FileText className="h-5 w-5 text-primary" />
             <h3 className="text-xl font-semibold text-foreground-light dark:text-foreground-dark">
-              Registro de Cambio
+              {accionConfig.titulo || 'Detalle de Registro'}
             </h3>
           </div>
           <button onClick={onClose}
@@ -196,42 +196,87 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
             </span>
           </div>
 
-          {/* Cambios realizados */}
-          {tieneCambios && (
+          {/* Cambios realizados (UPDATE con diff) */}
+          {data.campos_modificados && (
             <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
               <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
                 Cambios realizados
               </h4>
-
-              {/* Tabla diff */}
-              {data.campos_modificados && (
-                <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
-                  <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
-                    <thead className="bg-background-light dark:bg-background-dark">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Campo</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Antes</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Después</th>
+              <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
+                <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
+                  <thead className="bg-background-light dark:bg-background-dark">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Campo</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Antes</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Después</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-light dark:divide-border-dark bg-card-light dark:bg-card-dark">
+                    {Object.entries(data.campos_modificados).map(([campo, { anterior, nuevo }]) => (
+                      <tr key={campo}>
+                        <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark">
+                          {campo}
+                        </td>
+                        <td className="px-4 py-2 text-xs text-rose-600 dark:text-rose-400 line-through">
+                          {anterior === null ? '—' : String(anterior)}
+                        </td>
+                        <td className="px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                          {nuevo === null ? '—' : String(nuevo)}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-light dark:divide-border-dark bg-card-light dark:bg-card-dark">
-                      {Object.entries(data.campos_modificados).map(([campo, { anterior, nuevo }]) => (
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Datos enviados (CREATE / DELETE con request_body) */}
+          {!data.campos_modificados && requestBody && (
+            <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
+              <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
+                Datos enviados
+              </h4>
+              <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
+                <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
+                  <thead className="bg-background-light dark:bg-background-dark">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Campo</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-light dark:divide-border-dark bg-card-light dark:bg-card-dark">
+                    {Object.entries(requestBody).map(([campo, valor]) => {
+                      const esSensible = /password|contraseña|clave|secret|token/i.test(campo);
+                      return (
                         <tr key={campo}>
                           <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark">
                             {campo}
                           </td>
-                          <td className="px-4 py-2 text-xs text-rose-600 dark:text-rose-400 line-through">
-                            {anterior === null ? '—' : String(anterior)}
-                          </td>
-                          <td className="px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            {nuevo === null ? '—' : String(nuevo)}
+                          <td className="px-4 py-2 text-xs text-foreground-light dark:text-foreground-dark">
+                            {esSensible
+                              ? <span className="tracking-widest text-muted-light dark:text-muted-dark">••••••••</span>
+                              : valor === null || valor === undefined
+                                ? '—'
+                                : typeof valor === 'object'
+                                  ? JSON.stringify(valor)
+                                  : String(valor)}
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Consulta sin datos (READ sin body) */}
+          {data.accion === 'READ' && !requestBody && (
+            <div className="border-b pb-6 border-border-light dark:border-border-dark">
+              <p className="text-sm text-muted-light dark:text-muted-dark italic">
+                Solo lectura — no se enviaron ni modificaron datos.
+              </p>
             </div>
           )}
 
