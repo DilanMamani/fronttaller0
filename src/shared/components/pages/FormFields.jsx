@@ -97,7 +97,39 @@ export default function FormFields({ fields = [], values = {}, setValues }) {
                   className={inputClass}
                 />
 
-              ) : (
+              ) : field.type === 'email-hints' ? (() => {
+                const norm = (s) => (s || '').trim().toLowerCase()
+                  .split(/\s+/)[0]
+                  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+                  .replace(/\s+/g, '');
+                const n  = norm(values.nombre);
+                const ap = norm(values.apellido_paterno);
+                const am = norm(values.apellido_materno);
+                const sugerencias = [
+                  n && ap             ? `${n}.${ap}`              : null,
+                  n && ap             ? `${n[0]}${ap}`            : null,
+                  n && ap && am       ? `${n}.${ap}.${am[0]}`     : null,
+                  n && ap && am       ? `${n[0]}${ap}.${am[0]}`   : null,
+                ].filter(Boolean);
+                return (
+                  <div className="flex flex-wrap gap-2 min-h-[2rem] items-center">
+                    {(!n && !ap) ? (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                        Ingrese nombre y apellidos para ver sugerencias
+                      </span>
+                    ) : sugerencias.map((val) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setValues({ ...values, email: val })}
+                        className="px-3 py-1 rounded-full text-xs font-medium border border-primary text-primary hover:bg-primary hover:text-white cursor-pointer transition-all"
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })() : (
                 <input
                   id={field.name}
                   type={field.type || 'text'}
