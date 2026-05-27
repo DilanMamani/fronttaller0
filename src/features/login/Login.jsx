@@ -46,7 +46,7 @@ export default function Login() {
   useEffect(() => {
     const cargarConfiguracion = async () => {
       try {
-        const resp = await seguridadApi.fetchConfiguracion();
+        const resp = await seguridadApi.fetchConfiguracionReset();
         const config = resp?.configuracion || resp;
 
         const usaCaptcha =
