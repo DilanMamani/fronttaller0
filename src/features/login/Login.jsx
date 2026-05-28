@@ -11,7 +11,6 @@ import {
   selectUser,
 } from './slices/loginSelectors';
 
-import { getDefaultRoute } from '../../shared/config/roleConfig';
 import { seguridadApi } from '../../lib/api';
 
 import LoginPanel from './components/LoginPanel';
@@ -69,7 +68,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user?.token && !requires2FA) {
-      const defaultRoute = user.menu?.[0]?.to || getDefaultRoute(user.rol);
+      const defaultRoute = user.menu?.[0]?.to || '/';
       navigate(defaultRoute, { replace: true });
     }
   }, [user, navigate, requires2FA]);
@@ -139,7 +138,7 @@ export default function Login() {
         showConfirmButton: false,
       });
 
-      const defaultRoute = data.menu?.[0]?.to || getDefaultRoute(data.rol);
+      const defaultRoute = data.menu?.[0]?.to || '/';
       navigate(defaultRoute, { replace: true });
       return;
     }
@@ -189,7 +188,7 @@ export default function Login() {
 
       reset2FAStates();
 
-      const defaultRoute = data.menu?.[0]?.to || getDefaultRoute(data.rol);
+      const defaultRoute = data.menu?.[0]?.to || '/';
       navigate(defaultRoute, { replace: true });
       return;
     }
