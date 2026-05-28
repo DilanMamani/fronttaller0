@@ -10,18 +10,26 @@ const ACCION_CONFIG = {
   READ:   { label: 'Consulta',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200',               titulo: 'Registro de Consulta' },
 };
 
-// Reemplaza la función translateRoute completa por esta:
+const getIdentificador = (data) => {
+  const fuente = data.dato_nuevo || data.dato_anterior || {};
+  const entidad = data.entidad || '';
+  if (entidad === 'usuarios')   return fuente.email || null;
+  if (entidad === 'personas') {
+    const nombre = [fuente.nombre, fuente.apellido_paterno, fuente.apellido_materno]
+      .filter(Boolean).join(' ');
+    return nombre || null;
+  }
+  if (entidad === 'parroquias') return fuente.nombre || null;
+  if (entidad === 'rol')        return fuente.nombre || null;
+  return null;
+};
+
 const buildDescripcion = (data) => {
-  const method = data.http_method;
-  const url    = data.url || '';
+  const method  = data.http_method;
+  const url     = data.url || '';
   const entidad = data.entidad || '';
   const accion  = data.accion  || '';
 
-  // Extraer ID de la URL si existe
-  const idMatch = url.match(/\/(\d+)(\?|$)/);
-  const id = idMatch ? idMatch[1] : null;
-
-  // Traducción semántica usando entidad + accion del backend
   if (entidad && accion) {
     const entidadLabel = {
       personas:               'persona',
@@ -37,30 +45,36 @@ const buildDescripcion = (data) => {
       'usuario-parroquia':    'asignación de parroquia',
     }[entidad] || entidad;
 
-    // Si hay campos modificados, listarlos
     const campos = data.campos_modificados
       ? Object.keys(data.campos_modificados).join(', ')
       : null;
 
+    const idMatch = url.match(/\/(\d+)(\?|$)/);
+    const id = idMatch ? idMatch[1] : null;
+
+    const identificador = getIdentificador(data);
+    const sufijo = identificador ? ` (${identificador})` : (id ? ` (ID ${id})` : '');
+
     switch (accion) {
       case 'CREATE':
-        return `Registró ${articuloIndefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+        return `Registró ${articuloIndefinido(entidadLabel)} ${entidadLabel}${sufijo}`;
       case 'UPDATE':
         return campos
-          ? `Modificó ${campos} de ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`
-          : `Actualizó ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+          ? `Modificó ${campos} de ${articuloDefinido(entidadLabel)} ${entidadLabel}${sufijo}`
+          : `Actualizó ${articuloDefinido(entidadLabel)} ${entidadLabel}${sufijo}`;
       case 'DELETE':
-        return `Eliminó ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+        return `Eliminó ${articuloDefinido(entidadLabel)} ${entidadLabel}${sufijo}`;
       case 'READ':
-        return id
-          ? `Consultó ${articuloDefinido(entidadLabel)} ${entidadLabel} con ID ${id}`
-          : `Consultó la lista de ${entidadLabel}s`;
+        return identificador
+          ? `Consultó ${articuloDefinido(entidadLabel)} ${entidadLabel} ${identificador}`
+          : id
+            ? `Consultó ${articuloDefinido(entidadLabel)} ${entidadLabel} con ID ${id}`
+            : `Consultó la lista de ${entidadLabel}s`;
       default:
         return `${accion} sobre ${entidadLabel}`;
     }
   }
 
-  // Fallback al JSON si no hay entidad/accion
   const path = url.split('?')[0].replace(/\/\d+$/, '/:id');
   const routeGroup = routeDescriptions[path] || routeDescriptions[url.split('?')[0]];
   if (routeGroup?.[method]) return routeGroup[method];
@@ -207,7 +221,9 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
             };
 
             const getArrayDiff = (ant, nue) => {
-              const getId = (item) => item?.id_permiso ?? item?.id ?? JSON.stringify(item);
+              const getId = (item) =>
+                item?.id_permiso ?? item?.id_parroquia ?? item?.id_persona ??
+                item?.id_sacramento ?? item?.id_rol ?? item?.id ?? JSON.stringify(item);
               const antKeys = new Set(ant.map(getId));
               const nueKeys = new Set(nue.map(getId));
               return {
