@@ -197,39 +197,106 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
           </div>
 
           {/* Cambios realizados (UPDATE con diff) */}
-          {data.campos_modificados && (
-            <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
-              <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
-                Cambios realizados
-              </h4>
-              <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
-                <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
-                  <thead className="bg-background-light dark:bg-background-dark">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Campo</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Antes</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Después</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-light dark:divide-border-dark bg-card-light dark:bg-card-dark">
-                    {Object.entries(data.campos_modificados).map(([campo, { anterior, nuevo }]) => (
-                      <tr key={campo}>
-                        <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark">
-                          {campo}
-                        </td>
-                        <td className="px-4 py-2 text-xs text-rose-600 dark:text-rose-400 line-through">
-                          {anterior === null ? '—' : String(anterior)}
-                        </td>
-                        <td className="px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                          {nuevo === null ? '—' : String(nuevo)}
-                        </td>
+          {data.campos_modificados && (() => {
+            const formatVal = (val) => {
+              if (val === null || val === undefined) return '—';
+              if (typeof val === 'boolean') return val ? 'Sí' : 'No';
+              if (typeof val !== 'object') return String(val);
+              if (Array.isArray(val)) return null;
+              return val.nombre ?? val.name ?? val.label ?? JSON.stringify(val);
+            };
+
+            const getArrayDiff = (ant, nue) => {
+              const getId = (item) => item?.id_permiso ?? item?.id ?? JSON.stringify(item);
+              const antKeys = new Set(ant.map(getId));
+              const nueKeys = new Set(nue.map(getId));
+              return {
+                added:   nue.filter((p) => !antKeys.has(getId(p))),
+                removed: ant.filter((p) => !nueKeys.has(getId(p))),
+              };
+            };
+
+            const getItemName = (p) =>
+              p.nombre ?? p.name ?? String(p.id_permiso ?? p.id ?? p);
+
+            return (
+              <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
+                <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
+                  Cambios realizados
+                </h4>
+                <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
+                  <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
+                    <thead className="bg-background-light dark:bg-background-dark">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark w-1/4">Campo</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Antes</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Después</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-border-light dark:divide-border-dark bg-card-light dark:bg-card-dark">
+                      {Object.entries(data.campos_modificados).map(([campo, { anterior, nuevo }]) => {
+                        const antIsArray = Array.isArray(anterior);
+                        const nueIsArray = Array.isArray(nuevo);
+
+                        if (antIsArray || nueIsArray) {
+                          const { added, removed } = getArrayDiff(
+                            antIsArray ? anterior : [],
+                            nueIsArray ? nuevo : []
+                          );
+                          return (
+                            <tr key={campo}>
+                              <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark align-top">
+                                {campo}
+                              </td>
+                              <td colSpan={2} className="px-4 py-3 text-xs space-y-1.5">
+                                {removed.length === 0 && added.length === 0 && (
+                                  <span className="text-muted-light dark:text-muted-dark italic">Sin cambios en los elementos</span>
+                                )}
+                                {removed.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    <span className="text-rose-600 dark:text-rose-400 font-medium shrink-0">Eliminados:</span>
+                                    {removed.map((p) => (
+                                      <span key={getItemName(p)} className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 line-through">
+                                        {getItemName(p)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {added.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium shrink-0">Añadidos:</span>
+                                    {added.map((p) => (
+                                      <span key={getItemName(p)} className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                        {getItemName(p)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={campo}>
+                            <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark">
+                              {campo}
+                            </td>
+                            <td className="px-4 py-2 text-xs text-rose-600 dark:text-rose-400 line-through">
+                              {formatVal(anterior)}
+                            </td>
+                            <td className="px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                              {formatVal(nuevo)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Datos enviados (CREATE / DELETE con request_body) */}
           {!data.campos_modificados && requestBody && (
