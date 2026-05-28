@@ -32,7 +32,7 @@ const getVisibleEnMenu = (permisos, id) => {
 const normalizarPermisos = (permisos = []) =>
   permisos.map((p) =>
     typeof p === "object"
-      ? { id_permiso: p.id_permiso, visible_en_menu: p.visible_en_menu ?? true }
+      ? { id_permiso: p.id_permiso, visible_en_menu: p.visible_en_menu ?? p.RolPermiso?.visible_en_menu ?? true }
       : { id_permiso: p, visible_en_menu: true }
   );
 
