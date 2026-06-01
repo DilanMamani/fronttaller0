@@ -330,7 +330,8 @@ export function useSacramentos() {
         resetForm();
       })
       .catch((err) => {
-        setToast({ type: 'error', message: err?.message || 'Error al registrar sacramento' });
+        const msg = typeof err === 'string' ? err : err?.message || err?.msg || 'Error al registrar sacramento';
+        setToast({ type: 'error', message: msg });
       });
   };
 
@@ -399,7 +400,10 @@ export function useSacramentos() {
         resetForm();
         ejecutarBusqueda();
       })
-      .catch(() => setToast({ type: 'error', message: 'No se pudo actualizar el sacramento' }))
+      .catch((err) => {
+        const msg = typeof err === 'string' ? err : err?.message || err?.msg || 'No se pudo actualizar el sacramento';
+        setToast({ type: 'error', message: msg });
+      })
       .finally(() => setTimeout(() => setForceUpdateLoading(false), 500));
   };
 

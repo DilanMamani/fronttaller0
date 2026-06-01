@@ -34,6 +34,12 @@ export const buildUsuarioFields = ({
     { name: 'apellido_paterno', label: 'Apellido paterno', placeholder: 'Ingrese el apellido paterno', disabled: editing  },
     { name: 'apellido_materno', label: 'Apellido materno', placeholder: 'Ingrese el apellido materno',disabled: editing  },
     { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date' },
+    ...(!editing ? [{
+      name: 'email_hints',
+      label: 'Formatos de correo sugeridos',
+      type: 'email-hints',
+      fullWidth: true,
+    }] : []),
     {
       name: 'email',
       label: 'Email',

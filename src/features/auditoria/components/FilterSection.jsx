@@ -124,7 +124,7 @@ export default function FilterSection({ filters, onFilterChange, onApplyFilters,
             {/* Red */}
             <div>
               <Label>Dirección IP</Label>
-              <input type="text" value={filters.ipAddress} placeholder="192.168.1.1"
+              <input type="text" value={filters.ipAddress} placeholder="xxx.xxx.xxx.xxx"
                 onChange={e => set('ipAddress', e.target.value)} className={INPUT_CLASS} />
             </div>
             <div>
