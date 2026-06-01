@@ -25,6 +25,7 @@ export default function LoginForm({
   blockMessage = '',
 }) {
   const navigate = useNavigate();
+  const isTwoFactorCodeValid = /^\d{6}$/.test(twoFactorCode);
 
   const handleFormSubmit = (e) => {
     e?.preventDefault();
@@ -127,7 +128,10 @@ export default function LoginForm({
             type="text"
             placeholder="Ingresa el código"
             value={twoFactorCode}
-            onChange={(e) => setTwoFactorCode(e.target.value)}
+            onChange={(e) => {
+              const numericCode = e.target.value.replace(/\D/g, '').slice(0, 6);
+              setTwoFactorCode(numericCode);
+            }}
             autoComplete="one-time-code"
           />
 
@@ -152,7 +156,7 @@ export default function LoginForm({
           <button
             type="button"
             onClick={handleVerifyCode}
-            disabled={isLoading || blocked}
+            disabled={isLoading || blocked || !isTwoFactorCodeValid}
             className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {isLoading ? 'Verificando...' : 'Verificar código'}
