@@ -160,11 +160,11 @@ export default function Login() {
   };
 
   const handleVerify2FA = async () => {
-    if (!twoFactorCode.trim()) {
+    if (!/^\d{6}$/.test(twoFactorCode.trim())) {
       Swal.fire({
         icon: 'warning',
-        title: 'Código requerido',
-        text: 'Ingrese el código de verificación',
+        title: 'Código inválido',
+        text: 'Ingrese un código de verificación de 6 dígitos',
       });
       return;
     }
