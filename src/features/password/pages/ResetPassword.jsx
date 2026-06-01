@@ -34,6 +34,7 @@ export default function ForgotPassword() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [passwordConfig, setPasswordConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [tokenValido, setTokenValido] = useState(null); // null=pendiente, true=válido, false=inválido
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ export default function ForgotPassword() {
       try {
         setLoadingConfig(true);
 
-        const resp = await seguridadApi.fetchConfiguracion();
+        const resp = await seguridadApi.fetchConfiguracionReset();
 
         let config = null;
 
@@ -281,7 +282,9 @@ export default function ForgotPassword() {
     if (tokenFromUrl) {
       setToken(tokenFromUrl);
       setShowPasswordForm(true);
-      dispatch(validarToken(tokenFromUrl));
+      dispatch(validarToken(tokenFromUrl)).then((result) => {
+        setTokenValido(validarToken.fulfilled.match(result));
+      });
     }
   }, [dispatch]);
 
@@ -371,7 +374,8 @@ export default function ForgotPassword() {
                   placeholder="Nueva contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-12 py-3.5 rounded-xl border-2 border-border-light dark:border-border-dark bg-card-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  disabled={tokenValido !== true}
+                  className="w-full pl-12 pr-12 py-3.5 rounded-xl border-2 border-border-light dark:border-border-dark bg-card-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 />
                 <button
@@ -462,7 +466,8 @@ export default function ForgotPassword() {
                   placeholder="Confirmar contraseña"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  className="w-full pl-12 pr-12 py-3.5 rounded-xl border-2 border-border-light dark:border-border-dark bg-card-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  disabled={tokenValido !== true}
+                  className="w-full pl-12 pr-12 py-3.5 rounded-xl border-2 border-border-light dark:border-border-dark bg-card-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 />
                 <button
@@ -491,6 +496,7 @@ export default function ForgotPassword() {
               <button
                 type="submit"
                 disabled={
+                  tokenValido !== true ||
                   isLoading ||
                   loadingConfig ||
                   !passwordConfig ||

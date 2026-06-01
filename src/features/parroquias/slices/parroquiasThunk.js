@@ -10,7 +10,7 @@ export const fetchParroquias = createAsyncThunk(
       const response = await parroquiasApi.fetchParroquias(filters);
       console.log('[parroquiasThunk] Respuesta del servidor:', response.parroquias);
 
-      // 🔸 Si el backend devuelve { parroquias: [...], ok: true, currentPage: 1, ... }
+      // Si el backend devuelve { parroquias: [...], ok: true, currentPage: 1, ... }
       // devolvemos solo los campos útiles que usará el slice
       return {
         parroquias: response.parroquias || [],

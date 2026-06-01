@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../features/login/slices/loginSelectors';
-import { hasAccess, getDefaultRoute } from '../config/roleConfig';
+import { ROUTES } from '../config/roleConfig';
 
 export default function ProtectedRoute({ children, requiredRoute }) {
   const user = useSelector(selectUser);
@@ -11,12 +11,14 @@ export default function ProtectedRoute({ children, requiredRoute }) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  // verifica permisos
-  if (requiredRoute && !hasAccess(user.rol, requiredRoute)) {
-    const defaultRoute = getDefaultRoute(user.rol);
-    return <Navigate to={defaultRoute} replace />;
+  const hasAccess =
+    !requiredRoute ||
+    requiredRoute === ROUTES.DASHBOARD ||
+    user.menu?.some((item) => item.to === requiredRoute);
+
+  if (!hasAccess) {
+    return <Navigate to={user.menu?.[0]?.to || '/'} replace />;
   }
 
-  // si tiene acceso se renderiza el componente
   return children;
 }

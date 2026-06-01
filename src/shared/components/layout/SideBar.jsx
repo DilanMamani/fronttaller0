@@ -1,14 +1,12 @@
 // src/components/Sidebar.jsx
 import { useSelector } from 'react-redux';
-import { navItems } from '../../config/navConfig'
 import { selectUser } from '../../../features/login/slices/loginSelectors';
-import { getFilteredNavItems } from '../../config/roleConfig';
 import NavItem from './NavItem';
 
 export default function Sidebar({ isOpen, onClose }) {
   const user = useSelector(selectUser);
 
-  const filteredNavItems = getFilteredNavItems(navItems, user?.rol);
+  const filteredNavItems = user?.menu?.length > 0 ? user.menu : [];
 
   return (
     <>
