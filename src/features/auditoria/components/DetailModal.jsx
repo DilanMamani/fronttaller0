@@ -4,24 +4,32 @@ import routeDescriptions from '../data/routeDescriptions.json';
 const METHOD_LABEL = { GET: 'Consultó', POST: 'Creó', PUT: 'Modificó', PATCH: 'Actualizó', DELETE: 'Eliminó' };
 
 const ACCION_CONFIG = {
-  CREATE: { label: 'Creación',     color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' },
-  UPDATE: { label: 'Actualización', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' },
-  DELETE: { label: 'Eliminación',  color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200' },
-  READ:   { label: 'Consulta',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200' },
+  CREATE: { label: 'Creación',     color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200', titulo: 'Registro de Creación' },
+  UPDATE: { label: 'Actualización', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200',       titulo: 'Registro de Cambio' },
+  DELETE: { label: 'Eliminación',  color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200',           titulo: 'Registro de Eliminación' },
+  READ:   { label: 'Consulta',     color: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200',               titulo: 'Registro de Consulta' },
 };
 
-// Reemplaza la función translateRoute completa por esta:
+const getIdentificador = (data) => {
+  const fuente = data.dato_nuevo || data.dato_anterior || {};
+  const entidad = data.entidad || '';
+  if (entidad === 'usuarios')   return fuente.email || null;
+  if (entidad === 'personas') {
+    const nombre = [fuente.nombre, fuente.apellido_paterno, fuente.apellido_materno]
+      .filter(Boolean).join(' ');
+    return nombre || null;
+  }
+  if (entidad === 'parroquias') return fuente.nombre || null;
+  if (entidad === 'rol')        return fuente.nombre || null;
+  return null;
+};
+
 const buildDescripcion = (data) => {
-  const method = data.http_method;
-  const url    = data.url || '';
+  const method  = data.http_method;
+  const url     = data.url || '';
   const entidad = data.entidad || '';
   const accion  = data.accion  || '';
 
-  // Extraer ID de la URL si existe
-  const idMatch = url.match(/\/(\d+)(\?|$)/);
-  const id = idMatch ? idMatch[1] : null;
-
-  // Traducción semántica usando entidad + accion del backend
   if (entidad && accion) {
     const entidadLabel = {
       personas:               'persona',
@@ -37,30 +45,36 @@ const buildDescripcion = (data) => {
       'usuario-parroquia':    'asignación de parroquia',
     }[entidad] || entidad;
 
-    // Si hay campos modificados, listarlos
     const campos = data.campos_modificados
       ? Object.keys(data.campos_modificados).join(', ')
       : null;
 
+    const idMatch = url.match(/\/(\d+)(\?|$)/);
+    const id = idMatch ? idMatch[1] : null;
+
+    const identificador = getIdentificador(data);
+    const sufijo = identificador ? ` (${identificador})` : (id ? ` (ID ${id})` : '');
+
     switch (accion) {
       case 'CREATE':
-        return `Registró ${articuloIndefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+        return `Registró ${articuloIndefinido(entidadLabel)} ${entidadLabel}${sufijo}`;
       case 'UPDATE':
         return campos
-          ? `Modificó ${campos} de ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`
-          : `Actualizó ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+          ? `Modificó ${campos} de ${articuloDefinido(entidadLabel)} ${entidadLabel}${sufijo}`
+          : `Actualizó ${articuloDefinido(entidadLabel)} ${entidadLabel}${sufijo}`;
       case 'DELETE':
-        return `Eliminó ${articuloDefinido(entidadLabel)} ${entidadLabel}${id ? ` (ID ${id})` : ''}`;
+        return `Eliminó ${articuloDefinido(entidadLabel)} ${entidadLabel}${sufijo}`;
       case 'READ':
-        return id
-          ? `Consultó ${articuloDefinido(entidadLabel)} ${entidadLabel} con ID ${id}`
-          : `Consultó la lista de ${entidadLabel}s`;
+        return identificador
+          ? `Consultó ${articuloDefinido(entidadLabel)} ${entidadLabel} ${identificador}`
+          : id
+            ? `Consultó ${articuloDefinido(entidadLabel)} ${entidadLabel} con ID ${id}`
+            : `Consultó la lista de ${entidadLabel}s`;
       default:
         return `${accion} sobre ${entidadLabel}`;
     }
   }
 
-  // Fallback al JSON si no hay entidad/accion
   const path = url.split('?')[0].replace(/\/\d+$/, '/:id');
   const routeGroup = routeDescriptions[path] || routeDescriptions[url.split('?')[0]];
   if (routeGroup?.[method]) return routeGroup[method];
@@ -131,7 +145,7 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
           <div className="flex items-center gap-3">
             <FileText className="h-5 w-5 text-primary" />
             <h3 className="text-xl font-semibold text-foreground-light dark:text-foreground-dark">
-              Registro de Cambio
+              {accionConfig.titulo || 'Detalle de Registro'}
             </h3>
           </div>
           <button onClick={onClose}
@@ -196,42 +210,156 @@ export default function DetailModal({ isOpen, onClose, data, loading }) {
             </span>
           </div>
 
-          {/* Cambios realizados */}
-          {tieneCambios && (
-            <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
-              <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
-                Cambios realizados
-              </h4>
+          {/* Cambios realizados (UPDATE con diff) */}
+          {data.campos_modificados && (() => {
+            const formatVal = (val) => {
+              if (val === null || val === undefined) return '—';
+              if (typeof val === 'boolean') return val ? 'Sí' : 'No';
+              if (typeof val !== 'object') return String(val);
+              if (Array.isArray(val)) return null;
+              return val.nombre ?? val.name ?? val.label ?? JSON.stringify(val);
+            };
 
-              {/* Tabla diff */}
-              {data.campos_modificados && (
+            const getArrayDiff = (ant, nue) => {
+              const getId = (item) =>
+                item?.id_permiso ?? item?.id_parroquia ?? item?.id_persona ??
+                item?.id_sacramento ?? item?.id_rol ?? item?.id ?? JSON.stringify(item);
+              const antKeys = new Set(ant.map(getId));
+              const nueKeys = new Set(nue.map(getId));
+              return {
+                added:   nue.filter((p) => !antKeys.has(getId(p))),
+                removed: ant.filter((p) => !nueKeys.has(getId(p))),
+              };
+            };
+
+            const getItemName = (p) =>
+              p.nombre ?? p.name ?? String(p.id_permiso ?? p.id ?? p);
+
+            return (
+              <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
+                <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
+                  Cambios realizados
+                </h4>
                 <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
                   <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
                     <thead className="bg-background-light dark:bg-background-dark">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Campo</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark w-1/4">Campo</th>
                         <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Antes</th>
                         <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Después</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-light dark:divide-border-dark bg-card-light dark:bg-card-dark">
-                      {Object.entries(data.campos_modificados).map(([campo, { anterior, nuevo }]) => (
+                      {Object.entries(data.campos_modificados).map(([campo, { anterior, nuevo }]) => {
+                        const antIsArray = Array.isArray(anterior);
+                        const nueIsArray = Array.isArray(nuevo);
+
+                        if (antIsArray || nueIsArray) {
+                          const { added, removed } = getArrayDiff(
+                            antIsArray ? anterior : [],
+                            nueIsArray ? nuevo : []
+                          );
+                          return (
+                            <tr key={campo}>
+                              <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark align-top">
+                                {campo}
+                              </td>
+                              <td colSpan={2} className="px-4 py-3 text-xs space-y-1.5">
+                                {removed.length === 0 && added.length === 0 && (
+                                  <span className="text-muted-light dark:text-muted-dark italic">Sin cambios en los elementos</span>
+                                )}
+                                {removed.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    <span className="text-rose-600 dark:text-rose-400 font-medium shrink-0">Eliminados:</span>
+                                    {removed.map((p) => (
+                                      <span key={getItemName(p)} className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 line-through">
+                                        {getItemName(p)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {added.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium shrink-0">Añadidos:</span>
+                                    {added.map((p) => (
+                                      <span key={getItemName(p)} className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                        {getItemName(p)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={campo}>
+                            <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark">
+                              {campo}
+                            </td>
+                            <td className="px-4 py-2 text-xs text-rose-600 dark:text-rose-400 line-through">
+                              {formatVal(anterior)}
+                            </td>
+                            <td className="px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                              {formatVal(nuevo)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Datos enviados (CREATE / DELETE con request_body) */}
+          {!data.campos_modificados && requestBody && (
+            <div className="border-b pb-6 border-border-light dark:border-border-dark space-y-4">
+              <h4 className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
+                Datos enviados
+              </h4>
+              <div className="rounded-lg border border-border-light dark:border-border-dark overflow-hidden">
+                <table className="min-w-full divide-y divide-border-light dark:divide-border-dark">
+                  <thead className="bg-background-light dark:bg-background-dark">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Campo</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-muted-light dark:text-muted-dark">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-light dark:divide-border-dark bg-card-light dark:bg-card-dark">
+                    {Object.entries(requestBody).map(([campo, valor]) => {
+                      const esSensible = /password|contraseña|clave|secret|token/i.test(campo);
+                      return (
                         <tr key={campo}>
                           <td className="px-4 py-2 text-xs font-medium text-foreground-light dark:text-foreground-dark">
                             {campo}
                           </td>
-                          <td className="px-4 py-2 text-xs text-rose-600 dark:text-rose-400 line-through">
-                            {anterior === null ? '—' : String(anterior)}
-                          </td>
-                          <td className="px-4 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            {nuevo === null ? '—' : String(nuevo)}
+                          <td className="px-4 py-2 text-xs text-foreground-light dark:text-foreground-dark">
+                            {esSensible
+                              ? <span className="tracking-widest text-muted-light dark:text-muted-dark">••••••••</span>
+                              : valor === null || valor === undefined
+                                ? '—'
+                                : typeof valor === 'object'
+                                  ? JSON.stringify(valor)
+                                  : String(valor)}
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Consulta sin datos (READ sin body) */}
+          {data.accion === 'READ' && !requestBody && (
+            <div className="border-b pb-6 border-border-light dark:border-border-dark">
+              <p className="text-sm text-muted-light dark:text-muted-dark italic">
+                Solo lectura — no se enviaron ni modificaron datos.
+              </p>
             </div>
           )}
 

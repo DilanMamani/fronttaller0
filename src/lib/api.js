@@ -254,10 +254,16 @@ export const permisosApi = {
 
 };
 
+const publicApi = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+});
+
 // api para configuracion de seguridad
 export const seguridadApi = {
   fetchConfiguracion: () =>
     api.get('/configuracion-seguridad').then((res) => res.data).catch(handleError),
+  fetchConfiguracionReset: () =>
+    publicApi.get('/configuracion-seguridad/reset').then((res) => res.data).catch(handleError),
   updateConfiguracion: (data) =>
     api.put(`/configuracion-seguridad`, data).then((res) => res.data).catch(handleError),
 };
