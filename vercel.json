@@ -15,7 +15,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://back-sacramentos.onrender.com https://generador-documentos.onrender.com https://reportes-sacramentos.onrender.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests; frame-src 'self' https://challenges.cloudflare.com;"
+          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://back-sacramentos.onrender.com https://generador-documentos.onrender.com https://reportes-sacramentos.onrender.com https://reportes-t86w.onrender.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests; frame-src 'self' https://challenges.cloudflare.com;"
         },
 
         {
