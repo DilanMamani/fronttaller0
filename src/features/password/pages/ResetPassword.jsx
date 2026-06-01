@@ -45,7 +45,7 @@ export default function ForgotPassword() {
       try {
         setLoadingConfig(true);
 
-        const resp = await seguridadApi.fetchConfiguracion();
+        const resp = await seguridadApi.fetchConfiguracionReset();
 
         let config = null;
 
