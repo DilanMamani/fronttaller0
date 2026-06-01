@@ -229,8 +229,21 @@ export function useSacramentos() {
     const relacionesOriginales = selectedPerson?.todasRelaciones || [];
     const relaciones = [];
 
-    if (form.personaId) {
-      relaciones.push({ persona_id: form.personaId, rol_sacramento_id: ROL_IDS.BAUTIZADO });
+    if (tipoSacramento === 'matrimonio') {
+      const relOriginalEsposo = relacionesOriginales.find(
+        (r) => r.rolSacramento?.id_rol_sacra === ROL_IDS.ESPOSO
+      );
+      const relOriginalEsposa = relacionesOriginales.find(
+        (r) => r.rolSacramento?.id_rol_sacra === ROL_IDS.ESPOSA
+      );
+      const esposoId = matrimonio.esposoId || relOriginalEsposo?.persona_id_persona;
+      const esposaId = matrimonio.esposaId || relOriginalEsposa?.persona_id_persona;
+      if (esposoId) relaciones.push({ persona_id: esposoId, rol_sacramento_id: ROL_IDS.ESPOSO });
+      if (esposaId) relaciones.push({ persona_id: esposaId, rol_sacramento_id: ROL_IDS.ESPOSA });
+    } else {
+      if (form.personaId) {
+        relaciones.push({ persona_id: form.personaId, rol_sacramento_id: ROLES_SACRAMENTO_IDS[tipoSacramento] });
+      }
     }
 
     // Padrino: usa el nuevo si fue seleccionado, si no conserva el original
@@ -259,6 +272,13 @@ export function useSacramentos() {
       numero: safe(form.numero),
       tipo_sacramento_id_tipo: selectedPerson.tipoSacramento.id_tipo,
       parroquiaId: safe(form.parroquiaId),
+      matrimonioDetalle: tipoSacramento === 'matrimonio'
+        ? {
+            lugar_ceremonia: matrimonio.lugar_ceremonia || undefined,
+            reg_civil:        matrimonio.reg_civil        || undefined,
+            numero_acta:      matrimonio.numero_acta      || undefined,
+          }
+        : undefined,
       relaciones,
     };
   };
