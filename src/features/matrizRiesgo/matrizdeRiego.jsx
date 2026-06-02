@@ -79,16 +79,16 @@ function ScaleInput({ label, name, value, onChange, max = 5 }) {
   );
 }
 
-function InputText({ label, name, value, onChange, placeholder, required, textarea, rows = 2 }) {
-  const cls = "w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm";
+function InputText({ label, name, value, onChange, placeholder, required, textarea, rows = 2, disabled }) {
+  const cls = `w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm${disabled ? ' opacity-50 cursor-not-allowed' : ''}`;
   return (
     <div>
       <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {textarea
-        ? <textarea name={name} value={value} onChange={onChange} rows={rows} placeholder={placeholder} className={`${cls} resize-none`} />
-        : <input type="text" name={name} value={value} onChange={onChange} placeholder={placeholder} className={cls} />
+        ? <textarea name={name} value={value} onChange={onChange} rows={rows} placeholder={placeholder} className={`${cls} resize-none`} disabled={disabled} />
+        : <input type="text" name={name} value={value} onChange={onChange} placeholder={placeholder} className={cls} disabled={disabled} />
       }
     </div>
   );
@@ -261,7 +261,7 @@ function Modal({ title, onClose, children, maxW = 'max-w-lg' }) {
 
 const ACTIVO_INIT = { nombre: '', descripcion: '', tipo: 'hardware', propietario: '' };
 
-function FormActivo({ initial = ACTIVO_INIT, onSubmit, onCancel, isSaving }) {
+function FormActivo({ initial = ACTIVO_INIT, onSubmit, onCancel, isSaving, isEditing }) {
   const [form, setForm] = useState({ ...initial });
   const handle = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
   const isValid = form.nombre.trim() && form.tipo;
@@ -269,7 +269,7 @@ function FormActivo({ initial = ACTIVO_INIT, onSubmit, onCancel, isSaving }) {
   return (
     <div className="space-y-4">
       <InputText label="Nombre del activo" name="nombre" value={form.nombre} onChange={handle}
-        placeholder="Ej: Servidor de base de datos" required />
+        placeholder="Ej: Servidor de base de datos" required disabled={isEditing} />
       <InputText label="Descripción" name="descripcion" value={form.descripcion} onChange={handle}
         placeholder="Descripción breve del activo" textarea />
       <SelectField label="Tipo de activo" name="tipo" value={form.tipo} onChange={handle} options={TIPOS_ACTIVO} />
@@ -393,6 +393,7 @@ function TabActivos({ showToast }) {
             onSubmit={handleSubmit}
             onCancel={() => setModal(null)}
             isSaving={saving}
+            isEditing={modal !== 'create'}
           />
         </Modal>
       )}
@@ -404,9 +405,35 @@ function TabActivos({ showToast }) {
 // TAB 2 — VULNERABILIDADES Y AMENAZAS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const VULN_INIT = { nombre: '', descripcion: '', tipo: 'amenaza' };
+const TIPO_OPTIONS = [
+  { value: 'amenaza_natural',              label: 'Amenaza natural',                 group: 'amenaza' },
+  { value: 'amenaza_humana',               label: 'Amenaza causada por el hombre',   group: 'amenaza' },
+  { value: 'vulnerabilidad_personas',      label: 'Vulnerabilidad en personas',      group: 'vulnerabilidad' },
+  { value: 'vulnerabilidad_proceso',       label: 'Vulnerabilidad en proceso',       group: 'vulnerabilidad' },
+  { value: 'vulnerabilidad_tecnologia',    label: 'Vulnerabilidad en tecnología',    group: 'vulnerabilidad' },
+  { value: 'vulnerabilidad_infraestructura', label: 'Vulnerabilidad en infraestructura', group: 'vulnerabilidad' },
+];
 
-function FormVulnerabilidad({ initial = VULN_INIT, onSubmit, onCancel, isSaving }) {
+const getGrupo = (tipo) => {
+  if (!tipo) return '';
+  if (tipo === 'amenaza' || tipo.startsWith('amenaza')) return 'amenaza';
+  if (tipo === 'vulnerabilidad' || tipo.startsWith('vulnerabilidad')) return 'vulnerabilidad';
+  return '';
+};
+
+const getTipoLabel = (tipo) => {
+  const found = TIPO_OPTIONS.find(o => o.value === tipo);
+  if (found) return found.label;
+  if (tipo === 'amenaza') return 'Amenaza';
+  if (tipo === 'vulnerabilidad') return 'Vulnerabilidad';
+  return tipo || '—';
+};
+
+const VULN_INIT = { nombre: '', descripcion: '', tipo: 'amenaza_natural' };
+
+const selectCls = 'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm';
+
+function FormVulnerabilidad({ initial = VULN_INIT, onSubmit, onCancel, isSaving, isEditing }) {
   const [form, setForm] = useState({ ...initial });
   const handle = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
   const isValid = form.nombre.trim() && form.tipo;
@@ -414,9 +441,24 @@ function FormVulnerabilidad({ initial = VULN_INIT, onSubmit, onCancel, isSaving 
   return (
     <div className="space-y-4">
       <InputText label="Nombre" name="nombre" value={form.nombre} onChange={handle}
-        placeholder="Ej: Acceso no autorizado a sistemas" required />
-      <SelectField label="Tipo" name="tipo" value={form.tipo} onChange={handle}
-        options={[{ value: 'amenaza', label: 'Amenaza (factor externo)' }, { value: 'vulnerabilidad', label: 'Vulnerabilidad (debilidad interna)' }]} />
+        placeholder="Ej: Acceso no autorizado a sistemas" required disabled={isEditing} />
+
+      <div>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Tipo</label>
+        <select name="tipo" value={form.tipo} onChange={handle} className={selectCls}>
+          <optgroup label="Amenazas">
+            <option value="amenaza_natural">Amenaza natural</option>
+            <option value="amenaza_humana">Amenaza causada por el hombre</option>
+          </optgroup>
+          <optgroup label="Vulnerabilidades">
+            <option value="vulnerabilidad_personas">Vulnerabilidad en personas</option>
+            <option value="vulnerabilidad_proceso">Vulnerabilidad en proceso</option>
+            <option value="vulnerabilidad_tecnologia">Vulnerabilidad en tecnología</option>
+            <option value="vulnerabilidad_infraestructura">Vulnerabilidad en infraestructura</option>
+          </optgroup>
+        </select>
+      </div>
+
       <InputText label="Descripción" name="descripcion" value={form.descripcion} onChange={handle}
         placeholder="Descripción detallada" textarea />
       <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
@@ -461,9 +503,9 @@ function TabVulnerabilidades({ showToast }) {
     else showToast('error', result.payload || 'Error al eliminar');
   };
 
-  const lista = filtroTipo ? vulns.filter(v => v.tipo === filtroTipo) : vulns;
-  const countAmenazas = vulns.filter(v => v.tipo === 'amenaza').length;
-  const countVulns    = vulns.filter(v => v.tipo === 'vulnerabilidad').length;
+  const lista = filtroTipo ? vulns.filter(v => getGrupo(v.tipo) === filtroTipo) : vulns;
+  const countAmenazas = vulns.filter(v => getGrupo(v.tipo) === 'amenaza').length;
+  const countVulns    = vulns.filter(v => getGrupo(v.tipo) === 'vulnerabilidad').length;
 
   return (
     <>
@@ -500,7 +542,7 @@ function TabVulnerabilidades({ showToast }) {
           <EmptyState
             icon="bug_report"
             title="Sin registros"
-            description={filtroTipo ? `No hay ${filtroTipo}s registradas.` : 'Agrega vulnerabilidades y amenazas para continuar.'}
+            description={filtroTipo ? `No hay ${filtroTipo}s registradas.` : 'Agrega vulnerabilidades y amenazas para continuar con el análisis.'}
             action={!filtroTipo ? (
               <Btn onClick={() => setModal('create')} icon="add">
                 Registrar primera entrada
@@ -523,11 +565,11 @@ function TabVulnerabilidades({ showToast }) {
                   <tr key={v.id_vulnerabilidad} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{v.nombre}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize
-                        ${v.tipo === 'amenaza'
-                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200'
-                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'}`}>
-                        {v.tipo}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium
+                        ${getGrupo(v.tipo) === 'amenaza'
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                        {getTipoLabel(v.tipo)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-xs truncate">{v.descripcion || '—'}</td>
@@ -555,6 +597,7 @@ function TabVulnerabilidades({ showToast }) {
             onSubmit={handleSubmit}
             onCancel={() => setModal(null)}
             isSaving={saving}
+            isEditing={modal !== 'create'}
           />
         </Modal>
       )}
@@ -578,7 +621,7 @@ const RIESGO_INIT = {
 const CONTROL_INIT = {
   descripcion: '',
   tipo_control: 'preventivo',
-  nivel_efectividad: 'Alto',
+  nivel_efectividad: 'Automático',
   frecuencia_control: 'continuo',
   probabilidad_residual: '1',
   impacto_residual: '1',
@@ -642,7 +685,7 @@ function FormRiesgo({ activos, vulnerabilidades, onSubmit, onCancel, isSaving })
           <div className="flex flex-wrap gap-2">
             {vulnerabilidades.map(v => {
               const sel = form.vulnerabilidad_ids.includes(v.id_vulnerabilidad);
-              const isAmenaza = v.tipo === 'amenaza';
+              const isAmenaza = getGrupo(v.tipo) === 'amenaza';
               return (
                 <button key={v.id_vulnerabilidad} type="button" onClick={() => toggleVuln(v.id_vulnerabilidad)}
                   className={`text-xs px-3 py-1.5 rounded-full border transition-all font-medium flex items-center gap-1
@@ -652,7 +695,8 @@ function FormRiesgo({ activos, vulnerabilidades, onSubmit, onCancel, isSaving })
                   <span className="material-symbols-outlined text-[12px]">
                     {isAmenaza ? 'warning' : 'lock_open'}
                   </span>
-                  {v.nombre}
+                  <span>{v.nombre}</span>
+                  <span className="opacity-50 text-[10px]">({getTipoLabel(v.tipo)})</span>
                 </button>
               );
             })}
@@ -787,101 +831,141 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
     else showToast('error', result.payload || 'Error al eliminar');
   };
 
+  const activo = riesgo.activoInfo || riesgo.activo || {};
+  const vulns  = riesgo.vulnerabilidades || [];
+
   return (
-    <div className="space-y-5">
-      {/* Resumen del riesgo */}
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Activo</p>
-            <p className="font-semibold text-gray-800 dark:text-white">
-              {riesgo.activo?.nombre || `Activo #${riesgo.activo_id}`}
+    <div className="space-y-3">
+
+      {/* ── Cabecera: activo + valores ── */}
+      <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+        {/* Activo */}
+        <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Activo de información</p>
+            <p className="font-bold text-gray-900 dark:text-white text-sm leading-tight">
+              {activo.nombre || riesgo.activo?.nombre || `Activo #${riesgo.activo_id}`}
             </p>
+            {(activo.tipo || riesgo.activo?.tipo) && (
+              <p className="text-[11px] text-gray-400 capitalize mt-0.5">{activo.tipo || riesgo.activo?.tipo}</p>
+            )}
           </div>
           <NivelBadge nivel={nivelRiesgo(ri)} />
         </div>
 
-        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{riesgo.consecuencia}</p>
+        {riesgo.consecuencia && (
+          <div className="px-4 pb-3 border-t border-gray-50 dark:border-gray-700/50 pt-3">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Consecuencia potencial</p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{riesgo.consecuencia}</p>
+          </div>
+        )}
 
-        {/* Indicador inherente → residual */}
-        <div className="flex items-center gap-3 bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
-          <div className="text-center">
-            <p className="text-[10px] text-gray-400 uppercase">Inherente</p>
-            <p className="font-bold text-xl text-gray-700 dark:text-gray-200">{ri}</p>
-            <NivelBadge nivel={nivelRiesgo(ri)} />
+        {/* Inherente → Residual */}
+        <div className="px-4 pb-4 border-t border-gray-50 dark:border-gray-700/50 pt-3">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {[{ label: 'Inherente', val: ri }, { label: 'Residual', val: rr }].map(({ label, val }) => (
+              <div key={label} className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">{label}</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 leading-none">{val}</p>
+                <div className="mt-2 flex justify-center">
+                  <NivelBadge nivel={nivelRiesgo(val)} />
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="flex-1 flex flex-col items-center text-gray-300 dark:text-gray-600">
-            {reduccion > 0 ? (
-              <>
-                <span className="material-symbols-outlined text-emerald-500">arrow_forward</span>
-                <span className="text-[10px] text-emerald-500 font-medium">−{reduccion} pts</span>
-              </>
-            ) : (
-              <span className="material-symbols-outlined">arrow_forward</span>
-            )}
-          </div>
-          <div className="text-center">
-            <p className="text-[10px] text-gray-400 uppercase">Residual</p>
-            <p className="font-bold text-xl text-gray-700 dark:text-gray-200">{rr}</p>
-            <NivelBadge nivel={nivelRiesgo(rr)} />
-          </div>
+          {reduccion > 0 && (
+            <div className="flex items-center justify-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+              <span className="material-symbols-outlined text-[13px]">trending_down</span>
+              Reducción de {reduccion} punto{reduccion !== 1 ? 's' : ''}
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className="bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded">
+        {/* Metadatos */}
+        <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-700/50 flex items-center gap-3 flex-wrap">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Tratamiento:</span>
+          <span className="text-[10px] bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-medium">
             {riesgo.tratamiento}
+          </span>
+          <span className="text-[10px] text-gray-400 ml-auto">
+            P {riesgo.probabilidad_inherente} × I {riesgo.impacto_inherente} = <strong>{ri}</strong>
           </span>
         </div>
       </div>
 
-      {/* Controles */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-base text-gray-400">security</span>
-            Controles ({controles.length})
+      {/* ── Amenazas / Vulnerabilidades ── */}
+      {vulns.length > 0 && (
+        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[13px]">bug_report</span>
+            Amenazas y vulnerabilidades
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {vulns.map(v => (
+              <span key={v.id_vulnerabilidad}
+                className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 border
+                  ${getGrupo(v.tipo) === 'amenaza'
+                    ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/30'
+                    : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30'}`}>
+                <span className="material-symbols-outlined text-[11px]">
+                  {getGrupo(v.tipo) === 'amenaza' ? 'warning' : 'lock_open'}
+                </span>
+                {v.nombre}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Controles ── */}
+      <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
+          <p className="text-sm font-semibold text-gray-800 dark:text-white flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[15px] text-gray-400">security</span>
+            Controles
+            <span className="text-xs font-normal text-gray-400">({controles.length})</span>
           </p>
           {!riesgo.en_matriz && !addCtrl && (
-            <Btn size="sm" onClick={() => setAddCtrl(true)} icon="add">
-              Agregar control
-            </Btn>
+            <Btn size="sm" onClick={() => setAddCtrl(true)} icon="add">Agregar</Btn>
           )}
         </div>
 
         {!controles.length && !addCtrl && (
-          <div className="text-center py-6 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
-            <span className="material-symbols-outlined text-3xl text-gray-300 dark:text-gray-600 block mb-1">security</span>
-            <p className="text-xs text-gray-400">Sin controles registrados.</p>
-            <p className="text-xs text-gray-400 mt-0.5">Agrega al menos uno para poder publicar.</p>
+          <div className="text-center py-8 px-4">
+            <span className="material-symbols-outlined text-4xl text-gray-200 dark:text-gray-700 block mb-2">shield</span>
+            <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">Sin controles aún</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Agrega al menos uno para poder publicar.</p>
             {!riesgo.en_matriz && (
-              <Btn size="sm" className="mt-3" onClick={() => setAddCtrl(true)} icon="add">
-                Agregar primer control
-              </Btn>
+              <div className="mt-3">
+                <Btn size="sm" onClick={() => setAddCtrl(true)} icon="add">Agregar primer control</Btn>
+              </div>
             )}
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="divide-y divide-gray-50 dark:divide-gray-700/40">
           {controles.map((c, idx) => {
             const crr = calcRiesgo(c.probabilidad_residual, c.impacto_residual);
             return (
-              <div key={c.id_control ?? idx}
-                className="border border-gray-100 dark:border-gray-700 rounded-xl p-3">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 flex-1">{c.descripcion}</p>
+              <div key={c.id_control ?? idx} className="px-4 py-3">
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <p className="text-xs text-gray-700 dark:text-gray-300 flex-1 leading-relaxed">{c.descripcion}</p>
                   {!riesgo.en_matriz && (
                     <IconBtn icon="delete" title="Eliminar control" variant="danger"
                       onClick={() => handleDeleteControl(c.id_control)} />
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded capitalize">{c.tipo_control}</span>
-                  <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">{c.nivel_efectividad}</span>
-                  <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">{c.frecuencia_control}</span>
-                  <span className="ml-auto text-xs text-gray-500 flex items-center gap-1">
-                    Residual: <strong className="text-gray-700 dark:text-gray-300">{crr}</strong>
+                <div className="ml-7 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{c.tipo_control}</span>
+                  <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">{c.nivel_efectividad}</span>
+                  <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">{c.frecuencia_control}</span>
+                  <div className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
+                    Residual <strong className="text-gray-600 dark:text-gray-300 font-bold mx-0.5">{crr}</strong>
                     <NivelBadge nivel={nivelRiesgo(crr)} />
-                  </span>
+                  </div>
                 </div>
               </div>
             );
@@ -889,9 +973,9 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
         </div>
 
         {addCtrl && (
-          <div className="border border-primary/30 rounded-xl p-4 mt-3 bg-primary/5 dark:bg-primary/10">
-            <p className="text-sm font-semibold text-primary mb-4 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-base">add_circle</span>
+          <div className="p-4 border-t border-primary/20 bg-primary/5 dark:bg-primary/10">
+            <p className="text-xs font-semibold text-primary mb-3 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">add_circle</span>
               Nuevo control
             </p>
             <FormControl
@@ -904,14 +988,14 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
         )}
       </div>
 
-      {/* Publicar */}
+      {/* ── Publicar ── */}
       {!riesgo.en_matriz && controles.length > 0 && (
-        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 p-4">
           <Btn variant="success" size="lg" onClick={() => onPublicar(riesgo.id_riesgo)} disabled={isSaving}
             icon={isSaving ? 'progress_activity' : 'publish'}>
             {isSaving ? 'Publicando…' : 'Publicar en la Matriz'}
           </Btn>
-          <p className="text-xs text-gray-400 flex items-center gap-1">
+          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
             <span className="material-symbols-outlined text-[12px]">info</span>
             Una vez publicado, el riesgo no podrá editarse.
           </p>
@@ -1013,7 +1097,7 @@ function TabRiesgos({ showToast }) {
         >
           {loading ? <Spinner /> : !pendientes.length ? (
             <EmptyState
-              icon="shield_check"
+              icon="shield"
               title="Sin riesgos pendientes"
               description="Crea un riesgo para comenzar el análisis."
               action={
@@ -1156,208 +1240,163 @@ function MatrizDetalleModal({ riesgo, onClose }) {
   const Divider = () => <div className="border-t border-gray-100 dark:border-gray-700" />;
 
   return (
-    <Modal title={`Riesgo #${riesgo.numero ?? riesgo.id_riesgo} — Ficha completa`} onClose={onClose} maxW="max-w-2xl">
-      <div className="space-y-5">
+    <Modal title={`Riesgo #${riesgo.numero ?? riesgo.id_riesgo}`} onClose={onClose} maxW="max-w-2xl">
+      <div className="space-y-3">
 
-        {/* 0 ── Estado de publicación ── */}
-        <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
-          <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-lg">verified</span>
+        {/* Publicado */}
+        <div className="flex items-center gap-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30 rounded-2xl px-4 py-2.5">
+          <span className="material-symbols-outlined text-emerald-500 dark:text-emerald-400 text-base">verified</span>
           <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex-1">Publicado en la Matriz</span>
           {fmtFecha(riesgo.updated_at || riesgo.created_at) && (
-            <span className="text-xs text-gray-500 flex items-center gap-1 shrink-0">
-              <span className="material-symbols-outlined text-[13px]">calendar_today</span>
+            <span className="text-[11px] text-gray-400 flex items-center gap-1 shrink-0">
+              <span className="material-symbols-outlined text-[11px]">calendar_today</span>
               {fmtFecha(riesgo.updated_at || riesgo.created_at)}
             </span>
           )}
         </div>
 
-        {/* 1 ── ACTIVOS ── */}
-        <div>
-          <SectionTitle icon="dns">Activo de Información</SectionTitle>
-          <div className="grid grid-cols-3 gap-3 bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-            <div>
-              <p className="text-[10px] text-gray-400 uppercase mb-1">Nombre</p>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-snug">
-                {activo.nombre || `#${riesgo.activo_id}`}
-              </p>
+        {/* Activo */}
+        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[12px]">dns</span>
+              Activo de información
+            </p>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-gray-50 dark:divide-gray-700/50">
+            <div className="px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Nombre</p>
+              <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-snug">{activo.nombre || `#${riesgo.activo_id}`}</p>
             </div>
-            <div>
-              <p className="text-[10px] text-gray-400 uppercase mb-1">Tipo</p>
-              <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded capitalize">
-                {activo.tipo || '—'}
-              </span>
+            <div className="px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Tipo</p>
+              <span className="text-[11px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{activo.tipo || '—'}</span>
             </div>
-            <div>
-              <p className="text-[10px] text-gray-400 uppercase mb-1">Propietario / Área</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">{activo.propietario || '—'}</p>
+            <div className="px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Propietario / Área</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">{activo.propietario || '—'}</p>
             </div>
           </div>
         </div>
 
-        <Divider />
-
-        {/* 2 ── IDENTIFICACIÓN: Amenaza / Vulnerabilidad ── */}
-        <div>
-          <SectionTitle icon="bug_report">Identificación — Amenaza / Vulnerabilidad</SectionTitle>
-          {vulns.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">Sin amenazas o vulnerabilidades asociadas</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
+        {/* Amenazas / Vulnerabilidades */}
+        {vulns.length > 0 && (
+          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[12px]">bug_report</span>
+              Amenazas y vulnerabilidades asociadas
+            </p>
+            <div className="flex flex-wrap gap-1.5">
               {vulns.map((v) => (
                 <span key={v.id_vulnerabilidad}
-                  className={`text-xs px-3 py-1.5 rounded-full border font-medium flex items-center gap-1
-                    ${v.tipo === 'amenaza'
-                      ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/40'
-                      : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/40'}`}>
-                  <span className="material-symbols-outlined text-[12px]">
-                    {v.tipo === 'amenaza' ? 'warning' : 'lock_open'}
+                  className={`text-[11px] px-2.5 py-1 rounded-full font-medium flex items-center gap-1 border
+                    ${getGrupo(v.tipo) === 'amenaza'
+                      ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/30'
+                      : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30'}`}>
+                  <span className="material-symbols-outlined text-[11px]">
+                    {getGrupo(v.tipo) === 'amenaza' ? 'warning' : 'lock_open'}
                   </span>
                   {v.nombre}
-                  <span className="opacity-50 text-[10px] ml-0.5 capitalize">({v.tipo})</span>
+                  <span className="opacity-40 text-[10px]">({getTipoLabel(v.tipo)})</span>
                 </span>
               ))}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Consecuencia + Tratamiento */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[12px]">report_problem</span>
+              Consecuencia potencial
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{riesgo.consecuencia}</p>
+          </div>
+          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[12px]">tune</span>
+              Tratamiento
+            </p>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-full">
+              <span className="material-symbols-outlined text-[13px] text-primary">shield</span>
+              {riesgo.tratamiento}
+            </span>
+          </div>
         </div>
 
-        <Divider />
-
-        {/* 3 ── VALORACIÓN: Consecuencia ── */}
-        <div>
-          <SectionTitle icon="report_problem">Valoración — Riesgo y Consecuencia</SectionTitle>
-          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-lg px-3 py-2.5">
-            {riesgo.consecuencia}
-          </p>
-        </div>
-
-        <Divider />
-
-        {/* 4 ── EVALUACIÓN INHERENTE: P + I → Resultado + Nivel ── */}
-        <div>
-          <SectionTitle icon="analytics">Evaluación del Riesgo Inherente</SectionTitle>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-            <div className="flex items-center gap-4">
-              {/* P */}
-              <div className="text-center flex-1">
-                <p className="text-[10px] text-gray-400 uppercase mb-1">Probabilidad (P)</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white">{riesgo.probabilidad_inherente}</p>
-                <p className="text-[10px] text-gray-400">/ 5</p>
+        {/* Evaluación inherente */}
+        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[12px]">analytics</span>
+              Evaluación del riesgo inherente
+            </p>
+          </div>
+          <div className="grid grid-cols-4 divide-x divide-gray-50 dark:divide-gray-700/50">
+            {[
+              { label: 'Probabilidad (P)', value: riesgo.probabilidad_inherente, sub: '/ 5' },
+              { label: 'Impacto (I)',       value: riesgo.impacto_inherente,      sub: '/ 5' },
+              { label: 'R. Inherente',      value: ri,                            sub: null  },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="px-4 py-4 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1.5 leading-tight">{label}</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-white leading-none">{value}</p>
+                {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
               </div>
-              <span className="text-2xl text-gray-300 dark:text-gray-600 font-light">×</span>
-              {/* I */}
-              <div className="text-center flex-1">
-                <p className="text-[10px] text-gray-400 uppercase mb-1">Impacto (I)</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white">{riesgo.impacto_inherente}</p>
-                <p className="text-[10px] text-gray-400">/ 5</p>
-              </div>
-              <span className="text-2xl text-gray-300 dark:text-gray-600 font-light">=</span>
-              {/* Resultado */}
-              <div className="text-center flex-1 bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
-                <p className="text-[10px] text-gray-400 uppercase mb-1">Riesgo Inherente</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white">{ri}</p>
-                <div className="mt-1"><NivelBadge nivel={nivelInherente} /></div>
-              </div>
+            ))}
+            <div className="px-4 py-4 flex flex-col items-center justify-center gap-1.5">
+              <p className="text-[10px] uppercase tracking-wider text-gray-400">Nivel</p>
+              <NivelBadge nivel={nivelInherente} />
             </div>
           </div>
         </div>
 
-        <Divider />
-
-        {/* 5 ── MEDICIÓN: Tratamiento ── */}
-        <div>
-          <SectionTitle icon="tune">Medición — Tratamiento del Riesgo Inherente</SectionTitle>
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg">
-            <span className="material-symbols-outlined text-[16px] text-primary">shield_check</span>
-            {riesgo.tratamiento}
-          </span>
-        </div>
-
-        <Divider />
-
-        {/* 6 ── MITIGACIÓN: Controles ── */}
-        <div>
-          <SectionTitle icon="security">Mitigación — Controles Implementados ({controles.length})</SectionTitle>
+        {/* Controles */}
+        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50 flex items-center gap-2">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[12px]">security</span>
+              Controles implementados
+            </p>
+            <span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full text-[9px] font-bold">{controles.length}</span>
+          </div>
 
           {controles.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">Sin controles registrados</p>
+            <p className="text-xs text-gray-400 italic px-4 py-5">Sin controles registrados.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="divide-y divide-gray-50 dark:divide-gray-700/40">
               {controles.map((c, idx) => {
                 const crr     = calcRiesgo(c.probabilidad_residual, c.impacto_residual);
                 const nivelRR = c.nivel_riesgo_residual || nivelRiesgo(crr);
-                const fechaCtrl = fmtFecha(c.created_at);
-
                 return (
-                  <div key={c.id_control ?? idx}
-                    className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-
-                    {/* Encabezado del control */}
-                    <div className="flex items-start gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800">
-                      <span className="shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[11px] font-bold mt-0.5">
-                        {idx + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-snug">
-                          {c.descripcion}
-                        </p>
-                        {fechaCtrl && (
-                          <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
-                            <span className="material-symbols-outlined text-[12px]">calendar_today</span>
-                            Registrado: {fechaCtrl}
-                          </p>
-                        )}
-                      </div>
+                  <div key={c.id_control ?? idx} className="px-4 py-3">
+                    <div className="flex items-start gap-2 mb-2.5">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
+                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 flex-1 leading-relaxed">{c.descripcion}</p>
+                      {fmtFecha(c.created_at) && (
+                        <span className="text-[10px] text-gray-400 flex items-center gap-0.5 shrink-0">
+                          <span className="material-symbols-outlined text-[10px]">calendar_today</span>
+                          {fmtFecha(c.created_at)}
+                        </span>
+                      )}
                     </div>
-
-                    {/* Eficiencia del control: Tipo / Efectividad / Frecuencia */}
-                    <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
-                      <div className="px-4 py-3 text-center">
-                        <p className="text-[10px] text-gray-400 uppercase mb-1.5">Tipo</p>
-                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded capitalize">
-                          {c.tipo_control}
-                        </span>
-                      </div>
-                      <div className="px-4 py-3 text-center">
-                        <p className="text-[10px] text-gray-400 uppercase mb-1.5">Implementación (Nivel)</p>
-                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${efectividadStyle(c.nivel_efectividad)}`}>
-                          {c.nivel_efectividad}
-                        </span>
-                      </div>
-                      <div className="px-4 py-3 text-center">
-                        <p className="text-[10px] text-gray-400 uppercase mb-1.5">Frecuencia</p>
-                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded capitalize">
-                          {c.frecuencia_control}
-                        </span>
-                      </div>
+                    <div className="ml-7 flex flex-wrap gap-1.5 mb-2.5">
+                      <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{c.tipo_control}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${efectividadStyle(c.nivel_efectividad)}`}>{c.nivel_efectividad}</span>
+                      <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{c.frecuencia_control}</span>
                     </div>
-
-                    {/* Riesgo Residual de este control */}
-                    <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-3 bg-white dark:bg-background-dark/30">
-                      <p className="text-[10px] text-gray-400 uppercase font-semibold mb-2">Riesgo Residual</p>
-                      <div className="flex items-center gap-4">
-                        <div className="text-center">
-                          <p className="text-[10px] text-gray-400 mb-0.5">Prob.</p>
-                          <p className="text-lg font-bold text-gray-700 dark:text-gray-200">{c.probabilidad_residual}</p>
-                          <p className="text-[10px] text-gray-400">/ 5</p>
-                        </div>
-                        <span className="text-gray-300 dark:text-gray-600">×</span>
-                        <div className="text-center">
-                          <p className="text-[10px] text-gray-400 mb-0.5">Impacto</p>
-                          <p className="text-lg font-bold text-gray-700 dark:text-gray-200">{c.impacto_residual}</p>
-                          <p className="text-[10px] text-gray-400">/ 5</p>
-                        </div>
-                        <span className="text-gray-300 dark:text-gray-600">=</span>
-                        <div className="flex items-center gap-2 flex-1">
-                          <p className="text-2xl font-bold text-gray-800 dark:text-white">{crr}</p>
-                          <NivelBadge nivel={nivelRR} />
-                          {crr < ri && (
-                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5 ml-1">
-                              <span className="material-symbols-outlined text-[12px]">trending_down</span>
-                              −{ri - crr} vs inherente
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                    <div className="ml-7 bg-gray-50 dark:bg-gray-800/60 rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400 shrink-0">Riesgo residual:</p>
+                      <span className="text-[11px] text-gray-500">{c.probabilidad_residual} × {c.impacto_residual} =</span>
+                      <span className="text-base font-bold text-gray-800 dark:text-white">{crr}</span>
+                      <NivelBadge nivel={nivelRR} />
+                      {crr < ri && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5 ml-1">
+                          <span className="material-symbols-outlined text-[11px]">trending_down</span>
+                          −{ri - crr}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -1366,37 +1405,37 @@ function MatrizDetalleModal({ riesgo, onClose }) {
           )}
         </div>
 
-        {/* 7 ── RESPONSABLE ── */}
+        {/* Registrado por */}
         {(usuario || riesgo.created_at) && (
-          <>
-            <Divider />
-            <div>
-              <SectionTitle icon="manage_accounts">Registrado por</SectionTitle>
-              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-                <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-600 shrink-0">account_circle</span>
-                <div className="flex-1 min-w-0">
-                  {usuario ? (
-                    <>
-                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                        {[usuario.nombre, usuario.apellido_paterno, usuario.apellido_materno].filter(Boolean).join(' ')}
-                      </p>
-                      {usuario.email && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{usuario.email}</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Usuario no disponible</p>
-                  )}
-                  {fmtFecha(riesgo.created_at) && (
-                    <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1.5">
-                      <span className="material-symbols-outlined text-[12px]">calendar_today</span>
-                      Fecha de registro: {fmtFecha(riesgo.created_at)}
+          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2.5 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[12px]">manage_accounts</span>
+              Registrado por
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0 uppercase">
+                {((usuario?.nombre?.[0] || '') + (usuario?.apellido_paterno?.[0] || '')) || '?'}
+              </span>
+              <div className="min-w-0">
+                {usuario ? (
+                  <>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">
+                      {[usuario.nombre, usuario.apellido_paterno, usuario.apellido_materno].filter(Boolean).join(' ')}
                     </p>
-                  )}
-                </div>
+                    {usuario.email && <p className="text-xs text-gray-400 mt-0.5">{usuario.email}</p>}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">Usuario no disponible</p>
+                )}
+                {fmtFecha(riesgo.created_at) && (
+                  <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                    <span className="material-symbols-outlined text-[11px]">calendar_today</span>
+                    {fmtFecha(riesgo.created_at)}
+                  </p>
+                )}
               </div>
             </div>
-          </>
+          </div>
         )}
 
       </div>
@@ -1735,7 +1774,7 @@ function TabMatriz() {
                             <div className="space-y-0.5">
                               {vulns.map(v => (
                                 <div key={v.id_vulnerabilidad} className="flex items-center gap-1">
-                                  <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${v.tipo === 'amenaza' ? 'bg-orange-300' : 'bg-blue-300'}`} />
+                                  <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${getGrupo(v.tipo) === 'amenaza' ? 'bg-orange-300' : 'bg-blue-300'}`} />
                                   <span className="leading-snug">{v.nombre}</span>
                                 </div>
                               ))}

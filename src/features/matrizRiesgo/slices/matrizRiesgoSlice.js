@@ -65,28 +65,55 @@ const matrizRiesgoSlice = createSlice({
 
       // create control
       .addCase(createControl.pending,   (state) => { state.isUpdating = true; state.error = null; })
-      .addCase(createControl.fulfilled, (state, { payload }) => {
+      .addCase(createControl.fulfilled, (state, { payload, meta }) => {
         state.isUpdating = false;
-        const updated = payload.riesgo || payload;
-        if (updated) state.riesgos = patchRiesgo(state.riesgos, updated);
+        // Si el API devuelve el riesgo completo actualizado, parchamos directamente
+        const updatedRiesgo = payload?.riesgo;
+        if (updatedRiesgo?.id_riesgo) {
+          state.riesgos = patchRiesgo(state.riesgos, updatedRiesgo);
+          return;
+        }
+        // Si el API devuelve solo el control, lo agregamos al array del riesgo
+        const { riesgoId } = meta.arg;
+        const control = payload?.control || payload;
+        if (control?.id_control) {
+          const riesgo = state.riesgos.find(r => r.id_riesgo === riesgoId);
+          if (riesgo) riesgo.controles = [...(riesgo.controles || []), control];
+        }
       })
       .addCase(createControl.rejected,  (state, { payload }) => { state.isUpdating = false; state.error = payload; })
 
       // update control
       .addCase(updateControl.pending,   (state) => { state.isUpdating = true; state.error = null; })
-      .addCase(updateControl.fulfilled, (state, { payload }) => {
+      .addCase(updateControl.fulfilled, (state, { payload, meta }) => {
         state.isUpdating = false;
-        const updated = payload.riesgo || payload;
-        if (updated) state.riesgos = patchRiesgo(state.riesgos, updated);
+        const updatedRiesgo = payload?.riesgo;
+        if (updatedRiesgo?.id_riesgo) {
+          state.riesgos = patchRiesgo(state.riesgos, updatedRiesgo);
+          return;
+        }
+        const { riesgoId, controlId } = meta.arg;
+        const control = payload?.control || payload;
+        if (control?.id_control) {
+          const riesgo = state.riesgos.find(r => r.id_riesgo === riesgoId);
+          if (riesgo) {
+            riesgo.controles = (riesgo.controles || []).map(c =>
+              c.id_control === controlId ? control : c
+            );
+          }
+        }
       })
       .addCase(updateControl.rejected,  (state, { payload }) => { state.isUpdating = false; state.error = payload; })
 
-      // delete control
+      // delete control — el thunk devuelve { riesgoId, controlId }
       .addCase(deleteControl.pending,   (state) => { state.isUpdating = true; state.error = null; })
       .addCase(deleteControl.fulfilled, (state, { payload }) => {
         state.isUpdating = false;
-        const updated = payload.riesgo || payload;
-        if (updated) state.riesgos = patchRiesgo(state.riesgos, updated);
+        const { riesgoId, controlId } = payload;
+        const riesgo = state.riesgos.find(r => r.id_riesgo === riesgoId);
+        if (riesgo) {
+          riesgo.controles = (riesgo.controles || []).filter(c => c.id_control !== controlId);
+        }
       })
       .addCase(deleteControl.rejected,  (state, { payload }) => { state.isUpdating = false; state.error = payload; });
   },
