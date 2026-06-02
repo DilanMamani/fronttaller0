@@ -17,6 +17,9 @@ import {
   selectPermisosCreating,
 } from "./slicesPermiso/permisosSlice";
 
+import { fetchModulos } from "./slicesModulo/modulosThunk";
+import { selectModulos, selectModulosLoading } from "./slicesModulo/modulosSlice";
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 const toId = (p) => (typeof p === "object" ? p.id_permiso : p);
@@ -36,21 +39,10 @@ const normalizarPermisos = (permisos = []) =>
       : { id_permiso: p, visible_en_menu: true }
   );
 
-const getModuloPermiso = (nombre = "") => {
-  if (nombre.includes("USUARIO")) return "Usuarios";
-  if (nombre.includes("ROL") || nombre.includes("PERMISO")) return "Roles y permisos";
-  if (nombre.includes("PERSONA")) return "Personas";
-  if (nombre.includes("SACRAMENTO")) return "Sacramentos";
-  if (nombre.includes("CERTIFICADO")) return "Certificados";
-  if (nombre.includes("PARROQUIA")) return "Parroquias";
-  if (nombre.includes("AUDITORIA")) return "Auditoría";
-  if (nombre.includes("CONFIG_SEGURIDAD")) return "Configuración de seguridad";
-  if (nombre.includes("REPORTE")) return "Reportes";
-  if (nombre.includes("DASHBOARD")) return "Dashboard";
-  if (nombre.includes("MATRIZ")) return "Matriz de riesgos";
-  if (nombre.includes("OCR")) return "OCR";
-  return "Otros";
-};
+// Convierte texto a formato MAYÚSCULAS_CON_GUIONES_BAJOS
+const toNombreRol = (s) =>
+  (s || "").toUpperCase().replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
+
 
 // ─── PermisoCard ─────────────────────────────────────────────────────────────
 
@@ -225,11 +217,16 @@ export default function RolesPermisos() {
   const permisosDisponibles = useSelector(selectPermisos);
   const [searchPermiso, setSearchPermiso] = useState("");
 
+  const modulosApi = useSelector(selectModulos);
+  const isLoadingModulos = useSelector(selectModulosLoading);
+
   const isLoadingRoles = useSelector(selectRolesLoading);
   const isCreatingRol = useSelector(selectRolesCreating);
   const isUpdatingRol = useSelector(selectRolesUpdating);
   const isLoadingPermisos = useSelector(selectPermisosLoading);
   const isCreatingPermiso = useSelector(selectPermisosCreating);
+
+  // Módulos obtenidos de la API, mapeados al formato { label, prefix }
 
   const [activeTab, setActiveTab] = useState("agregar");
   const [toast, setToast] = useState(null);
@@ -243,15 +240,18 @@ export default function RolesPermisos() {
   });
 
   const [formPermiso, setFormPermiso] = useState({
-    nombre: "",
+    id_modulo: "",
+    accion: "",
     descripcion: "",
   });
+  const [showCrearPermiso, setShowCrearPermiso] = useState(false);
 
   const [filters, setFilters] = useState({ nombre: "", activo: "" });
 
   useEffect(() => {
     dispatch(fetchRoles());
     dispatch(fetchPermisos());
+    dispatch(fetchModulos());
   }, [dispatch]);
 
   const showToast = (type, message) => {
@@ -261,27 +261,48 @@ export default function RolesPermisos() {
 
   // ── filtered / grouped permisos ──────────────────────────────────────────
 
+  // Mapa id_modulo → nombre del módulo para lookup O(1)
+  const moduloPorId = useMemo(() => {
+    const map = new Map();
+    modulosApi.forEach((m) => map.set(m.id_modulo, m.nombre || String(m.id_modulo)));
+    return map;
+  }, [modulosApi]);
+
   const permisosFiltrados = useMemo(() => {
     const texto = searchPermiso.toLowerCase().trim();
     if (!texto) return permisosDisponibles;
     return permisosDisponibles.filter((p) => {
-      const modulo = getModuloPermiso(p.nombre).toLowerCase();
+      const modulo = (moduloPorId.get(p.id_modulo) || "Otros").toLowerCase();
       return (
         p.nombre?.toLowerCase().includes(texto) ||
         p.descripcion?.toLowerCase().includes(texto) ||
         modulo.includes(texto)
       );
     });
-  }, [permisosDisponibles, searchPermiso]);
+  }, [permisosDisponibles, searchPermiso, moduloPorId]);
 
-  const permisosAgrupados = useMemo(() =>
-    permisosFiltrados.reduce((acc, p) => {
-      const m = getModuloPermiso(p.nombre);
-      if (!acc[m]) acc[m] = [];
-      acc[m].push(p);
+  const permisosAgrupados = useMemo(() => {
+    // Agrupar por id_modulo → nombre del módulo
+    const agrupados = permisosFiltrados.reduce((acc, p) => {
+      const label = moduloPorId.get(p.id_modulo) || "Otros";
+      if (!acc[label]) acc[label] = [];
+      acc[label].push(p);
       return acc;
-    }, {}),
-  [permisosFiltrados]);
+    }, {});
+
+    // Ordenar los grupos según el orden que devuelve la API de módulos
+    const resultado = {};
+    modulosApi.forEach((m) => {
+      const label = m.nombre || String(m.id_modulo);
+      if (agrupados[label]) resultado[label] = agrupados[label];
+    });
+    // Permisos sin módulo asignado van al final
+    Object.keys(agrupados).forEach((label) => {
+      if (!resultado[label]) resultado[label] = agrupados[label];
+    });
+
+    return resultado;
+  }, [permisosFiltrados, moduloPorId, modulosApi]);
 
   const filteredRoles = useMemo(() =>
     roles.filter((rol) => {
@@ -368,21 +389,37 @@ export default function RolesPermisos() {
 
   // ── form handlers ────────────────────────────────────────────────────────
 
+  const moduloSeleccionado = modulosApi.find(
+    (m) => String(m.id_modulo) === String(formPermiso.id_modulo)
+  ) || null;
+
+  const nombrePermisoGenerado = (() => {
+    const accion = toNombreRol(formPermiso.accion);
+    const prefModulo = moduloSeleccionado
+      ? toNombreRol(moduloSeleccionado.nombre)
+      : "";
+    if (!prefModulo && !accion) return "";
+    if (!prefModulo) return accion;
+    if (!accion) return prefModulo;
+    return `${accion}_${prefModulo}`;
+  })();
+
   const handleCreatePermiso = async (e) => {
     e.preventDefault();
-    if (!formPermiso.nombre.trim()) {
-      showToast("error", "El nombre del permiso es obligatorio.");
+    if (!formPermiso.id_modulo || !formPermiso.accion.trim()) {
+      showToast("error", "Selecciona un módulo e ingresa la acción del permiso.");
       return;
     }
     const action = await dispatch(
       createPermiso({
-        nombre: formPermiso.nombre.trim(),
+        nombre: nombrePermisoGenerado,
         descripcion: formPermiso.descripcion.trim(),
+        id_modulo: Number(formPermiso.id_modulo),
       })
     );
     if (action.meta.requestStatus === "fulfilled") {
-      showToast("success", "Permiso creado correctamente.");
-      setFormPermiso({ nombre: "", descripcion: "" });
+      showToast("success", `Permiso "${nombrePermisoGenerado}" creado correctamente.`);
+      setFormPermiso({ id_modulo: "", accion: "", descripcion: "" });
       dispatch(fetchPermisos());
     } else {
       showToast("error", action.payload?.msg || action.payload?.message || "No se pudo crear el permiso.");
@@ -490,86 +527,195 @@ export default function RolesPermisos() {
             </h3>
 
             <form className="space-y-6" onSubmit={handleCreate}>
-              {/* Datos básicos */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Nombre del rol
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej. SECRETARIO_PARROQUIAL"
-                    className="input-base w-full"
-                    value={formAdd.nombre}
-                    onChange={(e) => setFormAdd({ ...formAdd, nombre: e.target.value })}
-                  />
+              {/* Datos básicos del rol */}
+              <div className="space-y-4">
+                {/* Aviso de formato */}
+                <div className="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
+                  <span className="material-symbols-outlined text-amber-500 text-xl shrink-0 mt-0.5">info</span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Formato del nombre del rol</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5 leading-relaxed">
+                      El nombre se guarda en <strong>MAYÚSCULAS</strong> con palabras separadas por guión bajo.
+                      Ejemplos: <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">ADMIN</code>,{" "}
+                      <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">PARROCO</code>,{" "}
+                      <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">SECRETARIO_PARROQUIAL</code>
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Estado
-                  </label>
-                  <select
-                    className="input-base w-full"
-                    value={String(formAdd.activo)}
-                    onChange={(e) =>
-                      setFormAdd({ ...formAdd, activo: e.target.value === "true" })
-                    }
-                  >
-                    <option value="true">Activo</option>
-                    <option value="false">Inactivo</option>
-                  </select>
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Nombre del rol <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. SECRETARIO_PARROQUIAL"
+                      className="input-base w-full font-mono uppercase"
+                      value={formAdd.nombre}
+                      onChange={(e) =>
+                        setFormAdd({ ...formAdd, nombre: toNombreRol(e.target.value) })
+                      }
+                    />
+                    {formAdd.nombre ? (
+                      <p className="mt-1.5 flex items-center gap-1.5 text-xs">
+                        <span className="material-symbols-outlined text-[13px] text-emerald-500">check_circle</span>
+                        <span className="text-gray-500 dark:text-gray-400">Se guardará como:</span>
+                        <code className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded font-mono font-semibold">
+                          {formAdd.nombre}
+                        </code>
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                        Se convertirá automáticamente a mayúsculas y guiones bajos.
+                      </p>
+                    )}
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Descripción
-                  </label>
-                  <textarea
-                    rows="2"
-                    placeholder="Describa la función principal del rol"
-                    className="input-base w-full"
-                    value={formAdd.descripcion}
-                    onChange={(e) =>
-                      setFormAdd({ ...formAdd, descripcion: e.target.value })
-                    }
-                  />
+                  <div>
+                    <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Estado
+                    </label>
+                    <select
+                      className="input-base w-full"
+                      value={String(formAdd.activo)}
+                      onChange={(e) =>
+                        setFormAdd({ ...formAdd, activo: e.target.value === "true" })
+                      }
+                    >
+                      <option value="true">Activo</option>
+                      <option value="false">Inactivo</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Descripción
+                    </label>
+                    <textarea
+                      rows="2"
+                      placeholder="Describa la función principal del rol"
+                      className="input-base w-full"
+                      value={formAdd.descripcion}
+                      onChange={(e) =>
+                        setFormAdd({ ...formAdd, descripcion: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Agregar permiso nuevo */}
-              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  Crear nuevo permiso
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Crear nuevo permiso (colapsable) */}
+              <div className="rounded-xl border border-dashed border-primary/40 bg-primary/3 dark:bg-primary/5 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowCrearPermiso((v) => !v)}
+                  className="w-full flex items-center justify-between gap-2 px-5 py-3.5 text-left hover:bg-primary/5 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">add_circle</span>
+                    <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      Crear nuevo permiso
+                    </h4>
+                  </div>
+                  <span
+                    className="material-symbols-outlined text-gray-400 text-lg transition-transform"
+                    style={{ transform: showCrearPermiso ? "rotate(180deg)" : "rotate(0deg)" }}
+                  >
+                    expand_more
+                  </span>
+                </button>
+
+                {showCrearPermiso && (
+                <div className="px-5 pb-5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                  Los permisos se guardan como <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">ACCION_MODULO</code>.
+                  Selecciona el módulo al que pertenece y escribe la acción que habilita.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  {/* Módulo */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Módulo <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={formPermiso.id_modulo}
+                      onChange={(e) => setFormPermiso({ ...formPermiso, id_modulo: e.target.value })}
+                      className="input-base w-full"
+                      disabled={isLoadingModulos}
+                    >
+                      <option value="">
+                        {isLoadingModulos ? "Cargando módulos..." : "— Selecciona el módulo —"}
+                      </option>
+                      {modulosApi.map((m) => (
+                        <option key={m.id_modulo} value={String(m.id_modulo)}>
+                          {m.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Acción */}
+                  <div>
+                    <label className="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Acción <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. VER, CREAR, EDITAR, ELIMINAR"
+                      value={formPermiso.accion}
+                      onChange={(e) =>
+                        setFormPermiso({ ...formPermiso, accion: e.target.value })
+                      }
+                      className="input-base w-full font-mono uppercase"
+                    />
+                  </div>
+                </div>
+
+                {/* Preview del nombre generado */}
+                <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 mb-3 transition-all
+                  ${nombrePermisoGenerado
+                    ? "border-primary/30 bg-white dark:bg-gray-800"
+                    : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"}`}>
+                  <span className="material-symbols-outlined text-[15px] text-gray-400 shrink-0">key</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">Se guardará como:</span>
+                  <code className={`text-sm font-mono font-bold ${
+                    nombrePermisoGenerado ? "text-primary" : "text-gray-300 dark:text-gray-600"
+                  }`}>
+                    {nombrePermisoGenerado || "MODULO_ACCION"}
+                  </code>
+                </div>
+
+                {/* Descripción */}
+                <div className="mb-3">
+                  <label className="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Descripción (opcional)
+                  </label>
                   <input
                     type="text"
-                    placeholder="Nombre del permiso"
-                    value={formPermiso.nombre}
-                    onChange={(e) =>
-                      setFormPermiso({ ...formPermiso, nombre: e.target.value })
-                    }
-                    className="input-base w-full"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Descripción"
+                    placeholder="Describe qué permite hacer este permiso"
                     value={formPermiso.descripcion}
                     onChange={(e) =>
                       setFormPermiso({ ...formPermiso, descripcion: e.target.value })
                     }
                     className="input-base w-full"
                   />
-                  <button
-                    type="button"
-                    onClick={handleCreatePermiso}
-                    disabled={isCreatingPermiso}
-                    className="px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-medium"
-                  >
-                    {isCreatingPermiso ? "Agregando..." : "Agregar permiso"}
-                  </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleCreatePermiso}
+                  disabled={isCreatingPermiso || !nombrePermisoGenerado}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-medium transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isCreatingPermiso ? "progress_activity" : "add"}
+                  </span>
+                  {isCreatingPermiso ? "Creando..." : "Crear permiso"}
+                </button>
+                </div>
+                )}
               </div>
 
               {/* Permisos asignados */}
@@ -762,10 +908,19 @@ export default function RolesPermisos() {
                         type="text"
                         value={selectedRole.nombre || ""}
                         onChange={(e) =>
-                          setSelectedRole({ ...selectedRole, nombre: e.target.value })
+                          setSelectedRole({ ...selectedRole, nombre: toNombreRol(e.target.value) })
                         }
-                        className="input-base w-full"
+                        className="input-base w-full font-mono uppercase"
                       />
+                      {selectedRole.nombre && (
+                        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                          <span className="material-symbols-outlined text-[13px] text-amber-500">warning</span>
+                          Se guardará como:
+                          <code className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded font-mono font-semibold">
+                            {selectedRole.nombre}
+                          </code>
+                        </p>
+                      )}
                     </div>
 
                     <div>

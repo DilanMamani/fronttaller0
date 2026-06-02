@@ -240,6 +240,16 @@ export const rolesApi = {
   updateRol: (id, data) =>
     api.put(`/rol/${id}`, data).then((res) => res.data).catch(handleError),
 };
+export const modulosApi = {
+  fetchModulos: (params = {}) =>
+    api.get('/modulo/', { params }).then((res) => res.data).catch(handleError),
+  fetchModuloById: (id) =>
+    api.get(`/modulo/${id}`).then((res) => res.data).catch(handleError),
+  createModulo: (data) =>
+    api.post('/modulo/new', data).then((res) => res.data).catch(handleError),
+  updateModulo: (id, data) =>
+    api.put(`/modulo/${id}`, data).then((res) => res.data).catch(handleError),
+};
 
 //apis para permisos
 export const permisosApi = {
@@ -268,14 +278,57 @@ export const seguridadApi = {
     api.put(`/configuracion-seguridad`, data).then((res) => res.data).catch(handleError),
 };
 
+// api para activos de información
+export const activosApi = {
+  fetchActivos: (params = {}) =>
+    api.get('/activos', { params }).then((res) => res.data).catch(handleError),
+  fetchActivo: (id) =>
+    api.get(`/activos/${id}`).then((res) => res.data).catch(handleError),
+  createActivo: (data) =>
+    api.post('/activos', data).then((res) => res.data).catch(handleError),
+  updateActivo: (id, data) =>
+    api.put(`/activos/${id}`, data).then((res) => res.data).catch(handleError),
+  deleteActivo: (id) =>
+    api.delete(`/activos/${id}`).then((res) => res.data).catch(handleError),
+};
+
+// api para vulnerabilidades y amenazas
+export const vulnerabilidadesApi = {
+  fetchVulnerabilidades: (params = {}) =>
+    api.get('/vulnerabilidades', { params }).then((res) => res.data).catch(handleError),
+  fetchVulnerabilidad: (id) =>
+    api.get(`/vulnerabilidades/${id}`).then((res) => res.data).catch(handleError),
+  createVulnerabilidad: (data) =>
+    api.post('/vulnerabilidades', data).then((res) => res.data).catch(handleError),
+  updateVulnerabilidad: (id, data) =>
+    api.put(`/vulnerabilidades/${id}`, data).then((res) => res.data).catch(handleError),
+  deleteVulnerabilidad: (id) =>
+    api.delete(`/vulnerabilidades/${id}`).then((res) => res.data).catch(handleError),
+};
+
 // api para riesgos
 export const riesgosApi = {
   fetchRiesgos: (params = {}) =>
     api.get('/riesgos', { params }).then((res) => res.data).catch(handleError),
+  fetchRiesgo: (id) =>
+    api.get(`/riesgos/${id}`).then((res) => res.data).catch(handleError),
   createRiesgo: (data) =>
     api.post('/riesgos', data).then((res) => res.data).catch(handleError),
   updateRiesgo: (id, data) =>
     api.put(`/riesgos/${id}`, data).then((res) => res.data).catch(handleError),
+  deleteRiesgo: (id) =>
+    api.delete(`/riesgos/${id}`).then((res) => res.data).catch(handleError),
+  publicarRiesgo: (id) =>
+    api.put(`/riesgos/${id}/publicar`).then((res) => res.data).catch(handleError),
+  // controles
+  fetchControles: (riesgoId) =>
+    api.get(`/riesgos/${riesgoId}/controles`).then((res) => res.data).catch(handleError),
+  createControl: (riesgoId, data) =>
+    api.post(`/riesgos/${riesgoId}/controles`, data).then((res) => res.data).catch(handleError),
+  updateControl: (riesgoId, controlId, data) =>
+    api.put(`/riesgos/${riesgoId}/controles/${controlId}`, data).then((res) => res.data).catch(handleError),
+  deleteControl: (riesgoId, controlId) =>
+    api.delete(`/riesgos/${riesgoId}/controles/${controlId}`).then((res) => res.data).catch(handleError),
 };
 
 // api para los dominios de correos

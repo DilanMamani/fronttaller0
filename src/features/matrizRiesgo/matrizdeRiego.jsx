@@ -1,71 +1,57 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import * as XLSX from 'xlsx';
 import Layout from '../../shared/components/layout/Layout';
 import Toast from '../../shared/components/ui/Toast.jsx';
 import PageTabs from '../../shared/components/pages/PageTabs.jsx';
-import { fetchRiesgos, createRiesgo, updateRiesgo } from './slices/matrizRiesgoThunk';
+
+import { fetchActivos, createActivo, updateActivo, deleteActivo } from './slices/activosThunk';
+import { selectActivos, selectActivosLoading, selectActivosSaving } from './slices/activosSlice';
+
+import { fetchVulnerabilidades, createVulnerabilidad, updateVulnerabilidad, deleteVulnerabilidad } from './slices/vulnerabilidadesThunk';
+import { selectVulnerabilidades, selectVulnerabilidadesLoading, selectVulnerabilidadesSaving } from './slices/vulnerabilidadesSlice';
+
 import {
-  selectRiesgos,
-  selectIsLoading,
-  selectIsCreating,
-  selectIsUpdating,
-  clearError,
+  fetchRiesgos, createRiesgo,
+  createControl, deleteControl, publicarRiesgo,
+} from './slices/matrizRiesgoThunk';
+import {
+  selectRiesgos, selectIsLoading, selectIsCreating, selectIsUpdating, clearError,
 } from './slices/matrizRiesgoSlice';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const calcRiesgo = (p, i) => Number(p) * Number(i);
 
-const fmtFecha = (iso) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-
 const nivelRiesgo = (valor) => {
   if (valor <= 4)  return 'Bajo';
-  if (valor <= 9)  return 'Moderado';
+  if (valor <= 9) return 'Moderado';
   if (valor <= 16) return 'Alto';
   return 'Extremo';
 };
 
 const NIVEL_STYLES = {
-  Bajo:     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200',
-  Moderado: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200',
-  Alto:     'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200',
-  Extremo:  'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200',
+  Bajo:     'bg-emerald-300 text-emerald-700 dark:bg-emerald-100 dark:text-emerald-200',
+  Moderado: 'bg-amber-300 text-amber-700 dark:bg-amber-300 dark:text-amber-200',
+  Alto:     'bg-orange-300 text-orange-700 dark:bg-orange-300 dark:text-orange-200',
+  Extremo:  'bg-rose-300 text-rose-700 dark:bg-rose-300 dark:text-rose-200',
 };
 
-const NIVEL_ORDER = { Extremo: 0, Alto: 1, Moderado: 2, Bajo: 3 };
-
+const TIPOS_ACTIVO = ['hardware', 'software', 'datos', 'personas', 'instalaciones', 'servicios', 'otro'];
 const TRATAMIENTOS  = ['Reducir', 'Aceptar', 'Evitar', 'Compartir'];
-const TIPOS_CONTROL = ['P', 'D', 'C', 'Di', 'P, D'];
-const NIVELES_CTRL  = ['A', 'S', 'M'];
-const FRECUENCIAS   = ['D', 'S', 'M', 'A', 'PT', 'Pe'];
-
-const INITIAL_FORM = {
-  numero: '',
-  activo_info: '',
-  amenaza_vulnerabilidad: '',
-  consecuencia: '',
-  probabilidad_inherente: '1',
-  impacto_inherente: '1',
-  tratamiento: 'Reducir',
-  controles: '',
-  tipo_control: 'P',
-  nivel_control: 'A',
-  frecuencia_control: 'PT',
-  probabilidad_residual: '1',
-  impacto_residual: '1',
-};
+const TIPOS_CONTROL = ['preventivo', 'detectivo', 'correctivo', 'disuasivo'];
+const NIVELES_CTRL  = ['Automático', 'Semi automático', 'Manual'];
+const FRECUENCIAS   = ['continuo', 'diario', 'semanal', 'mensual', 'anual', 'por transacción', 'periódico'];
 
 const TABS = [
-  { key: 'instrucciones', label: 'Instrucciones' },
-  { key: 'tabla',         label: 'Tabla de Riesgos' },
-  { key: 'tarjetas',      label: 'Vista por Nivel' },
-  { key: 'agregar',       label: 'Agregar Riesgo' },
+  { key: 'activos',          label: 'Activos' },
+  { key: 'vulnerabilidades', label: 'Vulnerabilidades' },
+  { key: 'riesgos',          label: 'Riesgos' },
+  { key: 'matriz',           label: 'Matriz' },
 ];
 
-// ─── Componentes menores ─────────────────────────────────────────────────────
+// ─── Componentes base ─────────────────────────────────────────────────────────
 
 function NivelBadge({ nivel }) {
   return (
@@ -75,805 +61,1882 @@ function NivelBadge({ nivel }) {
   );
 }
 
-function ScaleInput({ label, name, value, onChange }) {
+function ScaleInput({ label, name, value, onChange, max = 5 }) {
   return (
     <div>
-      <FieldLabel field={name}>
+      <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         {label} <span className="text-primary font-bold ml-1">{value}</span>
-      </FieldLabel>
+      </label>
       <input
-        type="range" min="1" max="5" step="1"
+        type="range" min="1" max={max} step="1"
         name={name} value={value} onChange={onChange}
         className="w-full accent-primary"
       />
       <div className="flex justify-between text-xs text-gray-400 mt-0.5">
-        {[1,2,3,4,5].map(n => <span key={n}>{n}</span>)}
+        {Array.from({ length: max }, (_, i) => <span key={i + 1}>{i + 1}</span>)}
       </div>
     </div>
   );
 }
 
-// ─── Help tooltips ───────────────────────────────────────────────────────────
-
-const FIELD_HELP = {
-  numero:                   'Número correlativo del riesgo en la matriz. Ej: 1, 2, 3…',
-  activo_info:              'Sistema, aplicación o servicio que se está evaluando. Ej: Aplicación Core, Directorio Activo, Estaciones de trabajo.',
-  amenaza_vulnerabilidad:   'Situación de riesgo identificada: qué podría salir mal o qué debilidad existe. Ej: Usurpación de identidad, Falta de parches de seguridad.',
-  consecuencia:             'Impacto potencial si la amenaza se materializa. Ej: Accesos no autorizados, Pérdida de trazabilidad de eventos.',
-  probabilidad_inherente:   '¿Qué tan probable es que ocurra sin ningún control aplicado?\n1 = Muy improbable  2 = Improbable  3 = Posible  4 = Probable  5 = Casi certero',
-  impacto_inherente:        '¿Qué tan grave sería el daño si ocurre, sin ningún control?\n1 = Insignificante  2 = Menor  3 = Moderado  4 = Mayor  5 = Catastrófico',
-  tratamiento:              'Decisión estratégica sobre cómo gestionar este riesgo:\n• Reducir — implementar controles para bajar la probabilidad o el impacto\n• Aceptar — el riesgo es tolerable y se monitorea\n• Evitar — eliminar la actividad que genera el riesgo\n',
-  controles:                'Medidas concretas a implementar para mitigar el riesgo. Pueden ser técnicas (configuraciones, herramientas) u organizativas (políticas, procedimientos).',
-  tipo_control:             '• P = Preventivo: evita que el riesgo ocurra\n• D = Detectivo: detecta cuando el riesgo ocurrió\n• C = Correctivo: corrige las consecuencias\n• Di = Disuasivo: inhibe que el riesgo ocurra',
-  nivel_control:            '• A = Alto: control robusto y bien implementado\n• S = Satisfactorio: control funcional con margen de mejora\n• M = Mínimo: control básico, requiere refuerzo',
-  frecuencia_control:       '¿Con qué frecuencia se aplica o revisa el control?\n• D = Diario  • S = Semanal  • M = Mensual  • A = Anual  • PT = Por transacción  • Pe = Periódico',
-  probabilidad_residual:    'Probabilidad de que el riesgo ocurra DESPUÉS de aplicar los controles. Debe ser igual o menor a la probabilidad inherente.',
-  impacto_residual:         'Impacto que tendría el riesgo DESPUÉS de aplicar los controles. Debe ser igual o menor al impacto inherente.',
-};
-
-function FieldHelp({ field }) {
-  const [visible, setVisible] = useState(false);
-  const text = FIELD_HELP[field];
-  if (!text) return null;
-
+function InputText({ label, name, value, onChange, placeholder, required, textarea, rows = 2 }) {
+  const cls = "w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm";
   return (
-    <span className="relative inline-flex ml-1.5 align-middle">
-      <button
-        type="button"
-        onMouseEnter={() => setVisible(true)}
-        onMouseLeave={() => setVisible(false)}
-        onFocus={() => setVisible(true)}
-        onBlur={() => setVisible(false)}
-        className="w-4 h-4 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-primary/20 hover:text-primary flex items-center justify-center text-[10px] font-bold leading-none transition-colors"
-        aria-label="Ayuda"
-      >
-        ?
-      </button>
-      {visible && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-64 bg-gray-900 dark:bg-gray-800 text-white text-xs rounded-lg p-3 shadow-xl pointer-events-none">
-          {text.split('\n').map((line, i) => (
-            <p key={i} className={i > 0 ? 'mt-1' : ''}>{line}</p>
-          ))}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800" />
-        </div>
-      )}
-    </span>
-  );
-}
-
-function FieldLabel({ children, field, required }) {
-  return (
-    <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-      {children}
-      {required && <span className="text-red-400 ml-0.5">*</span>}
-      <FieldHelp field={field} />
-    </label>
-  );
-}
-
-function TabInstrucciones() {
-  const [openSection, setOpenSection] = useState(null);
-  const toggle = (key) => setOpenSection(prev => prev === key ? null : key);
-
-  return (
-    <div className="space-y-4 max-w-5xl">
-
-      {/* ── Fórmula + niveles ── */}
-      <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-3 bg-primary/8 dark:bg-primary/10 rounded-lg px-5 py-3 shrink-0">
-            <span className="material-symbols-outlined text-primary text-xl">functions</span>
-            <span className="font-mono font-bold text-primary text-base">Riesgo = P × I</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { rango: '1–4',   nivel: 'Bajo',     cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300' },
-              { rango: '5–9',   nivel: 'Moderado', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300' },
-              { rango: '10–16', nivel: 'Alto',     cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300' },
-              { rango: '20–25', nivel: 'Extremo',  cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300' },
-            ].map(({ rango, nivel, cls }) => (
-              <span key={nivel} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${cls}`}>
-                <span className="opacity-70">{rango}</span>
-                <span>·</span>
-                <span>{nivel}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Fila principal: Pasos + Matriz de calor ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* Pasos del proceso */}
-        <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">Proceso</p>
-          <ol className="space-y-3">
-            {[
-              { n: '1', icon: 'search',         label: 'Identificar',  desc: 'Activo, amenaza y consecuencia' },
-              { n: '2', icon: 'monitoring',      label: 'Evaluar',      desc: 'Probabilidad × Impacto inherente' },
-              { n: '3', icon: 'shield',          label: 'Mitigar',      desc: 'Elegir tratamiento y controles' },
-              { n: '4', icon: 'trending_down',   label: 'Medir residual', desc: 'P × I después de controles' },
-            ].map(({ n, icon, label, desc }) => (
-              <li key={n} className="flex items-center gap-3">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">{n}</span>
-                <span className="material-symbols-outlined text-base text-gray-400">{icon}</span>
-                <span className="text-sm">
-                  <span className="font-semibold text-gray-800 dark:text-gray-200">{label}</span>
-                  <span className="text-gray-400 ml-1.5">{desc}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        {/* Matriz de calor */}
-        <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Matriz de calor P × I</p>
-          <div className="overflow-x-auto">
-            <table className="text-xs text-center border-collapse w-full">
-              <thead>
-                <tr>
-                  <th className="p-1.5 text-gray-400 text-[10px]">P \ I</th>
-                  {['1','2','3','4','5'].map(i => (
-                    <th key={i} className="p-1.5 w-10 font-semibold text-gray-500 dark:text-gray-400">{i}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[5,4,3,2,1].map(p => (
-                  <tr key={p}>
-                    <td className="p-1.5 font-semibold text-gray-500 dark:text-gray-400">{p}</td>
-                    {[1,2,3,4,5].map(i => {
-                      const val = p * i;
-                      return (
-                        <td key={i} className={`p-1.5 w-10 font-bold rounded-md ${NIVEL_STYLES[nivelRiesgo(val)]}`}>
-                          {val}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Referencia rápida de códigos ── */}
-      <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm p-5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">Referencia rápida de códigos</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-
-          <div>
-            <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">category</span>
-              Tipo de control
-            </p>
-            <div className="space-y-1.5">
-              {[
-                { code: 'P',    label: 'Preventivo',  desc: 'Evita que ocurra' },
-                { code: 'D',    label: 'Detectivo',   desc: 'Detecta cuando ocurrió' },
-                { code: 'C',    label: 'Correctivo',  desc: 'Corrige consecuencias' },
-                { code: 'Di',   label: 'Disuasivo',   desc: 'Inhibe que ocurra' },
-                { code: 'P, D', label: 'Preventivo y Detectivo', desc: 'Combinado' },
-              ].map(({ code, label, desc }) => (
-                <div key={code} className="flex items-baseline gap-2 text-xs">
-                  <span className="font-mono font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded min-w-[28px] text-center">{code}</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{label}</span>
-                  <span className="text-gray-400">— {desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">signal_cellular_alt</span>
-              Nivel del control
-            </p>
-            <div className="space-y-1.5">
-              {[
-                { code: 'A', label: 'Alto',          desc: 'Robusto y bien implementado' },
-                { code: 'S', label: 'Satisfactorio', desc: 'Funcional, con mejoras posibles' },
-                { code: 'M', label: 'Mínimo',        desc: 'Básico, requiere refuerzo' },
-              ].map(({ code, label, desc }) => (
-                <div key={code} className="flex items-baseline gap-2 text-xs">
-                  <span className="font-mono font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded min-w-[28px] text-center">{code}</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{label}</span>
-                  <span className="text-gray-400">— {desc}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-4 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">schedule</span>
-              Frecuencia
-            </p>
-            <div className="space-y-1.5">
-              {[
-                { code: 'D',  label: 'Diario' },
-                { code: 'S',  label: 'Semanal' },
-                { code: 'M',  label: 'Mensual' },
-                { code: 'A',  label: 'Anual' },
-                { code: 'PT', label: 'Por transacción' },
-                { code: 'Pe', label: 'Periódico' },
-              ].map(({ code, label }) => (
-                <div key={code} className="flex items-baseline gap-2 text-xs">
-                  <span className="font-mono font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded min-w-[28px] text-center">{code}</span>
-                  <span className="text-gray-600 dark:text-gray-400">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">bar_chart</span>
-              Escala de probabilidad / impacto
-            </p>
-            <div className="space-y-1.5">
-              {[
-                { val: 1, p: 'Muy improbable',  i: 'Insignificante' },
-                { val: 2, p: 'Improbable',      i: 'Menor' },
-                { val: 3, p: 'Posible',         i: 'Moderado' },
-                { val: 4, p: 'Probable',        i: 'Mayor' },
-                { val: 5, p: 'Casi certero',    i: 'Catastrófico' },
-              ].map(({ val, p, i }) => (
-                <div key={val} className="flex items-baseline gap-2 text-xs">
-                  <span className="font-mono font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded min-w-[20px] text-center">{val}</span>
-                  <span className="text-gray-600 dark:text-gray-400"><span className="text-gray-500">P:</span> {p}</span>
-                  <span className="text-gray-400">·</span>
-                  <span className="text-gray-600 dark:text-gray-400"><span className="text-gray-500">I:</span> {i}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-4 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">fork_right</span>
-              Tratamiento
-            </p>
-            <div className="space-y-1.5">
-              {[
-                { t: 'Reducir',    desc: 'Implementar controles' },
-                { t: 'Aceptar',    desc: 'Tolerable, se monitorea' },
-                { t: 'Evitar',     desc: 'Eliminar la actividad' },
-                { t: 'Compartir',  desc: 'Transferir a tercero' },
-              ].map(({ t, desc }) => (
-                <div key={t} className="flex items-baseline gap-2 text-xs">
-                  <span className="font-medium text-gray-700 dark:text-gray-300 min-w-[64px]">{t}</span>
-                  <span className="text-gray-400">— {desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Acordeón: ¿Qué significa cada campo? ── */}
-      <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm overflow-hidden">
-        <button
-          type="button"
-          onClick={() => toggle('campos')}
-          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-            <span className="material-symbols-outlined text-base text-gray-400">help_outline</span>
-            ¿Qué significa cada campo del formulario?
-          </span>
-          <span className={`material-symbols-outlined text-gray-400 transition-transform ${openSection === 'campos' ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
-        </button>
-        {openSection === 'campos' && (
-          <div className="px-5 pb-5 border-t border-gray-100 dark:border-gray-700">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mt-4">
-              {[
-                { campo: 'N°',                          desc: 'Número correlativo del riesgo en la matriz.' },
-                { campo: 'Activo de información',       desc: 'Sistema, app o servicio evaluado. Ej: App Core, Directorio Activo.' },
-                { campo: 'Amenaza / Vulnerabilidad',    desc: 'Qué podría salir mal o qué debilidad existe.' },
-                { campo: 'Consecuencia',                desc: 'Impacto potencial si la amenaza se materializa.' },
-                { campo: 'Probabilidad inherente',      desc: 'Qué tan probable es sin controles aplicados (1–5).' },
-                { campo: 'Impacto inherente',           desc: 'Qué tan grave sería el daño sin controles (1–5).' },
-                { campo: 'Tratamiento',                 desc: 'Decisión estratégica: Reducir, Aceptar, Evitar o Compartir.' },
-                { campo: 'Controles a implementar',     desc: 'Medidas técnicas u organizativas para mitigar el riesgo.' },
-                { campo: 'Tipo de control',             desc: 'P = Preventivo · D = Detectivo · C = Correctivo · Di = Disuasivo.' },
-                { campo: 'Nivel del control',           desc: 'A = Alto · S = Satisfactorio · M = Mínimo.' },
-                { campo: 'Frecuencia',                  desc: 'Con qué periodicidad se aplica o revisa el control.' },
-                { campo: 'P y I residual',              desc: 'Probabilidad e Impacto después de aplicar controles.' },
-              ].map(({ campo, desc }) => (
-                <div key={campo} className="flex gap-2 text-xs py-1.5 border-b border-gray-50 dark:border-gray-800">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300 min-w-[160px] shrink-0">{campo}</span>
-                  <span className="text-gray-500 dark:text-gray-400">{desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
+    <div>
+      <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
+      {textarea
+        ? <textarea name={name} value={value} onChange={onChange} rows={rows} placeholder={placeholder} className={`${cls} resize-none`} />
+        : <input type="text" name={name} value={value} onChange={onChange} placeholder={placeholder} className={cls} />
+      }
     </div>
   );
 }
 
-// ─── Tab Tabla ───────────────────────────────────────────────────────────────
+function SelectField({ label, name, value, onChange, options }) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">{label}</label>
+      <select name={name} value={value} onChange={onChange}
+        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm">
+        {options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}
+      </select>
+    </div>
+  );
+}
 
-function TabTabla({ riesgos, loading, onEdit }) {
-  if (loading) return (
+function Spinner() {
+  return (
     <div className="flex justify-center items-center py-16">
       <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
     </div>
   );
+}
 
-  if (!riesgos.length) return (
-    <div className="text-center py-16 text-gray-500 dark:text-gray-400">
-      No hay riesgos registrados aún.
-    </div>
-  );
-
+function SectionCard({ title, children, action }) {
   return (
     <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400">
-            <tr>
-
-              <th className="px-4 py-3">#</th>
-              <th className="px-4 py-3">Activo</th>
-              <th className="px-4 py-3">Fecha</th>
-              <th className="px-4 py-3">Registrado por</th>
-              <th className="px-4 py-3 min-w-[180px]">Amenaza</th>
-              <th className="px-4 py-3 min-w-[160px]">Consecuencia</th>
-              <th className="px-4 py-3 text-center">P</th>
-              <th className="px-4 py-3 text-center">I</th>
-              <th className="px-4 py-3 text-center">R. Inherente</th>
-              <th className="px-4 py-3">Tratamiento</th>
-              <th className="px-4 py-3 text-center">P res.</th>
-              <th className="px-4 py-3 text-center">I res.</th>
-              <th className="px-4 py-3 text-center">R. Residual</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {riesgos.map((r) => {
-              const ri = calcRiesgo(r.probabilidad_inherente, r.impacto_inherente);
-              const rr = calcRiesgo(r.probabilidad_residual, r.impacto_residual);
-              return (
-                <tr key={r.id_riesgo} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <td className="px-4 py-3 font-medium">{r.numero}</td>
-                  <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{r.activo_info}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    {fmtFecha(r.created_at)}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                    {r.usuario ? `${r.usuario.nombre} ${r.usuario.apellido_paterno} ${r.usuario.apellido_materno}` : '—'} {r.usuario?.email && <span className="text-gray-400">({r.usuario.email})</span>}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.amenaza_vulnerabilidad}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.consecuencia}</td>
-                  <td className="px-4 py-3 text-center">{r.probabilidad_inherente}</td>
-                  <td className="px-4 py-3 text-center">{r.impacto_inherente}</td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="font-bold">{ri}</span>
-                      <NivelBadge nivel={nivelRiesgo(ri)} />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
-                      {r.tratamiento}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">{r.probabilidad_residual}</td>
-                  <td className="px-4 py-3 text-center">{r.impacto_residual}</td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="font-bold">{rr}</span>
-                      <NivelBadge nivel={nivelRiesgo(rr)} />
-                    </div>
-                  </td>
-                  
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => onEdit(r)}
-                      className="text-primary hover:text-primary/80 text-xs font-medium"
-                    >
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {(title || action) && (
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-4">
+          {title && <h3 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h3>}
+          {action}
+        </div>
+      )}
+      <div className="p-6">{children}</div>
     </div>
   );
 }
 
-// ─── Tab Tarjetas ────────────────────────────────────────────────────────────
-
-function TabTarjetas({ riesgos, loading, onEdit }) {
-  if (loading) return (
-    <div className="flex justify-center items-center py-16">
-      <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
-    </div>
-  );
-
-  const grupos = ['Extremo', 'Alto', 'Moderado', 'Bajo'];
-
+function Btn({ children, onClick, disabled, variant = 'primary', size = 'md', type = 'button', icon }) {
+  const base = 'inline-flex items-center gap-1.5 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1';
+  const sizes = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-2.5 text-sm',
+    lg: 'px-6 py-3 text-sm',
+  };
+  const variants = {
+    primary: disabled
+      ? 'bg-primary/40 text-white cursor-not-allowed'
+      : 'bg-primary text-white hover:bg-primary/90 focus:ring-primary/30',
+    success: disabled
+      ? 'bg-emerald-300 text-white cursor-not-allowed'
+      : 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-400/40',
+    outline: 'border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/40',
+    danger:  'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20',
+    ghost:   'text-primary hover:bg-primary/10',
+  };
   return (
-    <div className="space-y-8">
-      {grupos.map((nivel) => {
-        const lista = riesgos
-          .filter(r => nivelRiesgo(calcRiesgo(r.probabilidad_inherente, r.impacto_inherente)) === nivel)
-          .sort((a, b) => calcRiesgo(b.probabilidad_inherente, b.impacto_inherente) - calcRiesgo(a.probabilidad_inherente, a.impacto_inherente));
+    <button type={type} onClick={onClick} disabled={disabled}
+      className={`${base} ${sizes[size]} ${variants[variant]}`}>
+      {icon && <span className="material-symbols-outlined leading-none" style={{ fontSize: size === 'sm' ? '14px' : '18px' }}>{icon}</span>}
+      {children}
+    </button>
+  );
+}
 
-        if (!lista.length) return null;
+function IconBtn({ icon, onClick, title, variant = 'ghost', disabled }) {
+  const variants = {
+    ghost:   'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700',
+    danger:  'text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20',
+    primary: 'text-primary hover:bg-primary/10',
+  };
+  return (
+    <button type="button" onClick={onClick} title={title} disabled={disabled}
+      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${variants[variant]}
+        ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
+      <span className="material-symbols-outlined text-[18px]">{icon}</span>
+    </button>
+  );
+}
 
-        return (
-          <div key={nivel}>
-            <div className="flex items-center gap-3 mb-3">
-              <NivelBadge nivel={nivel} />
-              <span className="text-sm text-gray-500 dark:text-gray-400">{lista.length} riesgo{lista.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {lista.map((r) => {
-                const ri = calcRiesgo(r.probabilidad_inherente, r.impacto_inherente);
-                const rr = calcRiesgo(r.probabilidad_residual, r.impacto_residual);
-                return (
-                  <div
-                    key={r.id_riesgo}
-                    className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <span className="text-xs text-gray-400">#{r.numero}</span>
-                        <h4 className="font-semibold text-gray-800 dark:text-white text-sm mt-0.5">{r.activo_info}</h4>
-                      </div>
-                      <NivelBadge nivel={nivelRiesgo(ri)} />
-                    </div>
+// ─── Guía de paso ─────────────────────────────────────────────────────────────
 
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Amenaza</p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 line-clamp-2">{r.amenaza_vulnerabilidad}</p>
-
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Consecuencia</p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 line-clamp-2">{r.consecuencia}</p>
-
-                    {/* Riesgo inherente vs residual */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 text-center">
-                        <p className="text-xs text-gray-400 mb-0.5">Inherente</p>
-                        <p className="font-bold text-lg">{ri}</p>
-                        <NivelBadge nivel={nivelRiesgo(ri)} />
-                      </div>
-                      <span className="material-symbols-outlined text-gray-300">arrow_forward</span>
-                      <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 text-center">
-                        <p className="text-xs text-gray-400 mb-0.5">Residual</p>
-                        <p className="font-bold text-lg">{rr}</p>
-                        <NivelBadge nivel={nivelRiesgo(rr)} />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
-                        {r.tratamiento}
-                      </span>
-                      <button
-                        onClick={() => onEdit(r)}
-                        className="text-xs text-primary hover:text-primary/80 font-medium"
-                      >
-                        Editar
-                      </button>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">calendar_today</span>
-                        {fmtFecha(r.created_at)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">person</span>
-                        {r.usuario_id ?? 'Sin usuario'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-
-      {!riesgos.length && (
-        <div className="text-center py-16 text-gray-500 dark:text-gray-400">
-          No hay riesgos registrados aún.
+function StepGuide({ icon, title, description, tip, steps }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-background-dark/60 overflow-hidden shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+      >
+        <span className="material-symbols-outlined text-[16px] text-primary shrink-0">{icon}</span>
+        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex-1">{title}</span>
+        <span className="material-symbols-outlined text-[16px] text-gray-400 transition-transform shrink-0"
+          style={{ transform: open ? 'rotate(180deg)' : '' }}>
+          expand_more
+        </span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-2.5 bg-gray-50/50 dark:bg-gray-800/20">
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{description}</p>
+          {steps?.length > 0 && (
+            <ol className="space-y-1.5">
+              {steps.map((s, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="shrink-0 w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold mt-0.5">{i + 1}</span>
+                  {s}
+                </li>
+              ))}
+            </ol>
+          )}
+          {tip && (
+            <p className="flex items-start gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+              <span className="material-symbols-outlined text-[13px] shrink-0 mt-0.5">lightbulb</span>
+              {tip}
+            </p>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Formulario ──────────────────────────────────────────────────────────────
+// ─── Estado vacío ─────────────────────────────────────────────────────────────
 
-function FormRiesgo({ initial = INITIAL_FORM, onSubmit, onCancel, isSaving, title }) {
-  const [form, setForm] = useState({ ...initial });
-
-  const handle = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const ri = calcRiesgo(form.probabilidad_inherente, form.impacto_inherente);
-  const rr = calcRiesgo(form.probabilidad_residual, form.impacto_residual);
-
-  const isValid = form.activo_info.trim() && form.amenaza_vulnerabilidad.trim() &&
-    form.consecuencia.trim() && form.controles.trim() && form.numero;
-
+function EmptyState({ icon = 'inventory_2', title, description, action }) {
   return (
-    <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-      </div>
-      <div className="p-6 space-y-8">
-
-        {/* Identificación */}
-        <section>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wide">
-            Identificación del Activo
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <FieldLabel field="numero">N°</FieldLabel>
-              <input type="number" name="numero" value={form.numero} onChange={handle}
-                placeholder="1"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3" />
-            </div>
-            <div>
-              <FieldLabel field="activo_info" required>Activo de información</FieldLabel>
-              <input type="text" name="activo_info" value={form.activo_info} onChange={handle}
-                placeholder="Ej: Aplicación Core, Directorio Activo…"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3" />
-            </div>
-            <div className="md:col-span-2">
-              <FieldLabel field="amenaza_vulnerabilidad" required>Amenaza / Vulnerabilidad</FieldLabel>
-              <textarea name="amenaza_vulnerabilidad" value={form.amenaza_vulnerabilidad} onChange={handle}
-                rows={2} placeholder="Describa la amenaza o vulnerabilidad identificada"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 resize-none" />
-            </div>
-            <div className="md:col-span-2">
-              <FieldLabel field="consecuencia" required>Consecuencia / Riesgo</FieldLabel>
-              <textarea name="consecuencia" value={form.consecuencia} onChange={handle}
-                rows={2} placeholder="Describa el impacto potencial"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 resize-none" />
-            </div>
-          </div>
-        </section>
-
-        {/* Evaluación inherente */}
-        <section>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wide">
-            Evaluación del Riesgo Inherente
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <ScaleInput label="Probabilidad" name="probabilidad_inherente" value={form.probabilidad_inherente} onChange={handle} />
-            <ScaleInput label="Impacto" name="impacto_inherente" value={form.impacto_inherente} onChange={handle} />
-          </div>
-          <div className="mt-4 flex items-center gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Riesgo Inherente:</span>
-            <span className="text-2xl font-bold text-gray-800 dark:text-white">{ri}</span>
-            <NivelBadge nivel={nivelRiesgo(ri)} />
-          </div>
-        </section>
-
-        {/* Mitigación */}
-        <section>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wide">
-            Mitigación
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <FieldLabel field="tratamiento">Tratamiento</FieldLabel>
-              <select name="tratamiento" value={form.tratamiento} onChange={handle}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3">
-                {TRATAMIENTOS.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <FieldLabel field="tipo_control">Tipo de control</FieldLabel>
-              <select name="tipo_control" value={form.tipo_control} onChange={handle}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3">
-                {TIPOS_CONTROL.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <FieldLabel field="nivel_control">Nivel del control</FieldLabel>
-              <select name="nivel_control" value={form.nivel_control} onChange={handle}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3">
-                {NIVELES_CTRL.map(n => <option key={n}>{n}</option>)}
-              </select>
-            </div>
-            <div>
-              <FieldLabel field="frecuencia_control">Frecuencia</FieldLabel>
-              <select name="frecuencia_control" value={form.frecuencia_control} onChange={handle}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3">
-                {FRECUENCIAS.map(f => <option key={f}>{f}</option>)}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <FieldLabel field="controles" required>Controles a implementar</FieldLabel>
-              <textarea name="controles" value={form.controles} onChange={handle}
-                rows={3} placeholder="Describa los controles técnicos u organizativos a implementar"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 resize-none" />
-            </div>
-          </div>
-        </section>
-
-        {/* Riesgo residual */}
-        <section>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wide">
-            Riesgo Residual (después de controles)
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <ScaleInput label="Probabilidad residual" name="probabilidad_residual" value={form.probabilidad_residual} onChange={handle} />
-            <ScaleInput label="Impacto residual" name="impacto_residual" value={form.impacto_residual} onChange={handle} />
-          </div>
-          <div className="mt-4 flex items-center gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Riesgo Residual:</span>
-            <span className="text-2xl font-bold text-gray-800 dark:text-white">{rr}</span>
-            <NivelBadge nivel={nivelRiesgo(rr)} />
-            {rr < ri && (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                <span className="material-symbols-outlined text-base">trending_down</span>
-                Reducción de {ri - rr} puntos
-              </span>
-            )}
-          </div>
-        </section>
-
-        {/* Botones */}
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            type="button"
-            disabled={!isValid || isSaving}
-            onClick={() => onSubmit(form)}
-            className={`inline-flex items-center px-5 py-2.5 rounded-lg text-white font-medium transition-colors ${
-              isValid && !isSaving ? 'bg-primary hover:bg-primary/90' : 'bg-primary/40 cursor-not-allowed'
-            }`}
-          >
-            {isSaving ? 'Guardando...' : 'Guardar Riesgo'}
-          </button>
-          {onCancel && (
-            <button type="button" onClick={onCancel}
-              className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/40">
-              Cancelar
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="text-center py-14 px-6 text-gray-400 dark:text-gray-500">
+      <span className="material-symbols-outlined text-5xl mb-3 block text-gray-300 dark:text-gray-600">{icon}</span>
+      {title && <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{title}</p>}
+      {description && <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">{description}</p>}
+      {action}
     </div>
   );
 }
 
-// ─── Modal de edición ─────────────────────────────────────────────────────────
+// ─── Modal genérico ───────────────────────────────────────────────────────────
 
-function EditModal({ riesgo, onClose, onSave, isSaving }) {
+function Modal({ title, onClose, children, maxW = 'max-w-lg' }) {
   const [closing, setClosing] = useState(false);
-
-  const handleClose = () => {
-    if (isSaving) return;
-    setClosing(true);
-    setTimeout(onClose, 160);
-  };
+  const close = () => { setClosing(true); setTimeout(onClose, 150); };
 
   useEffect(() => {
-    const h = (e) => { if (e.key === 'Escape') handleClose(); };
+    const h = (e) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', h);
     return () => document.removeEventListener('keydown', h);
   }, []);
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={(e) => e.target === e.currentTarget && handleClose()}
-    >
-      <div className={`w-full max-w-3xl bg-white dark:bg-background-dark rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${closing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} transition-all duration-150`}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className={`w-full ${maxW} bg-white dark:bg-background-dark rounded-2xl shadow-2xl
+        overflow-hidden max-h-[90vh] flex flex-col
+        ${closing ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} transition-all duration-150`}>
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Editar Riesgo #{riesgo.numero}</h2>
-          <button onClick={handleClose} disabled={isSaving}
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition disabled:opacity-40">
-            ✕
-          </button>
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">{title}</h2>
+          <IconBtn icon="close" onClick={close} title="Cerrar" />
         </div>
-        <div className="overflow-y-auto flex-1 p-1">
-          <FormRiesgo
-            initial={riesgo}
-            onSubmit={onSave}
-            onCancel={handleClose}
-            isSaving={isSaving}
-            title=""
-          />
-        </div>
+        <div className="overflow-y-auto flex-1 p-6">{children}</div>
       </div>
     </div>,
     document.body
   );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 1 — ACTIVOS DE INFORMACIÓN
+// ═══════════════════════════════════════════════════════════════════════════════
 
-export default function MatrizRiesgos() {
+const ACTIVO_INIT = { nombre: '', descripcion: '', tipo: 'hardware', propietario: '' };
+
+function FormActivo({ initial = ACTIVO_INIT, onSubmit, onCancel, isSaving }) {
+  const [form, setForm] = useState({ ...initial });
+  const handle = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  const isValid = form.nombre.trim() && form.tipo;
+
+  return (
+    <div className="space-y-4">
+      <InputText label="Nombre del activo" name="nombre" value={form.nombre} onChange={handle}
+        placeholder="Ej: Servidor de base de datos" required />
+      <InputText label="Descripción" name="descripcion" value={form.descripcion} onChange={handle}
+        placeholder="Descripción breve del activo" textarea />
+      <SelectField label="Tipo de activo" name="tipo" value={form.tipo} onChange={handle} options={TIPOS_ACTIVO} />
+      <InputText label="Propietario / Área responsable" name="propietario" value={form.propietario} onChange={handle}
+        placeholder="Ej: Área de TI" />
+      <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <Btn type="button" onClick={() => onSubmit(form)} disabled={!isValid || isSaving}
+          icon={isSaving ? 'progress_activity' : 'save'}>
+          {isSaving ? 'Guardando…' : 'Guardar activo'}
+        </Btn>
+        {onCancel && (
+          <Btn variant="outline" type="button" onClick={onCancel} icon="close">
+            Cancelar
+          </Btn>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TabActivos({ showToast }) {
   const dispatch = useDispatch();
-  const riesgos  = useSelector(selectRiesgos);
-  const loading  = useSelector(selectIsLoading);
-  const isCreating = useSelector(selectIsCreating);
-  const isUpdating = useSelector(selectIsUpdating);
+  const activos  = useSelector(selectActivos);
+  const loading  = useSelector(selectActivosLoading);
+  const saving   = useSelector(selectActivosSaving);
+  const [modal, setModal] = useState(null);
 
-  const [activeTab, setActiveTab]   = useState('instrucciones');
-  const [toast, setToast]           = useState(null);
-  const [editRiesgo, setEditRiesgo] = useState(null);
+  useEffect(() => { dispatch(fetchActivos()); }, [dispatch]);
 
-  const isSaving = isCreating || isUpdating;
-
-  const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
+  const handleSubmit = async (form) => {
+    const isEdit = modal !== 'create';
+    const result = await (isEdit
+      ? dispatch(updateActivo({ id: modal.id_activo, data: form }))
+      : dispatch(createActivo(form)));
+    const thunk  = isEdit ? updateActivo : createActivo;
+    if (thunk.fulfilled.match(result)) {
+      showToast('success', isEdit ? 'Activo actualizado' : 'Activo creado');
+      setModal(null);
+    } else {
+      showToast('error', result.payload  || result.error || result.msg|| 'Error al guardar');
+    }
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm('¿Eliminar este activo? Esta acción no se puede deshacer.')) return;
+    const result = await dispatch(deleteActivo(id));
+    if (deleteActivo.fulfilled.match(result)) showToast('success', 'Activo eliminado');
+    else showToast('error', result.payload  || result.error || result.msg|| 'Error al eliminar');
+  };
+
+  return (
+    <>
+      <StepGuide
+        icon="dns"
+        title="Registra los activos de información de la organización"
+        description="Los activos son recursos valiosos que deben protegerse: servidores, bases de datos, sistemas, documentos, personas clave, etc. Deben estar registrados antes de poder asociar riesgos."
+        tip="Sé específico en el nombre y clasifica bien el tipo. El campo Propietario identifica al área responsable de cada activo."
+      />
+
+      <SectionCard
+        title={`Activos registrados (${activos.length})`}
+        action={
+          <Btn size="sm" onClick={() => setModal('create')} icon="add">
+            Nuevo activo
+          </Btn>
+        }
+      >
+        {loading ? <Spinner /> : !activos.length ? (
+          <EmptyState
+            icon="dns"
+            title="Sin activos registrados"
+            description="Agrega el primer activo de información para continuar con el análisis de riesgos."
+            action={
+              <Btn onClick={() => setModal('create')} icon="add">
+                Registrar primer activo
+              </Btn>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700/50 text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Nombre</th>
+                  <th className="px-4 py-3">Tipo</th>
+                  <th className="px-4 py-3">Propietario</th>
+                  <th className="px-4 py-3">Descripción</th>
+                  <th className="px-4 py-3 w-20 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {activos.map((a) => (
+                  <tr key={a.id_activo} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{a.nombre}</td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded capitalize">{a.tipo}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{a.propietario || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-xs truncate">{a.descripcion || '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <IconBtn icon="edit" title="Editar activo" onClick={() => setModal(a)} />
+                        <IconBtn icon="delete" title="Eliminar activo" variant="danger" onClick={() => handleDelete(a.id_activo)} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {modal && (
+        <Modal
+          title={modal === 'create' ? 'Nuevo activo de información' : `Editar: ${modal.nombre}`}
+          onClose={() => setModal(null)}
+        >
+          <FormActivo
+            initial={modal !== 'create' ? modal : ACTIVO_INIT}
+            onSubmit={handleSubmit}
+            onCancel={() => setModal(null)}
+            isSaving={saving}
+          />
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 2 — VULNERABILIDADES Y AMENAZAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const VULN_INIT = { nombre: '', descripcion: '', tipo: 'amenaza' };
+
+function FormVulnerabilidad({ initial = VULN_INIT, onSubmit, onCancel, isSaving }) {
+  const [form, setForm] = useState({ ...initial });
+  const handle = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  const isValid = form.nombre.trim() && form.tipo;
+
+  return (
+    <div className="space-y-4">
+      <InputText label="Nombre" name="nombre" value={form.nombre} onChange={handle}
+        placeholder="Ej: Acceso no autorizado a sistemas" required />
+      <SelectField label="Tipo" name="tipo" value={form.tipo} onChange={handle}
+        options={[{ value: 'amenaza', label: 'Amenaza (factor externo)' }, { value: 'vulnerabilidad', label: 'Vulnerabilidad (debilidad interna)' }]} />
+      <InputText label="Descripción" name="descripcion" value={form.descripcion} onChange={handle}
+        placeholder="Descripción detallada" textarea />
+      <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <Btn type="button" onClick={() => onSubmit(form)} disabled={!isValid || isSaving}
+          icon={isSaving ? 'progress_activity' : 'save'}>
+          {isSaving ? 'Guardando…' : 'Guardar'}
+        </Btn>
+        {onCancel && <Btn variant="outline" type="button" onClick={onCancel} icon="close">Cancelar</Btn>}
+      </div>
+    </div>
+  );
+}
+
+function TabVulnerabilidades({ showToast }) {
+  const dispatch   = useDispatch();
+  const vulns      = useSelector(selectVulnerabilidades);
+  const loading    = useSelector(selectVulnerabilidadesLoading);
+  const saving     = useSelector(selectVulnerabilidadesSaving);
+  const [modal, setModal]     = useState(null);
+  const [filtroTipo, setFiltroTipo] = useState('');
+
+  useEffect(() => { dispatch(fetchVulnerabilidades()); }, [dispatch]);
+
+  const handleSubmit = async (form) => {
+    const isEdit = modal !== 'create';
+    const result = await (isEdit
+      ? dispatch(updateVulnerabilidad({ id: modal.id_vulnerabilidad, data: form }))
+      : dispatch(createVulnerabilidad(form)));
+    const thunk  = isEdit ? updateVulnerabilidad : createVulnerabilidad;
+    if (thunk.fulfilled.match(result)) {
+      showToast('success', isEdit ? 'Actualizado correctamente' : 'Creado correctamente');
+      setModal(null);
+    } else {
+      showToast('error', result.payload || 'Error al guardar');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Eliminar este registro?')) return;
+    const result = await dispatch(deleteVulnerabilidad(id));
+    if (deleteVulnerabilidad.fulfilled.match(result)) showToast('success', 'Eliminado');
+    else showToast('error', result.payload || 'Error al eliminar');
+  };
+
+  const lista = filtroTipo ? vulns.filter(v => v.tipo === filtroTipo) : vulns;
+  const countAmenazas = vulns.filter(v => v.tipo === 'amenaza').length;
+  const countVulns    = vulns.filter(v => v.tipo === 'vulnerabilidad').length;
+
+  return (
+    <>
+      <StepGuide
+        icon="bug_report"
+        title="Registra las vulnerabilidades y amenazas identificadas"
+        description="Las amenazas son factores externos (hackers, desastres, errores humanos). Las vulnerabilidades son debilidades internas (falta de cifrado, accesos sin control). Necesitas al menos una para crear un riesgo."
+        tip="Distingue bien entre amenaza (qué puede ocurrir) y vulnerabilidad (qué lo hace posible). Puedes reutilizar estos registros en múltiples riesgos."
+      />
+
+      <SectionCard
+        title={`Vulnerabilidades y Amenazas (${vulns.length})`}
+        action={
+          <div className="flex items-center gap-3">
+            {vulns.length > 0 && (
+              <div className="flex items-center gap-1 text-xs">
+                <span className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200 px-2 py-0.5 rounded-full">{countAmenazas} amenazas</span>
+                <span className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 px-2 py-0.5 rounded-full">{countVulns} vulnerabilidades</span>
+              </div>
+            )}
+            <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}
+              className="text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="">Todos</option>
+              <option value="amenaza">Amenazas</option>
+              <option value="vulnerabilidad">Vulnerabilidades</option>
+            </select>
+            <Btn size="sm" onClick={() => setModal('create')} icon="add">
+              Nuevo
+            </Btn>
+          </div>
+        }
+      >
+        {loading ? <Spinner /> : !lista.length ? (
+          <EmptyState
+            icon="bug_report"
+            title="Sin registros"
+            description={filtroTipo ? `No hay ${filtroTipo}s registradas.` : 'Agrega vulnerabilidades y amenazas para continuar.'}
+            action={!filtroTipo ? (
+              <Btn onClick={() => setModal('create')} icon="add">
+                Registrar primera entrada
+              </Btn>
+            ) : undefined}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700/50 text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Nombre</th>
+                  <th className="px-4 py-3">Tipo</th>
+                  <th className="px-4 py-3">Descripción</th>
+                  <th className="px-4 py-3 w-20 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {lista.map((v) => (
+                  <tr key={v.id_vulnerabilidad} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{v.nombre}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize
+                        ${v.tipo === 'amenaza'
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'}`}>
+                        {v.tipo}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-xs truncate">{v.descripcion || '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <IconBtn icon="edit" title="Editar" onClick={() => setModal(v)} />
+                        <IconBtn icon="delete" title="Eliminar" variant="danger" onClick={() => handleDelete(v.id_vulnerabilidad)} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {modal && (
+        <Modal
+          title={modal === 'create' ? 'Nueva vulnerabilidad / amenaza' : `Editar: ${modal.nombre}`}
+          onClose={() => setModal(null)}
+        >
+          <FormVulnerabilidad
+            initial={modal !== 'create' ? modal : VULN_INIT}
+            onSubmit={handleSubmit}
+            onCancel={() => setModal(null)}
+            isSaving={saving}
+          />
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 3 — RIESGOS + CONTROLES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const RIESGO_INIT = {
+  activo_id: '',
+  vulnerabilidad_ids: [],
+  consecuencia: '',
+  probabilidad_inherente: '1',
+  impacto_inherente: '1',
+  tratamiento: 'Reducir',
+};
+
+const CONTROL_INIT = {
+  descripcion: '',
+  tipo_control: 'preventivo',
+  nivel_efectividad: 'Alto',
+  frecuencia_control: 'continuo',
+  probabilidad_residual: '1',
+  impacto_residual: '1',
+};
+
+function FormRiesgo({ activos, vulnerabilidades, onSubmit, onCancel, isSaving }) {
+  const [form, setForm] = useState({ ...RIESGO_INIT });
+  const handle = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+
+  const toggleVuln = (id) => {
+    setForm(p => ({
+      ...p,
+      vulnerabilidad_ids: p.vulnerabilidad_ids.includes(id)
+        ? p.vulnerabilidad_ids.filter(v => v !== id)
+        : [...p.vulnerabilidad_ids, id],
+    }));
+  };
+
+  const ri = calcRiesgo(form.probabilidad_inherente, form.impacto_inherente);
+  const isValid = form.activo_id && form.consecuencia.trim() && form.vulnerabilidad_ids.length > 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Activo */}
+      <div>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
+          Activo de información <span className="text-red-400">*</span>
+        </label>
+        {!activos.length ? (
+          <p className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-base">warning</span>
+            No hay activos registrados. Ve al Paso 1 primero.
+          </p>
+        ) : (
+          <select name="activo_id" value={form.activo_id} onChange={handle}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm">
+            <option value="">— Selecciona un activo —</option>
+            {activos.map(a => (
+              <option key={a.id_activo} value={a.id_activo}>{a.nombre} ({a.tipo})</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Vulnerabilidades (chips multi-select) */}
+      <div>
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">
+          Vulnerabilidades / Amenazas asociadas <span className="text-red-400">*</span>
+          <span className="ml-2 text-xs text-gray-400 font-normal">
+            {form.vulnerabilidad_ids.length > 0
+              ? `${form.vulnerabilidad_ids.length} seleccionada${form.vulnerabilidad_ids.length !== 1 ? 's' : ''}`
+              : 'Selecciona una o más'}
+          </span>
+        </label>
+        {!vulnerabilidades.length ? (
+          <p className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-base">warning</span>
+            No hay vulnerabilidades registradas. Ve al Paso 2 primero.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {vulnerabilidades.map(v => {
+              const sel = form.vulnerabilidad_ids.includes(v.id_vulnerabilidad);
+              const isAmenaza = v.tipo === 'amenaza';
+              return (
+                <button key={v.id_vulnerabilidad} type="button" onClick={() => toggleVuln(v.id_vulnerabilidad)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all font-medium flex items-center gap-1
+                    ${sel
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary'}`}>
+                  <span className="material-symbols-outlined text-[12px]">
+                    {isAmenaza ? 'warning' : 'lock_open'}
+                  </span>
+                  {v.nombre}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Consecuencia */}
+      <InputText label="Consecuencia potencial" name="consecuencia" value={form.consecuencia} onChange={handle}
+        placeholder="Describe el impacto potencial si el riesgo se materializa" textarea rows={3} required />
+
+      {/* Riesgo inherente */}
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-4">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Evaluación del Riesgo Inherente (sin controles)
+        </p>
+        <div className="grid grid-cols-2 gap-5">
+          <ScaleInput label="Probabilidad" name="probabilidad_inherente" value={form.probabilidad_inherente} onChange={handle} />
+          <ScaleInput label="Impacto" name="impacto_inherente" value={form.impacto_inherente} onChange={handle} />
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Riesgo Inherente =</span>
+          <span className="text-2xl font-bold text-gray-800 dark:text-white">{ri}</span>
+          <NivelBadge nivel={nivelRiesgo(ri)} />
+        </div>
+      </div>
+
+      {/* Tratamiento */}
+      <SelectField label="Tratamiento del riesgo" name="tratamiento" value={form.tratamiento} onChange={handle}
+        options={TRATAMIENTOS} />
+
+      <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <Btn type="button" onClick={() => onSubmit(form)} disabled={!isValid || isSaving}
+          icon={isSaving ? 'progress_activity' : 'shield'}>
+          {isSaving ? 'Guardando…' : 'Registrar riesgo'}
+        </Btn>
+        {onCancel && <Btn variant="outline" type="button" onClick={onCancel} icon="close">Cancelar</Btn>}
+      </div>
+
+      {!isValid && (activos.length > 0 && vulnerabilidades.length > 0) && (
+        <p className="text-xs text-gray-400 flex items-center gap-1">
+          <span className="material-symbols-outlined text-[14px]">info</span>
+          Selecciona un activo, al menos una vulnerabilidad y describe la consecuencia.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FormControl({ riesgoInherente, onSubmit, onCancel, isSaving }) {
+  const [form, setForm] = useState({ ...CONTROL_INIT });
+  const handle = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+
+  const rr = calcRiesgo(form.probabilidad_residual, form.impacto_residual);
+  const excede = rr > riesgoInherente;
+  const isValid = form.descripcion.trim() && !excede;
+
+  return (
+    <div className="space-y-5">
+      <InputText label="Descripción del control" name="descripcion" value={form.descripcion} onChange={handle}
+        placeholder="Ej: Autenticación multifactor obligatoria para accesos remotos" textarea rows={2} required />
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <SelectField label="Tipo de control" name="tipo_control" value={form.tipo_control} onChange={handle} options={TIPOS_CONTROL} />
+        <SelectField label="Nivel de implementación" name="nivel_efectividad" value={form.nivel_efectividad} onChange={handle} options={NIVELES_CTRL} />
+        <SelectField label="Frecuencia" name="frecuencia_control" value={form.frecuencia_control} onChange={handle} options={FRECUENCIAS} />
+      </div>
+
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-4">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Riesgo Residual (después de este control)
+        </p>
+        <div className="grid grid-cols-2 gap-5">
+          <ScaleInput label="Probabilidad residual" name="probabilidad_residual" value={form.probabilidad_residual} onChange={handle} />
+          <ScaleInput label="Impacto residual" name="impacto_residual" value={form.impacto_residual} onChange={handle} />
+        </div>
+        <div className={`flex flex-wrap items-center gap-3 pt-1 ${excede ? 'text-red-600 dark:text-red-400' : ''}`}>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Riesgo Residual =</span>
+          <span className="text-2xl font-bold">{rr}</span>
+          <NivelBadge nivel={nivelRiesgo(rr)} />
+          {excede ? (
+            <span className="text-xs font-medium flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">error</span>
+              Supera el inherente ({riesgoInherente}). Ajusta los valores.
+            </span>
+          ) : rr < riesgoInherente ? (
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">trending_down</span>
+              Reducción de {riesgoInherente - rr} puntos
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Btn type="button" onClick={() => onSubmit(form)} disabled={!isValid || isSaving}
+          icon={isSaving ? 'progress_activity' : 'add_circle'}>
+          {isSaving ? 'Guardando…' : 'Agregar control'}
+        </Btn>
+        {onCancel && <Btn variant="outline" type="button" onClick={onCancel} icon="close">Cancelar</Btn>}
+      </div>
+    </div>
+  );
+}
+
+function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
+  const dispatch  = useDispatch();
+  const [addCtrl, setAddCtrl] = useState(false);
+
+  const ri = calcRiesgo(riesgo.probabilidad_inherente, riesgo.impacto_inherente);
+  const controles = riesgo.controles || [];
+  const lastControl = controles[controles.length - 1];
+  const rr = lastControl
+    ? calcRiesgo(lastControl.probabilidad_residual, lastControl.impacto_residual)
+    : ri;
+  const reduccion = ri - rr;
+
+  const handleAddControl = async (form) => {
+    const result = await dispatch(createControl({ riesgoId: riesgo.id_riesgo, data: form }));
+    if (createControl.fulfilled.match(result)) {
+      showToast('success', 'Control agregado');
+      setAddCtrl(false);
+    } else {
+      showToast('error', result.payload || 'Error al agregar control');
+    }
+  };
+
+  const handleDeleteControl = async (controlId) => {
+    if (!confirm('¿Eliminar este control?')) return;
+    const result = await dispatch(deleteControl({ riesgoId: riesgo.id_riesgo, controlId }));
+    if (deleteControl.fulfilled.match(result)) showToast('success', 'Control eliminado');
+    else showToast('error', result.payload || 'Error al eliminar');
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Resumen del riesgo */}
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Activo</p>
+            <p className="font-semibold text-gray-800 dark:text-white">
+              {riesgo.activo?.nombre || `Activo #${riesgo.activo_id}`}
+            </p>
+          </div>
+          <NivelBadge nivel={nivelRiesgo(ri)} />
+        </div>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{riesgo.consecuencia}</p>
+
+        {/* Indicador inherente → residual */}
+        <div className="flex items-center gap-3 bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
+          <div className="text-center">
+            <p className="text-[10px] text-gray-400 uppercase">Inherente</p>
+            <p className="font-bold text-xl text-gray-700 dark:text-gray-200">{ri}</p>
+            <NivelBadge nivel={nivelRiesgo(ri)} />
+          </div>
+          <div className="flex-1 flex flex-col items-center text-gray-300 dark:text-gray-600">
+            {reduccion > 0 ? (
+              <>
+                <span className="material-symbols-outlined text-emerald-500">arrow_forward</span>
+                <span className="text-[10px] text-emerald-500 font-medium">−{reduccion} pts</span>
+              </>
+            ) : (
+              <span className="material-symbols-outlined">arrow_forward</span>
+            )}
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-gray-400 uppercase">Residual</p>
+            <p className="font-bold text-xl text-gray-700 dark:text-gray-200">{rr}</p>
+            <NivelBadge nivel={nivelRiesgo(rr)} />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span className="bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded">
+            {riesgo.tratamiento}
+          </span>
+        </div>
+      </div>
+
+      {/* Controles */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-base text-gray-400">security</span>
+            Controles ({controles.length})
+          </p>
+          {!riesgo.en_matriz && !addCtrl && (
+            <Btn size="sm" onClick={() => setAddCtrl(true)} icon="add">
+              Agregar control
+            </Btn>
+          )}
+        </div>
+
+        {!controles.length && !addCtrl && (
+          <div className="text-center py-6 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+            <span className="material-symbols-outlined text-3xl text-gray-300 dark:text-gray-600 block mb-1">security</span>
+            <p className="text-xs text-gray-400">Sin controles registrados.</p>
+            <p className="text-xs text-gray-400 mt-0.5">Agrega al menos uno para poder publicar.</p>
+            {!riesgo.en_matriz && (
+              <Btn size="sm" className="mt-3" onClick={() => setAddCtrl(true)} icon="add">
+                Agregar primer control
+              </Btn>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {controles.map((c, idx) => {
+            const crr = calcRiesgo(c.probabilidad_residual, c.impacto_residual);
+            return (
+              <div key={c.id_control ?? idx}
+                className="border border-gray-100 dark:border-gray-700 rounded-xl p-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 flex-1">{c.descripcion}</p>
+                  {!riesgo.en_matriz && (
+                    <IconBtn icon="delete" title="Eliminar control" variant="danger"
+                      onClick={() => handleDeleteControl(c.id_control)} />
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded capitalize">{c.tipo_control}</span>
+                  <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">{c.nivel_efectividad}</span>
+                  <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">{c.frecuencia_control}</span>
+                  <span className="ml-auto text-xs text-gray-500 flex items-center gap-1">
+                    Residual: <strong className="text-gray-700 dark:text-gray-300">{crr}</strong>
+                    <NivelBadge nivel={nivelRiesgo(crr)} />
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {addCtrl && (
+          <div className="border border-primary/30 rounded-xl p-4 mt-3 bg-primary/5 dark:bg-primary/10">
+            <p className="text-sm font-semibold text-primary mb-4 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-base">add_circle</span>
+              Nuevo control
+            </p>
+            <FormControl
+              riesgoInherente={ri}
+              onSubmit={handleAddControl}
+              onCancel={() => setAddCtrl(false)}
+              isSaving={isSaving}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Publicar */}
+      {!riesgo.en_matriz && controles.length > 0 && (
+        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+          <Btn variant="success" size="lg" onClick={() => onPublicar(riesgo.id_riesgo)} disabled={isSaving}
+            icon={isSaving ? 'progress_activity' : 'publish'}>
+            {isSaving ? 'Publicando…' : 'Publicar en la Matriz'}
+          </Btn>
+          <p className="text-xs text-gray-400 flex items-center gap-1">
+            <span className="material-symbols-outlined text-[12px]">info</span>
+            Una vez publicado, el riesgo no podrá editarse.
+          </p>
+        </div>
+      )}
+
+      {!riesgo.en_matriz && controles.length === 0 && (
+        <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px]">warning</span>
+            Necesitas agregar al menos un control para publicar este riesgo.
+          </p>
+        </div>
+      )}
+
+      {riesgo.en_matriz && (
+        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+          <span className="material-symbols-outlined text-base">verified</span>
+          Publicado en la Matriz — solo lectura
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabRiesgos({ showToast }) {
+  const dispatch         = useDispatch();
+  const riesgos          = useSelector(selectRiesgos);
+  const activos          = useSelector(selectActivos);
+  const vulnerabilidades = useSelector(selectVulnerabilidades);
+  const loading          = useSelector(selectIsLoading);
+  const isCreating       = useSelector(selectIsCreating);
+  const isUpdating       = useSelector(selectIsUpdating);
+
+  const [modal, setModal]     = useState(null);
+  const [detalle, setDetalle] = useState(null);
+
   useEffect(() => {
-    dispatch(fetchRiesgos({ limit: 100 }));
-    return () => { dispatch(clearError()); };
+    dispatch(fetchRiesgos({ en_matriz: false }));
+    dispatch(fetchActivos());
+    dispatch(fetchVulnerabilidades());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (detalle) {
+      const updated = riesgos.find(r => r.id_riesgo === detalle.id_riesgo);
+      if (updated) setDetalle(updated);
+    }
+  }, [riesgos]);
 
   const handleCreate = async (form) => {
     const result = await dispatch(createRiesgo(form));
     if (createRiesgo.fulfilled.match(result)) {
-      showToast('success', 'Riesgo creado correctamente');
-      setActiveTab('tabla');
+      showToast('success', 'Riesgo registrado. Ahora agrega controles.');
+      setModal(null);
+      const nuevo = result.payload.riesgo || result.payload;
+      if (nuevo) setDetalle(nuevo);
     } else {
-      showToast('error', result.payload || 'Error al crear riesgo');
+      showToast('error', result.payload  || result.error || result.msg|| 'Error al crear');
     }
   };
 
-  const handleSaveEdit = async (form) => {
-    const result = await dispatch(updateRiesgo({ id: editRiesgo.id_riesgo, data: form }));
-    if (updateRiesgo.fulfilled.match(result)) {
-      showToast('success', 'Riesgo actualizado correctamente');
-      setEditRiesgo(null);
+  const handlePublicar = async (id) => {
+    const result = await dispatch(publicarRiesgo(id));
+    if (publicarRiesgo.fulfilled.match(result)) {
+      showToast('success', 'Riesgo publicado en la Matriz');
+      setDetalle(null);
     } else {
-      showToast('error', result.payload || 'Error al actualizar riesgo');
+      showToast('error', result.payload  || result.error || result.msg|| 'Error al publicar');
     }
+  };
+
+  const pendientes = riesgos.filter(r => !r.en_matriz);
+
+  return (
+    <>
+      <StepGuide
+        icon="shield_question"
+        title="Registra riesgos y define controles para mitigarlos"
+        description="Un riesgo vincula un activo con vulnerabilidades o amenazas. Calcula el riesgo inherente, luego agrega controles para reducirlo hasta obtener un riesgo residual aceptable."
+        steps={[
+          'Haz clic en "Nuevo riesgo" y completa el formulario',
+          'Selecciona el riesgo de la lista para ver su detalle',
+          'Agrega controles para reducir el nivel de riesgo',
+          'Cuando el riesgo residual sea aceptable, publícalo en la Matriz',
+        ]}
+        tip="El riesgo residual no puede superar al inherente. Puedes agregar varios controles antes de publicar."
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Lista de riesgos pendientes */}
+        <SectionCard
+          title={`En proceso (${pendientes.length})`}
+          action={
+            <Btn size="sm" onClick={() => { setModal('create'); setDetalle(null); }} icon="add">
+              Nuevo riesgo
+            </Btn>
+          }
+        >
+          {loading ? <Spinner /> : !pendientes.length ? (
+            <EmptyState
+              icon="shield_check"
+              title="Sin riesgos pendientes"
+              description="Crea un riesgo para comenzar el análisis."
+              action={
+                <Btn onClick={() => setModal('create')} icon="add">
+                  Registrar primer riesgo
+                </Btn>
+              }
+            />
+          ) : (
+            <div className="space-y-2">
+              {pendientes.map(r => {
+                const ri = calcRiesgo(r.probabilidad_inherente, r.impacto_inherente);
+                const controles = r.controles || [];
+                const lastCtrl = controles[controles.length - 1];
+                const rr = lastCtrl ? calcRiesgo(lastCtrl.probabilidad_residual, lastCtrl.impacto_residual) : null;
+                const isSelected = detalle?.id_riesgo === r.id_riesgo;
+                const listoParaPublicar = controles.length > 0;
+
+                return (
+                  <button key={r.id_riesgo} onClick={() => setDetalle(isSelected ? null : r)}
+                    className={`w-full text-left rounded-xl border p-4 transition-all
+                      ${isSelected
+                        ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm'
+                        : 'border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'}`}>
+                    <div className="flex items-start justify-between mb-1.5">
+                      <p className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate max-w-[70%]">
+                        {r.activo?.nombre || `Activo #${r.activo_id}`}
+                      </p>
+                      <NivelBadge nivel={nivelRiesgo(ri)} />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{r.consecuencia}</p>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span>Inherente: <strong className="text-gray-600 dark:text-gray-300">{ri}</strong></span>
+                      {rr !== null && (
+                        <>
+                          <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+                          <span>Residual: <strong className="text-gray-600 dark:text-gray-300">{rr}</strong></span>
+                        </>
+                      )}
+                      <span className="ml-auto flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">security</span>
+                        {controles.length} control{controles.length !== 1 ? 'es' : ''}
+                      </span>
+                      {listoParaPublicar && (
+                        <span className="text-emerald-500 flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                          Listo
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Panel detalle */}
+        <div>
+          {detalle ? (
+            <SectionCard
+              title="Detalle y controles"
+              action={
+                <button onClick={() => setDetalle(null)}
+                  className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">close</span>
+                  Cerrar
+                </button>
+              }
+            >
+              <RiesgoDetallePanel
+                riesgo={detalle}
+                onPublicar={handlePublicar}
+                isSaving={isUpdating}
+                showToast={showToast}
+              />
+            </SectionCard>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full min-h-[340px]
+              border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl
+              text-gray-400 dark:text-gray-500 gap-2 p-6 text-center">
+              <span className="material-symbols-outlined text-5xl mb-1 text-gray-300 dark:text-gray-600">touch_app</span>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Selecciona un riesgo</p>
+              <p className="text-xs">Elige un riesgo de la lista para ver su detalle, agregar controles y publicarlo.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {modal === 'create' && (
+        <Modal title="Registrar nuevo riesgo" onClose={() => setModal(null)} maxW="max-w-2xl">
+          <FormRiesgo
+            activos={activos}
+            vulnerabilidades={vulnerabilidades}
+            onSubmit={handleCreate}
+            onCancel={() => setModal(null)}
+            isSaving={isCreating}
+          />
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 4 — MATRIZ (riesgos publicados)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function MatrizDetalleModal({ riesgo, onClose }) {
+  const controles = riesgo.controles || [];
+  const activo    = riesgo.activoInfo || riesgo.activo || {};
+  const vulns     = riesgo.vulnerabilidades || [];
+  const usuario   = riesgo.usuario;
+
+  const ri = calcRiesgo(riesgo.probabilidad_inherente, riesgo.impacto_inherente);
+  const nivelInherente = riesgo.nivel_riesgo_inherente || nivelRiesgo(ri);
+
+  const fmtFecha = (iso) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleString('es-MX', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  };
+
+  const efectividadStyle = (n) =>
+    n === 'Alto'
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+      : n === 'Satisfactorio'
+        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+
+  const SectionTitle = ({ icon, children }) => (
+    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+      <span className="material-symbols-outlined text-[13px]">{icon}</span>
+      {children}
+    </p>
+  );
+
+  const Divider = () => <div className="border-t border-gray-100 dark:border-gray-700" />;
+
+  return (
+    <Modal title={`Riesgo #${riesgo.numero ?? riesgo.id_riesgo} — Ficha completa`} onClose={onClose} maxW="max-w-2xl">
+      <div className="space-y-5">
+
+        {/* 0 ── Estado de publicación ── */}
+        <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
+          <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-lg">verified</span>
+          <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex-1">Publicado en la Matriz</span>
+          {fmtFecha(riesgo.updated_at || riesgo.created_at) && (
+            <span className="text-xs text-gray-500 flex items-center gap-1 shrink-0">
+              <span className="material-symbols-outlined text-[13px]">calendar_today</span>
+              {fmtFecha(riesgo.updated_at || riesgo.created_at)}
+            </span>
+          )}
+        </div>
+
+        {/* 1 ── ACTIVOS ── */}
+        <div>
+          <SectionTitle icon="dns">Activo de Información</SectionTitle>
+          <div className="grid grid-cols-3 gap-3 bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase mb-1">Nombre</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-snug">
+                {activo.nombre || `#${riesgo.activo_id}`}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase mb-1">Tipo</p>
+              <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded capitalize">
+                {activo.tipo || '—'}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase mb-1">Propietario / Área</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{activo.propietario || '—'}</p>
+            </div>
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* 2 ── IDENTIFICACIÓN: Amenaza / Vulnerabilidad ── */}
+        <div>
+          <SectionTitle icon="bug_report">Identificación — Amenaza / Vulnerabilidad</SectionTitle>
+          {vulns.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Sin amenazas o vulnerabilidades asociadas</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {vulns.map((v) => (
+                <span key={v.id_vulnerabilidad}
+                  className={`text-xs px-3 py-1.5 rounded-full border font-medium flex items-center gap-1
+                    ${v.tipo === 'amenaza'
+                      ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/40'
+                      : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/40'}`}>
+                  <span className="material-symbols-outlined text-[12px]">
+                    {v.tipo === 'amenaza' ? 'warning' : 'lock_open'}
+                  </span>
+                  {v.nombre}
+                  <span className="opacity-50 text-[10px] ml-0.5 capitalize">({v.tipo})</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Divider />
+
+        {/* 3 ── VALORACIÓN: Consecuencia ── */}
+        <div>
+          <SectionTitle icon="report_problem">Valoración — Riesgo y Consecuencia</SectionTitle>
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-lg px-3 py-2.5">
+            {riesgo.consecuencia}
+          </p>
+        </div>
+
+        <Divider />
+
+        {/* 4 ── EVALUACIÓN INHERENTE: P + I → Resultado + Nivel ── */}
+        <div>
+          <SectionTitle icon="analytics">Evaluación del Riesgo Inherente</SectionTitle>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+            <div className="flex items-center gap-4">
+              {/* P */}
+              <div className="text-center flex-1">
+                <p className="text-[10px] text-gray-400 uppercase mb-1">Probabilidad (P)</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-white">{riesgo.probabilidad_inherente}</p>
+                <p className="text-[10px] text-gray-400">/ 5</p>
+              </div>
+              <span className="text-2xl text-gray-300 dark:text-gray-600 font-light">×</span>
+              {/* I */}
+              <div className="text-center flex-1">
+                <p className="text-[10px] text-gray-400 uppercase mb-1">Impacto (I)</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-white">{riesgo.impacto_inherente}</p>
+                <p className="text-[10px] text-gray-400">/ 5</p>
+              </div>
+              <span className="text-2xl text-gray-300 dark:text-gray-600 font-light">=</span>
+              {/* Resultado */}
+              <div className="text-center flex-1 bg-white dark:bg-gray-700/50 rounded-lg px-3 py-2">
+                <p className="text-[10px] text-gray-400 uppercase mb-1">Riesgo Inherente</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-white">{ri}</p>
+                <div className="mt-1"><NivelBadge nivel={nivelInherente} /></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* 5 ── MEDICIÓN: Tratamiento ── */}
+        <div>
+          <SectionTitle icon="tune">Medición — Tratamiento del Riesgo Inherente</SectionTitle>
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg">
+            <span className="material-symbols-outlined text-[16px] text-primary">shield_check</span>
+            {riesgo.tratamiento}
+          </span>
+        </div>
+
+        <Divider />
+
+        {/* 6 ── MITIGACIÓN: Controles ── */}
+        <div>
+          <SectionTitle icon="security">Mitigación — Controles Implementados ({controles.length})</SectionTitle>
+
+          {controles.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Sin controles registrados</p>
+          ) : (
+            <div className="space-y-4">
+              {controles.map((c, idx) => {
+                const crr     = calcRiesgo(c.probabilidad_residual, c.impacto_residual);
+                const nivelRR = c.nivel_riesgo_residual || nivelRiesgo(crr);
+                const fechaCtrl = fmtFecha(c.created_at);
+
+                return (
+                  <div key={c.id_control ?? idx}
+                    className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+
+                    {/* Encabezado del control */}
+                    <div className="flex items-start gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800">
+                      <span className="shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[11px] font-bold mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-snug">
+                          {c.descripcion}
+                        </p>
+                        {fechaCtrl && (
+                          <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                            <span className="material-symbols-outlined text-[12px]">calendar_today</span>
+                            Registrado: {fechaCtrl}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Eficiencia del control: Tipo / Efectividad / Frecuencia */}
+                    <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
+                      <div className="px-4 py-3 text-center">
+                        <p className="text-[10px] text-gray-400 uppercase mb-1.5">Tipo</p>
+                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded capitalize">
+                          {c.tipo_control}
+                        </span>
+                      </div>
+                      <div className="px-4 py-3 text-center">
+                        <p className="text-[10px] text-gray-400 uppercase mb-1.5">Implementación (Nivel)</p>
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${efectividadStyle(c.nivel_efectividad)}`}>
+                          {c.nivel_efectividad}
+                        </span>
+                      </div>
+                      <div className="px-4 py-3 text-center">
+                        <p className="text-[10px] text-gray-400 uppercase mb-1.5">Frecuencia</p>
+                        <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded capitalize">
+                          {c.frecuencia_control}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Riesgo Residual de este control */}
+                    <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-3 bg-white dark:bg-background-dark/30">
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold mb-2">Riesgo Residual</p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <p className="text-[10px] text-gray-400 mb-0.5">Prob.</p>
+                          <p className="text-lg font-bold text-gray-700 dark:text-gray-200">{c.probabilidad_residual}</p>
+                          <p className="text-[10px] text-gray-400">/ 5</p>
+                        </div>
+                        <span className="text-gray-300 dark:text-gray-600">×</span>
+                        <div className="text-center">
+                          <p className="text-[10px] text-gray-400 mb-0.5">Impacto</p>
+                          <p className="text-lg font-bold text-gray-700 dark:text-gray-200">{c.impacto_residual}</p>
+                          <p className="text-[10px] text-gray-400">/ 5</p>
+                        </div>
+                        <span className="text-gray-300 dark:text-gray-600">=</span>
+                        <div className="flex items-center gap-2 flex-1">
+                          <p className="text-2xl font-bold text-gray-800 dark:text-white">{crr}</p>
+                          <NivelBadge nivel={nivelRR} />
+                          {crr < ri && (
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5 ml-1">
+                              <span className="material-symbols-outlined text-[12px]">trending_down</span>
+                              −{ri - crr} vs inherente
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 7 ── RESPONSABLE ── */}
+        {(usuario || riesgo.created_at) && (
+          <>
+            <Divider />
+            <div>
+              <SectionTitle icon="manage_accounts">Registrado por</SectionTitle>
+              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-600 shrink-0">account_circle</span>
+                <div className="flex-1 min-w-0">
+                  {usuario ? (
+                    <>
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        {[usuario.nombre, usuario.apellido_paterno, usuario.apellido_materno].filter(Boolean).join(' ')}
+                      </p>
+                      {usuario.email && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{usuario.email}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">Usuario no disponible</p>
+                  )}
+                  {fmtFecha(riesgo.created_at) && (
+                    <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1.5">
+                      <span className="material-symbols-outlined text-[12px]">calendar_today</span>
+                      Fecha de registro: {fmtFecha(riesgo.created_at)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+      </div>
+    </Modal>
+  );
+}
+
+const NIVEL_CELL = {
+  Bajo:     'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  Moderado: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  Alto:     'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  Extremo:  'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+};
+
+const TH_GROUP  = 'border border-gray-200 dark:border-gray-600/50 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider bg-gray-800 dark:bg-gray-900 text-gray-100';
+const TH_SUB    = 'border border-gray-200 dark:border-gray-600/50 px-3 py-2 text-center text-[10px] font-semibold uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
+const TD_BASE   = 'border border-gray-100 dark:border-gray-700/60 px-3 py-2.5 text-xs text-gray-700 dark:text-gray-300 align-top';
+const TD_CENTER = `${TD_BASE} text-center`;
+
+// ─── Mapa de calor 5×5 ────────────────────────────────────────────────────────
+
+function HeatMatrix({ riesgos }) {
+  const [open, setOpen] = useState(true);
+
+  const map = {};
+  riesgos.forEach(r => {
+    const key = `${r.probabilidad_inherente}-${r.impacto_inherente}`;
+    if (!map[key]) map[key] = [];
+    map[key].push(r);
+  });
+
+  const cellStyle = (p, i) => {
+    const v = p * i;
+    if (v <= 5)  return { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300' };
+    if (v <= 12) return { bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300' };
+    if (v <= 20) return { bg: 'bg-orange-100 dark:bg-orange-900/40',   text: 'text-orange-800 dark:text-orange-300' };
+    return             { bg: 'bg-rose-100 dark:bg-rose-900/40',       text: 'text-rose-800 dark:text-rose-300' };
   };
 
   return (
+    <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+      {/* Header colapsable */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2.5 px-5 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+      >
+        <span className="material-symbols-outlined text-[18px] text-primary shrink-0">grid_on</span>
+        <span className="text-sm font-bold text-gray-900 dark:text-white flex-1">Mapa de Calor</span>
+        <span
+          className="material-symbols-outlined text-[16px] text-gray-400 shrink-0 transition-transform duration-200"
+          style={{ transform: open ? 'rotate(180deg)' : '' }}
+        >
+          expand_more
+        </span>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 pt-4 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex gap-3 items-start">
+            {/* Etiqueta eje Y */}
+            <div className="flex items-center justify-center shrink-0 self-stretch">
+              <span
+                className="text-[9px] text-gray-400 uppercase tracking-widest select-none"
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+              >
+                Probabilidad
+              </span>
+            </div>
+
+            {/* Grid + ejes */}
+            <div className="flex flex-col gap-[3px]">
+              {[5,4,3,2,1].map(p => (
+                <div key={p} className="flex items-center gap-[3px]">
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400 w-3 text-right shrink-0 tabular-nums font-medium">{p}</span>
+                  {[1,2,3,4,5].map(i => {
+                    const list = map[`${p}-${i}`] || [];
+                    const val = p * i;
+                    const { bg, text } = cellStyle(p, i);
+                    return (
+                      <div
+                        key={i}
+                        className={`relative w-10 h-10 rounded-md ${bg} flex items-center justify-center`}
+                        title={`P=${p} × I=${i} = ${val} — ${nivelRiesgo(val)}${list.length ? ` · ${list.length} riesgo${list.length !== 1 ? 's' : ''}` : ''}`}
+                      >
+                        <span className={`${text} text-xs font-bold tabular-nums leading-none`}>{val}</span>
+                        {list.length > 0 && (
+                          <span className="absolute top-0.5 right-0.5 w-[14px] h-[14px] rounded-full bg-white/80 dark:bg-black/50 text-[8px] font-bold text-gray-800 dark:text-white flex items-center justify-center leading-none shadow-sm">
+                            {list.length}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              {/* Eje X */}
+              <div className="flex items-center gap-[3px] mt-0.5">
+                <span className="w-3 shrink-0" />
+                {[1,2,3,4,5].map(i => (
+                  <span key={i} className="w-10 text-center text-[10px] text-gray-500 dark:text-gray-400 tabular-nums font-medium">{i}</span>
+                ))}
+              </div>
+              <p className="text-[9px] text-gray-400 uppercase tracking-widest text-center mt-1 select-none">Impacto</p>
+            </div>
+
+            {/* Leyenda */}
+            <div className="flex flex-col gap-2 ml-2 shrink-0 self-center">
+              {[
+                { label: 'Extremo',  bg: 'bg-rose-100 dark:bg-rose-900/40',       text: 'text-rose-800 dark:text-rose-300' },
+                { label: 'Alto',     bg: 'bg-orange-100 dark:bg-orange-900/40',   text: 'text-orange-800 dark:text-orange-300' },
+                { label: 'Moderado', bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300' },
+                { label: 'Bajo',     bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300' },
+              ].map(({ label, bg, text }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className={`w-3 h-3 rounded-sm ${bg} border border-gray-200 dark:border-gray-600 shrink-0`} />
+                  <span className={`text-[10px] ${text}`}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabMatriz() {
+  const dispatch = useDispatch();
+  const riesgos  = useSelector(selectRiesgos);
+  const loading  = useSelector(selectIsLoading);
+  const [detalle, setDetalle] = useState(null);
+
+  useEffect(() => { dispatch(fetchRiesgos({ en_matriz: true })); }, [dispatch]);
+
+  const publicados = [...(riesgos.filter(r => r.en_matriz))].sort((a, b) =>
+    calcRiesgo(b.probabilidad_inherente, b.impacto_inherente) -
+    calcRiesgo(a.probabilidad_inherente, a.impacto_inherente)
+  );
+
+  const exportToExcel = () => {
+    const rows = publicados.map((r) => {
+      const ri       = calcRiesgo(r.probabilidad_inherente, r.impacto_inherente);
+      const controles = r.controles || [];
+      const lastCtrl  = controles[controles.length - 1];
+      const rr        = lastCtrl
+        ? calcRiesgo(lastCtrl.probabilidad_residual, lastCtrl.impacto_residual)
+        : ri;
+      const activo  = r.activoInfo || r.activo || {};
+      const vulns   = r.vulnerabilidades || [];
+      const usuario = r.usuario;
+      const nombreCompleto = usuario
+        ? [usuario.nombre, usuario.apellido_paterno, usuario.apellido_materno].filter(Boolean).join(' ')
+        : '—';
+
+      return {
+        '#':                           r.numero ?? r.id_riesgo,
+        'Activo de Información':       activo.nombre  || `#${r.activo_id}`,
+        'Tipo de Activo':              activo.tipo    || '—',
+        'Amenazas / Vulnerabilidades': vulns.map(v => v.nombre).join(', ') || '—',
+        'Consecuencia':                r.consecuencia || '—',
+        'P Inherente':                 r.probabilidad_inherente,
+        'I Inherente':                 r.impacto_inherente,
+        'Riesgo Inherente':            ri,
+        'Nivel Riesgo Inherente':      nivelRiesgo(ri),
+        'Tratamiento':                 r.tratamiento  || '—',
+        'Control Implementado':        lastCtrl?.descripcion        || '—',
+        'Tipo de Control':             lastCtrl?.tipo_control       || '—',
+        'Nivel de implementación':        lastCtrl?.nivel_efectividad  || '—',
+        'Frecuencia del Control':      lastCtrl?.frecuencia_control || '—',
+        'P Residual':                  lastCtrl ? lastCtrl.probabilidad_residual : '—',
+        'I Residual':                  lastCtrl ? lastCtrl.impacto_residual      : '—',
+        'Riesgo Residual':             lastCtrl ? rr : '—',
+        'Nivel Riesgo Residual':       lastCtrl?.nivel_riesgo_residual || (lastCtrl ? nivelRiesgo(rr) : '—'),
+        'Registrado por':              nombreCompleto,
+        'Email':                       usuario?.email || '—',
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 26 }, { wch: 13 }, { wch: 36 }, { wch: 36 },
+      { wch: 8 }, { wch: 8 },  { wch: 10 }, { wch: 14 }, { wch: 13 },
+      { wch: 36 }, { wch: 15 }, { wch: 18 }, { wch: 16 },
+      { wch: 8 }, { wch: 8 },  { wch: 10 }, { wch: 14 },
+      { wch: 26 }, { wch: 32 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Matriz de Riesgos');
+    XLSX.writeFile(wb, `matriz-riesgos-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <>
+      <StepGuide
+        icon="grid_view"
+        title="Matriz de riesgos — Vista consolidada"
+        description="Todos los riesgos publicados, ordenados de mayor a menor criticidad. Haz clic en el ícono de ojo para ver el detalle completo."
+        tip="Para agregar más riesgos, regresa al Paso 3. Solo los riesgos con al menos un control pueden publicarse."
+      />
+
+      {!publicados.length ? (
+        <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm">
+          <EmptyState
+            icon="grid_view"
+            title="La matriz está vacía"
+            description="Publica riesgos desde el Paso 3 (Riesgos) para verlos aquí."
+          />
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Resumen + mapa de calor */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            {/* Tarjetas de nivel */}
+            <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+              {[
+                { nivel: 'Extremo', icon: 'crisis_alert',  bg: 'bg-rose-100 dark:bg-rose-900/40',     text: 'text-rose-800 dark:text-rose-300' },
+                { nivel: 'Alto',    icon: 'warning',       bg: 'bg-orange-100 dark:bg-orange-900/40', text: 'text-orange-800 dark:text-orange-300' },
+                { nivel: 'Moderado',icon: 'info',          bg: 'bg-amber-100 dark:bg-amber-900/40',   text: 'text-amber-800 dark:text-amber-300' },
+                { nivel: 'Bajo',    icon: 'check_circle',  bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300' },
+              ].map(({ nivel, icon, bg, text }) => {
+                const count = publicados.filter(r =>
+                  nivelRiesgo(calcRiesgo(r.probabilidad_inherente, r.impacto_inherente)) === nivel
+                ).length;
+                return (
+                  <div key={nivel} className={`${bg} ${text} rounded-2xl p-5 flex flex-col gap-0.5 shadow-sm`}>
+                    <span className="material-symbols-outlined text-[22px] opacity-75">{icon}</span>
+                    <p className="text-4xl font-bold leading-none mt-1">{count}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest opacity-75 mt-1">{nivel}</p>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Mapa de calor */}
+            <HeatMatrix riesgos={publicados} />
+          </div>
+
+          {/* Tabla estilo Excel */}
+          <div className="bg-white dark:bg-background-dark/50 rounded-2xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700/50">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white leading-tight">
+                  Matriz de Análisis de Riesgos
+                </h3>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Seguridad de la Información</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full">
+                  <span className="material-symbols-outlined text-[13px]">grid_view</span>
+                  {publicados.length} riesgo{publicados.length !== 1 ? 's' : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={exportToExcel}
+                  title="Exportar a Excel"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 rounded-full transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[13px]">download</span>
+                  Exportar Excel
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="text-xs border-collapse w-full" style={{ minWidth: '1200px' }}>
+                <thead>
+                  {/* Fila 1 — grupos */}
+                  <tr>
+                    <th className={TH_GROUP} rowSpan={2}>#</th>
+                    <th className={TH_GROUP} colSpan={2}>Activos</th>
+                    <th className={TH_GROUP} rowSpan={2}>Identificación<br/><span className="font-normal text-[9px] opacity-80">Amenaza / Vulnerabilidad</span></th>
+                    <th className={TH_GROUP} rowSpan={2}>Valoración<br/><span className="font-normal text-[9px] opacity-80">Riesgo y Consecuencia</span></th>
+                    <th className={TH_GROUP} rowSpan={2}>P</th>
+                    <th className={TH_GROUP} rowSpan={2}>I</th>
+                    <th className={TH_GROUP} colSpan={2}>Evaluación del Riesgo Inherente</th>
+                    <th className={TH_GROUP} rowSpan={2}>Medición<br/><span className="font-normal text-[9px] opacity-80">Tratamiento</span></th>
+                    <th className={TH_GROUP} rowSpan={2}>Controles a Implementar</th>
+                    <th className={TH_GROUP} colSpan={3}>Eficiencia del Control</th>
+                    <th className={TH_GROUP} colSpan={4}>Riesgo Residual</th>
+                    <th className={TH_GROUP} rowSpan={2}>Registrado por</th>
+                    <th className={TH_GROUP} rowSpan={2}></th>
+                  </tr>
+                  {/* Fila 2 — sub-columnas */}
+                  <tr>
+                    <th className={TH_SUB}>Activo de Información</th>
+                    <th className={TH_SUB}>Tipo</th>
+                    <th className={TH_SUB}>R. Inherente</th>
+                    <th className={TH_SUB}>Nivel de Riesgo</th>
+                    <th className={TH_SUB}>Tipo<br/><span className="font-normal opacity-70">(P,D,C,Di)</span></th>
+                    <th className={TH_SUB}>Nivel<br/><span className="font-normal opacity-70">(A,S,M)</span></th>
+                    <th className={TH_SUB}>Frecuencia</th>
+                    <th className={TH_SUB}>P</th>
+                    <th className={TH_SUB}>I</th>
+                    <th className={TH_SUB}>R. Residual</th>
+                    <th className={TH_SUB}>Nivel</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {publicados.map((r, rowIdx) => {
+                    const ri       = calcRiesgo(r.probabilidad_inherente, r.impacto_inherente);
+                    const nri      = nivelRiesgo(ri);
+                    const controles = r.controles || [];
+                    const lastCtrl  = controles[controles.length - 1];
+                    const rr        = lastCtrl
+                      ? calcRiesgo(lastCtrl.probabilidad_residual, lastCtrl.impacto_residual)
+                      : ri;
+                    const nrr  = lastCtrl?.nivel_riesgo_residual || nivelRiesgo(rr);
+                    const activo = r.activoInfo || r.activo || {};
+                    const vulns  = r.vulnerabilidades || [];
+                    const usuario = r.usuario;
+                    const rowBg = rowIdx % 2 === 0 ? 'bg-white dark:bg-transparent' : 'bg-gray-50/60 dark:bg-gray-800/20';
+
+                    return (
+                      <tr key={r.id_riesgo} className={`${rowBg} hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors cursor-default`}>
+                        {/* # */}
+                        <td className={`${TD_CENTER} font-bold text-gray-500 w-8`}>
+                          {r.numero ?? r.id_riesgo}
+                        </td>
+
+                        {/* Activo nombre */}
+                        <td className={`${TD_BASE} min-w-[120px] font-semibold text-gray-800 dark:text-gray-200`}>
+                          {activo.nombre || `#${r.activo_id}`}
+                        </td>
+
+                        {/* Tipo */}
+                        <td className={`${TD_CENTER} capitalize`}>
+                          {activo.tipo || '—'}
+                        </td>
+
+                        {/* Identificación: Amenaza / Vulnerabilidad */}
+                        <td className={`${TD_BASE} min-w-[130px]`}>
+                          {!vulns.length ? <span className="text-gray-300">—</span> : (
+                            <div className="space-y-0.5">
+                              {vulns.map(v => (
+                                <div key={v.id_vulnerabilidad} className="flex items-center gap-1">
+                                  <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${v.tipo === 'amenaza' ? 'bg-orange-300' : 'bg-blue-300'}`} />
+                                  <span className="leading-snug">{v.nombre}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Consecuencia */}
+                        <td className={`${TD_BASE} min-w-[160px] leading-relaxed`}>
+                          {r.consecuencia}
+                        </td>
+
+                        {/* P inherente */}
+                        <td className={`${TD_CENTER} font-bold`}>{r.probabilidad_inherente}</td>
+
+                        {/* I inherente */}
+                        <td className={`${TD_CENTER} font-bold`}>{r.impacto_inherente}</td>
+
+                        {/* R. Inherente */}
+                        <td className={`${TD_CENTER} font-bold text-sm`}>{ri}</td>
+
+                        {/* Nivel inherente (celda coloreada) */}
+                        <td className={`${TD_CENTER} font-bold ${NIVEL_CELL[nri]}`}>
+                          {nri}
+                        </td>
+
+                        {/* Tratamiento */}
+                        <td className={`${TD_CENTER}`}>{r.tratamiento}</td>
+
+                        {/* Descripción del control */}
+                        <td className={`${TD_BASE} min-w-[180px] leading-relaxed`}>
+                          {lastCtrl ? lastCtrl.descripcion : <span className="text-gray-300 italic">Sin control</span>}
+                          {controles.length > 1 && (
+                            <span className="block text-[10px] text-gray-400 mt-0.5">+{controles.length - 1} más</span>
+                          )}
+                        </td>
+
+                        {/* Tipo control */}
+                        <td className={`${TD_CENTER} capitalize`}>
+                          {lastCtrl ? lastCtrl.tipo_control?.charAt(0).toUpperCase() : '—'}
+                        </td>
+
+                        {/* Nivel/Efectividad */}
+                        <td className={`${TD_CENTER}`}>
+                          {lastCtrl ? (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold
+                              ${(lastCtrl.nivel_efectividad)}`}>
+                              {lastCtrl.nivel_efectividad?.charAt(0).toUpperCase()}
+                            </span>
+                          ) : '—'}
+                        </td>
+
+                        {/* Frecuencia */}
+                        <td className={`${TD_CENTER} capitalize`}>
+                          {lastCtrl ? lastCtrl.frecuencia_control : '—'}
+                        </td>
+
+                        {/* P residual */}
+                        <td className={`${TD_CENTER} font-bold`}>
+                          {lastCtrl ? lastCtrl.probabilidad_residual : '—'}
+                        </td>
+
+                        {/* I residual */}
+                        <td className={`${TD_CENTER} font-bold`}>
+                          {lastCtrl ? lastCtrl.impacto_residual : '—'}
+                        </td>
+
+                        {/* R. Residual */}
+                        <td className={`${TD_CENTER} font-bold text-sm`}>
+                          {lastCtrl ? rr : '—'}
+                        </td>
+
+                        {/* Nivel residual (celda coloreada) */}
+                        <td className={`${TD_CENTER} font-bold ${lastCtrl ? NIVEL_CELL[nrr] : ''}`}>
+                          {lastCtrl ? nrr : '—'}
+                        </td>
+
+                        {/* Registrado por */}
+                        <td className={`${TD_BASE} min-w-[130px]`}>
+                          {usuario ? (
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 uppercase">
+                                {(usuario.nombre?.[0] || '') + (usuario.apellido_paterno?.[0] || '')}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-800 dark:text-gray-200 leading-snug truncate">
+                                  {[usuario.nombre, usuario.apellido_paterno].filter(Boolean).join(' ')}
+                                </p>
+                                {usuario.email && (
+                                  <p className="text-[10px] text-gray-400 mt-0.5 truncate">{usuario.email}</p>
+                                )}
+                              </div>
+                            </div>
+                          ) : <span className="text-gray-300">—</span>}
+                        </td>
+
+                        {/* Acciones */}
+                        <td className={`${TD_CENTER} w-10`}>
+                          <IconBtn
+                            icon="visibility"
+                            title="Ver detalle completo"
+                            variant="primary"
+                            onClick={() => setDetalle(r)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detalle && <MatrizDetalleModal riesgo={detalle} onClose={() => setDetalle(null)} />}
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PÁGINA PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const STEP_KEYS = ['activos', 'vulnerabilidades', 'riesgos', 'matriz'];
+
+export default function MatrizRiesgos() {
+  const dispatch   = useDispatch();
+  const activos    = useSelector(selectActivos);
+  const vulns      = useSelector(selectVulnerabilidades);
+  const riesgos    = useSelector(selectRiesgos);
+
+  const [activeTab, setActiveTab] = useState('activos');
+  const [toast, setToast]         = useState(null);
+
+  const showToast = (type, raw) => {
+    const message = typeof raw === 'string' ? raw : raw?.msg ?? raw?.message ?? 'Error desconocido';
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  useEffect(() => { return () => { dispatch(clearError()); }; }, [dispatch]);
+
+  const stepStatus = (key) => {
+    if (key === 'activos')          return activos.length > 0;
+    if (key === 'vulnerabilidades') return vulns.length > 0;
+    if (key === 'riesgos')          return riesgos.some(r => !r.en_matriz);
+    if (key === 'matriz')           return riesgos.some(r => r.en_matriz);
+    return false;
+  };
+
+  const stepLabels = {
+    activos:          'Activos',
+    vulnerabilidades: 'Vulnerabilidades',
+    riesgos:          'Riesgos y Controles',
+    matriz:           'Matriz',
+  };
+
+  const activeIdx = STEP_KEYS.indexOf(activeTab);
+
+  return (
     <Layout title="Matriz de Análisis de Riesgos">
-      <PageTabs activeTab={activeTab} onChange={setActiveTab} tabs={TABS} />
+      {/* Stepper de flujo */}
+      <div className="mb-6 bg-white dark:bg-background-dark/50 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 px-5 py-3 flex items-center overflow-x-auto">
+        {STEP_KEYS.map((key, idx) => {
+          const isActive = activeTab === key;
+          const isDone   = stepStatus(key);
 
-      {activeTab === 'instrucciones' && <TabInstrucciones />}
+          return (
+            <div key={key} className="flex items-center shrink-0">
+              <button
+                onClick={() => setActiveTab(key)}
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all
+                  ${isActive
+                    ? 'text-primary'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/40'}`}
+              >
+                <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all
+                  ${isActive
+                    ? 'bg-primary text-white shadow-sm'
+                    : isDone
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                      : 'bg-gray-100 dark:bg-gray-700/80 text-gray-400 dark:text-gray-500'}`}>
+                  {idx + 1}
+                </span>
+                <span className={isActive ? 'font-semibold' : ''}>{stepLabels[key]}</span>
+              </button>
+              {idx < STEP_KEYS.length - 1 && (
+                <div className={`h-px w-8 mx-1 shrink-0 rounded-full ${
+                  stepStatus(STEP_KEYS[idx]) ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700'
+                }`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
 
-      {activeTab === 'tabla' && (
-        <TabTabla riesgos={riesgos} loading={loading} onEdit={setEditRiesgo} />
-      )}
-
-      {activeTab === 'tarjetas' && (
-        <TabTarjetas riesgos={riesgos} loading={loading} onEdit={setEditRiesgo} />
-      )}
-
-      {activeTab === 'agregar' && (
-        <FormRiesgo
-          title="Registrar nuevo riesgo"
-          onSubmit={handleCreate}
-          isSaving={isSaving}
-        />
-      )}
-
-      {editRiesgo && (
-        <EditModal
-          riesgo={editRiesgo}
-          onClose={() => setEditRiesgo(null)}
-          onSave={handleSaveEdit}
-          isSaving={isSaving}
-        />
-      )}
+      {activeTab === 'activos'          && <TabActivos showToast={showToast} />}
+      {activeTab === 'vulnerabilidades' && <TabVulnerabilidades showToast={showToast} />}
+      {activeTab === 'riesgos'          && <TabRiesgos showToast={showToast} />}
+      {activeTab === 'matriz'           && <TabMatriz />}
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Layout>
