@@ -53,22 +53,21 @@ function EditParroquiaMapSection({ formData, setFormData }) {
   // Carga coordenadas desde la API cuando llegan (una sola vez)
   useEffect(() => {
     if (initialAddressRef.current !== null) return;
-    if (!formData.nombre && !formData.direccion) return; // todavía vacío
-    initialAddressRef.current = `${formData.nombre}|${formData.direccion}`;
+    if (!formData.direccion) return; // todavía vacío
+    initialAddressRef.current = formData.direccion;
     const lat = parseFloat(formData.latitud);
     const lng = parseFloat(formData.longitud);
     if (!isNaN(lat) && !isNaN(lng)) {
       setGeoCoords({ lat, lng, displayName: formData.direccion || '' });
     }
-  }, [formData.nombre, formData.direccion, formData.latitud, formData.longitud]);
+  }, [formData.direccion, formData.latitud, formData.longitud]);
 
-  // Geocodifica solo cuando el usuario cambia nombre o dirección
+  // Geocodifica solo cuando el usuario cambia la dirección
   useEffect(() => {
     if (initialAddressRef.current === null) return; // datos aún no cargados
-    const current = `${formData.nombre}|${formData.direccion}`;
-    if (initialAddressRef.current === current) return; // sin cambios del usuario
+    if (initialAddressRef.current === formData.direccion) return; // sin cambios del usuario
 
-    const query = [formData.nombre, formData.direccion].filter(Boolean).join(', ').trim();
+    const query = (formData.direccion || '').trim();
     if (query.length < 6) { setGeoCoords(null); return; }
     setGeoLoading(true);
     const timer = setTimeout(async () => {
@@ -88,7 +87,7 @@ function EditParroquiaMapSection({ formData, setFormData }) {
       finally { setGeoLoading(false); }
     }, 700);
     return () => clearTimeout(timer);
-  }, [formData.nombre, formData.direccion]);
+  }, [formData.direccion]);
 
   return (
     <div className="mt-6">
@@ -113,10 +112,26 @@ function EditParroquiaMapSection({ formData, setFormData }) {
           lng={geoCoords.lng}
           displayName={geoCoords.displayName}
           adjusted={geoAdjusted}
-          onMove={({ lat, lng }) => {
+          onMove={async ({ lat, lng }) => {
             setGeoCoords(prev => ({ ...prev, lat, lng }));
             setGeoAdjusted(true);
             setFormData(prev => ({ ...prev, latitud: lat, longitud: lng }));
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+                { headers: { 'Accept-Language': 'es' } }
+              );
+              const data = await res.json();
+              if (data?.address) {
+                const a = data.address;
+                const dir = [a.road, a.suburb || a.neighbourhood, a.city || a.town || a.village]
+                  .filter(Boolean).join(', ');
+                setGeoCoords(prev => ({ ...prev, displayName: data.display_name }));
+                setFormData(prev => ({ ...prev, direccion: dir, latitud: lat, longitud: lng }));
+                // Actualiza el ref para que el cambio de dirección no redispare el geocoding
+                initialAddressRef.current = dir;
+              }
+            } catch { /* mantener dirección anterior */ }
           }}
         />
       ) : (
@@ -286,11 +301,8 @@ export default function Parroquias() {
   // Geocodificación automática al escribir la dirección (debounce 700ms)
   useEffect(() => {
     if (activeTab !== 'agregar') return;
-    const query = [formData.nombre, formData.direccion].filter(Boolean).join(', ').trim();
-    if (query.length < 6) {
-      setGeoCoords(null);
-      return;
-    }
+    const query = (formData.direccion || '').trim();
+    if (query.length < 6) { setGeoCoords(null); return; }
     setGeoLoading(true);
     const timer = setTimeout(async () => {
       try {
@@ -313,7 +325,7 @@ export default function Parroquias() {
       }
     }, 700);
     return () => clearTimeout(timer);
-  }, [formData.nombre, formData.direccion, activeTab]);
+  }, [formData.direccion, activeTab]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -504,9 +516,23 @@ export default function Parroquias() {
                   lng={geoCoords.lng}
                   displayName={geoCoords.displayName}
                   adjusted={geoAdjusted}
-                  onMove={({ lat, lng }) => {
+                  onMove={async ({ lat, lng }) => {
                     setGeoCoords((prev) => ({ ...prev, lat, lng }));
                     setGeoAdjusted(true);
+                    try {
+                      const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+                        { headers: { 'Accept-Language': 'es' } }
+                      );
+                      const data = await res.json();
+                      if (data?.address) {
+                        const a = data.address;
+                        const dir = [a.road, a.suburb || a.neighbourhood, a.city || a.town || a.village]
+                          .filter(Boolean).join(', ');
+                        setFormData((prev) => ({ ...prev, direccion: dir }));
+                        setGeoCoords((prev) => ({ ...prev, displayName: data.display_name }));
+                      }
+                    } catch { /* mantener dirección anterior */ }
                   }}
                 />
               ) : (
