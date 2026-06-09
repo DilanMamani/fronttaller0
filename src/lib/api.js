@@ -399,3 +399,8 @@ export const ocrApi = {
       .then((res) => res.data)
       .catch(handleError),
 };
+
+export const chatbotApi = {
+  enviarMensaje: (data) =>
+    api.post('/chatbot/mensaje', data).then((res) => res.data).catch(handleError),
+};
