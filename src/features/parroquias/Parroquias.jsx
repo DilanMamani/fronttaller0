@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import Layout from '../../shared/components/layout/Layout';
@@ -41,6 +41,93 @@ import {
 } from './slices/parroquiasSlice';
 
 import { buscarPersonasConTodosLosSacramentos } from '../sacramentos/slices/sacramentosTrunk.js';
+
+function EditParroquiaMapSection({ formData, setFormData }) {
+  const [geoCoords, setGeoCoords] = useState(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoAdjusted, setGeoAdjusted] = useState(false);
+  // Guarda la dirección inicial cuando llegan los datos de la API,
+  // para no disparar geocoding en la carga, solo cuando el usuario edita.
+  const initialAddressRef = useRef(null);
+
+  // Carga coordenadas desde la API cuando llegan (una sola vez)
+  useEffect(() => {
+    if (initialAddressRef.current !== null) return;
+    if (!formData.nombre && !formData.direccion) return; // todavía vacío
+    initialAddressRef.current = `${formData.nombre}|${formData.direccion}`;
+    const lat = parseFloat(formData.latitud);
+    const lng = parseFloat(formData.longitud);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      setGeoCoords({ lat, lng, displayName: formData.direccion || '' });
+    }
+  }, [formData.nombre, formData.direccion, formData.latitud, formData.longitud]);
+
+  // Geocodifica solo cuando el usuario cambia nombre o dirección
+  useEffect(() => {
+    if (initialAddressRef.current === null) return; // datos aún no cargados
+    const current = `${formData.nombre}|${formData.direccion}`;
+    if (initialAddressRef.current === current) return; // sin cambios del usuario
+
+    const query = [formData.nombre, formData.direccion].filter(Boolean).join(', ').trim();
+    if (query.length < 6) { setGeoCoords(null); return; }
+    setGeoLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+          { headers: { 'Accept-Language': 'es' } }
+        );
+        const data = await res.json();
+        if (data.length > 0) {
+          const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName: data[0].display_name };
+          setGeoCoords(coords);
+          setGeoAdjusted(false);
+          setFormData(prev => ({ ...prev, latitud: coords.lat, longitud: coords.lng }));
+        }
+      } catch { /* mantener coords anteriores */ }
+      finally { setGeoLoading(false); }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [formData.nombre, formData.direccion]);
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Ubicación en el mapa</span>
+        {geoLoading && (
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
+            Buscando dirección…
+          </span>
+        )}
+        {!geoLoading && !geoCoords && (formData.direccion || '').trim().length > 5 && (
+          <span className="flex items-center gap-1 text-xs text-amber-500">
+            <span className="material-symbols-outlined text-sm">warning</span>
+            No se encontró la dirección
+          </span>
+        )}
+      </div>
+      {geoCoords ? (
+        <GeoPreviewMap
+          lat={geoCoords.lat}
+          lng={geoCoords.lng}
+          displayName={geoCoords.displayName}
+          adjusted={geoAdjusted}
+          onMove={({ lat, lng }) => {
+            setGeoCoords(prev => ({ ...prev, lat, lng }));
+            setGeoAdjusted(true);
+            setFormData(prev => ({ ...prev, latitud: lat, longitud: lng }));
+          }}
+        />
+      ) : (
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 flex items-center justify-center gap-2 text-gray-400 dark:text-gray-600 text-sm" style={{ height: 100 }}>
+          <span className="material-symbols-outlined text-2xl">map</span>
+          <span>Ingrese nombre y dirección para ver la ubicación</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Parroquias() {
   const dispatch = useDispatch();
@@ -139,6 +226,8 @@ export default function Parroquias() {
     telefono: parroquia.telefono,
     email: parroquia.email,
     id_usuario: parroquia.id_usuario || null,
+    ...(parroquia.latitud  != null && { latitud:  parroquia.latitud  }),
+    ...(parroquia.longitud != null && { longitud: parroquia.longitud }),
   });
 
   const handleSaveParroquia = async (editedParroquia) => {
@@ -293,6 +382,9 @@ export default function Parroquias() {
       fields: buildParroquiaEditFields(usuarios),
       loading: false,
       onSave: handleSaveParroquia,
+      extra: (formData, setFormData) => (
+        <EditParroquiaMapSection formData={formData} setFormData={setFormData} />
+      ),
     });
   };
 

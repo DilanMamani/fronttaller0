@@ -42,6 +42,7 @@ function EditEntityModal({
   confirmText = 'Guardar Cambios',
   cancelText = 'Cancelar',
   maxWidth = 900,
+  extra = null,
 }) {
   const [formData, setFormData] = useState({ ...entity });
   const [closing, setClosing] = useState(false);
@@ -122,11 +123,14 @@ function EditEntityModal({
               <p className="text-sm font-medium">Cargando datos...</p>
             </div>
           ) : (
-            <FormFields
-              fields={fields}
-              values={formData}
-              setValues={setFormData}
-            />
+            <>
+              <FormFields
+                fields={fields}
+                values={formData}
+                setValues={setFormData}
+              />
+              {extra && extra(formData, setFormData)}
+            </>
           )}
         </div>
 
