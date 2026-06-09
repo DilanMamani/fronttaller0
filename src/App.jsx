@@ -19,6 +19,7 @@ import RolesPermisos from './features/roles/Roles';
 import ConfiguracionSeguridad from './features/seguridad/Seguridad';
 import Ocr from './features/ocr/Ocr';
 import MatrizRiesgos from './features/matrizRiesgo/matrizdeRiego';
+import ChatBot from './features/chatbot/ChatBot';
 
 export default function App() {
   return (
@@ -131,6 +132,13 @@ export default function App() {
               <ProtectedRoute requiredRoute={ROUTES.OCR}>
                 <Ocr />
               </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={ROUTES.CHAT_BOT}
+            element={
+              <ChatBot />
             }
           />
 

@@ -14,4 +14,5 @@ export const ROUTES = {
   SEGURIDAD: '/configuracion-seguridad',
   OCR: '/ocr',
   MATRIZ_RIESGOS: '/matriz-riesgos',
+  CHAT_BOT: '/chatbot',
 };

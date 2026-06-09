@@ -11,5 +11,6 @@ export const navItems = [
   { to: '/roles-permisos', label: 'Roles y permisos', icon: 'manage_accounts'},
   { to: '/configuracion-seguridad', label: 'Configuración de seguridad', icon: 'security' },
   { to: '/ocr', label: 'Registro OCR', icon: 'document_scanner' },
-  { to: '/matriz-riesgos', label: 'Matriz de riesgos', icon: 'warning' }
+  { to: '/matriz-riesgos', label: 'Matriz de riesgos', icon: 'warning' },
+  { to: '/chatbot', label: 'Chat bot', icon: 'warning' }
 ];
