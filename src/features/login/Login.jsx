@@ -11,7 +11,6 @@ import {
   selectUser,
 } from './slices/loginSelectors';
 
-import { getDefaultRoute } from '../../shared/config/roleConfig';
 import { seguridadApi } from '../../lib/api';
 
 import LoginPanel from './components/LoginPanel';
@@ -46,7 +45,7 @@ export default function Login() {
   useEffect(() => {
     const cargarConfiguracion = async () => {
       try {
-        const resp = await seguridadApi.fetchConfiguracion();
+        const resp = await seguridadApi.fetchConfiguracionReset();
         const config = resp?.configuracion || resp;
 
         const usaCaptcha =
@@ -69,7 +68,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user?.token && !requires2FA) {
-      const defaultRoute = getDefaultRoute(user.rol);
+      const defaultRoute = user.menu?.[0]?.to || '/';
       navigate(defaultRoute, { replace: true });
     }
   }, [user, navigate, requires2FA]);
@@ -139,7 +138,7 @@ export default function Login() {
         showConfirmButton: false,
       });
 
-      const defaultRoute = getDefaultRoute(data.rol);
+      const defaultRoute = data.menu?.[0]?.to || '/';
       navigate(defaultRoute, { replace: true });
       return;
     }
@@ -161,11 +160,11 @@ export default function Login() {
   };
 
   const handleVerify2FA = async () => {
-    if (!twoFactorCode.trim()) {
+    if (!/^\d{6}$/.test(twoFactorCode.trim())) {
       Swal.fire({
         icon: 'warning',
-        title: 'Código requerido',
-        text: 'Ingrese el código de verificación',
+        title: 'Código inválido',
+        text: 'Ingrese un código de verificación de 6 dígitos',
       });
       return;
     }
@@ -189,7 +188,7 @@ export default function Login() {
 
       reset2FAStates();
 
-      const defaultRoute = getDefaultRoute(data.rol);
+      const defaultRoute = data.menu?.[0]?.to || '/';
       navigate(defaultRoute, { replace: true });
       return;
     }

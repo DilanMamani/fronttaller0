@@ -1,12 +1,21 @@
+function resolveMessage(message) {
+  if (!message) return 'Error desconocido';
+  if (typeof message === 'string') return message;
+  if (message.msg) return message.msg;
+  if (message.message) return message.message;
+  return JSON.stringify(message);
+}
+
 export default function Toast({ toast, onClose }) {
   if (!toast) return null;
 
   const isSuccess = toast.type === 'success';
+  const message   = resolveMessage(toast.message);
 
   return (
     <div
       role="alert"
-      className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 max-w-sm w-full rounded-xl px-4 py-3.5 border ${
+      className={`fixed bottom-6 right-6 z-[10000] flex items-start gap-3 max-w-sm w-full rounded-xl px-4 py-3.5 border ${
         isSuccess
           ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800'
           : 'bg-rose-50 border-rose-200 dark:bg-rose-950 dark:border-rose-800'
@@ -27,7 +36,7 @@ export default function Toast({ toast, onClose }) {
           {isSuccess ? 'Éxito' : 'Error'}
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
-          {toast.message}
+          {message}
         </p>
       </div>
 

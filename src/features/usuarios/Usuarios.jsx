@@ -34,6 +34,9 @@ import {
 import { fetchRoles } from './slicesRol/rolesThunk';
 import { selectRoles, selectRolesLoading } from './slicesRol/rolesSlice';
 
+import { fetchDominiosPermitidos } from '../seguridad/slicesDominio/dominiosPermitidosThunk';
+import { selectDominiosPermitidos } from '../seguridad/slicesDominio/dominiosPermitidosSlice';
+
 import { fetchParroquias } from '../parroquias/slices/parroquiasThunk';
 import {
   selectParroquias as selectAllParroquias,
@@ -63,6 +66,8 @@ export default function Usuarios() {
   const roles = useSelector(selectRoles);
   const isLoadingRoles = useSelector(selectRolesLoading);
 
+  const dominios = useSelector(selectDominiosPermitidos);
+
   const allParroquias = useSelector(selectAllParroquias);
   const isLoadingParroquias = useSelector(selectParroquiasLoading);
 
@@ -84,6 +89,7 @@ export default function Usuarios() {
     dispatch(fetchRoles());
     dispatch(fetchParroquias({}));
     dispatch(fetchUsuarios({ page: 1 }));
+    dispatch(fetchDominiosPermitidos());
   }, [dispatch]);
 
   useEffect(() => {
@@ -120,6 +126,7 @@ export default function Usuarios() {
     buildUsuarioFields({
       roles,
       parroquias: parroquiasDisponibles,
+      dominios,
       isLoadingRoles,
       isLoadingParroquias,
       mostrarParroquia: mostrarParroquiaEnAdd,
@@ -128,6 +135,7 @@ export default function Usuarios() {
   [
     roles,
     allParroquias,
+    dominios,
     isLoadingRoles,
     isLoadingParroquias,
     mostrarParroquiaEnAdd,
@@ -150,8 +158,30 @@ export default function Usuarios() {
     []
   );
 
+  const validateNombreField = (val) => {
+    const v = (val || '').trim();
+    if (!v) return null;
+    if (v.length < 2) return 'Debe tener al menos 2 caracteres';
+    if (/[0-9]/.test(v)) return 'No puede contener números';
+    if (/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöÄËÏÖ\s'\-.]/.test(v))
+      return 'Solo se permiten letras';
+    return null;
+  };
+
+  const nameErrors = useMemo(() => {
+    const e = {};
+    const fields = ['nombre', 'apellido_paterno', 'apellido_materno'];
+    fields.forEach((k) => {
+      const err = validateNombreField(formAdd[k]);
+      if (err) e[k] = err;
+    });
+    return e;
+  }, [formAdd.nombre, formAdd.apellido_paterno, formAdd.apellido_materno]);
+
   const isCreateValid =
   formAdd.nombre?.trim() &&
+  formAdd.nombre.trim().length >= 2 &&
+  Object.keys(nameErrors).length === 0 &&
   formAdd.email?.trim() &&
   /\S+@\S+\.\S+/.test(formAdd.email) &&
   formAdd.id_rol &&
@@ -423,6 +453,7 @@ export default function Usuarios() {
               fields={usuarioFields}
               values={formAdd}
               setValues={setFormAdd}
+              errors={nameErrors}
             />
 
             <div className="mt-6 flex items-center gap-3">

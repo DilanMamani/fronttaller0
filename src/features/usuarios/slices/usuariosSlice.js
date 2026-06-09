@@ -214,7 +214,7 @@ const usuariosSlice = createSlice({
       })
       .addCase(changeUsuarioPassword.rejected, (state, action) => {
         state.isChangingPassword = false;
-        state.error = action.payload?.message || action.payload || 'Error al cambiar contraseña';
+        state.error = action.payload?.message || action.payload || action.payload.msg|| 'Error al cambiar contraseña';
       })
 
       // createUsuarioAndSendReset

@@ -24,23 +24,38 @@ export const initialUsuarioFilters = {
 export const buildUsuarioFields = ({
   roles = [],
   parroquias = [],
+  dominios = [],
   isLoadingRoles = false,
   isLoadingParroquias = false,
   mostrarParroquia = false,
   editing = false,
 }) => {
+  const nombreTransform = (v) =>
+    v ? v[0].toUpperCase() + v.slice(1) : v;
+
+  const apellidoTransform = (v) => {
+    const s = v.replace(/\s/g, '');
+    return s ? s[0].toUpperCase() + s.slice(1) : s;
+  };
+
   const fields = [
-    { name: 'nombre', label: 'Nombre', placeholder: 'Ingrese el nombre', disabled: editing },
-    { name: 'apellido_paterno', label: 'Apellido paterno', placeholder: 'Ingrese el apellido paterno', disabled: editing  },
-    { name: 'apellido_materno', label: 'Apellido materno', placeholder: 'Ingrese el apellido materno',disabled: editing  },
+    { name: 'nombre', label: 'Nombre', placeholder: 'Ingrese el nombre', disabled: editing, transform: nombreTransform },
+    { name: 'apellido_paterno', label: 'Apellido paterno', placeholder: 'Ingrese el apellido paterno', disabled: editing, transform: apellidoTransform  },
+    { name: 'apellido_materno', label: 'Apellido materno', placeholder: 'Ingrese el apellido materno', disabled: editing, transform: apellidoTransform },
     { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date' },
-    {
+    ...(!editing ? [{
+      name: 'email',
+      label: 'Correo electrónico',
+      type: 'email-builder',
+      fullWidth: true,
+      domains: dominios,
+    }] : []),
+    ...(editing ? [{
       name: 'email',
       label: 'Email',
       type: 'email',
-      placeholder: 'correo@dominio.com',
-      disabled: editing,
-    },
+      disabled: true,
+    }] : []),
     {
       name: 'id_rol',
       label: 'Rol',
