@@ -8,6 +8,7 @@ import Layout from '../../shared/components/layout/Layout';
 // === IMPORTACIONES DE CONSTANTES Y REDUX ===
 import { ROL_IDS } from '../sacramentos/config/sacramentos.constants';
 import { buscarSacramentos } from '../sacramentos/slices/sacramentosTrunk';
+import { sacramentosApi } from '../../lib/api';
 import Toast from '../../shared/components/ui/Toast';
 
 const HISTORIAL_KEY = 'certificados_historial';
@@ -210,13 +211,12 @@ export default function Certificados() {
           // Si no hay madrina registrada en este bautizo, pero sí tenemos un padrino con carnet de identidad:
           if (!madrinaFinal && relPadrino?.persona?.carnet_identidad) {
             try {
-              // Hacemos una consulta rápida buscando un matrimonio donde el Padrino sea el ESPOSO
-              const matrimonioPadrinoRes = await dispatch(buscarSacramentos({
+              const matrimonioPadrinoRes = await sacramentosApi.buscarSacramentos({
                 carnet_identidad: relPadrino.persona.carnet_identidad,
                 activo: 'true',
-                tipo_sacramento_id_tipo: 2, // 2 = Matrimonio
-                rol_sacramento_id_rol_sacra: ROL_IDS.ESPOSO 
-              })).unwrap();
+                tipo_sacramento_id_tipo: 2,
+                rol_sacramento_id_rol_sacra: ROL_IDS.ESPOSO,
+              });
 
               // Si encontramos su matrimonio, extraemos a la esposa
               if (matrimonioPadrinoRes?.resultados?.length > 0) {
