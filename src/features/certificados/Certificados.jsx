@@ -8,7 +8,6 @@ import Layout from '../../shared/components/layout/Layout';
 // === IMPORTACIONES DE CONSTANTES Y REDUX ===
 import { ROL_IDS } from '../sacramentos/config/sacramentos.constants';
 import { buscarSacramentos } from '../sacramentos/slices/sacramentosTrunk';
-import { sacramentosApi } from '../../lib/api';
 import Toast from '../../shared/components/ui/Toast';
 
 const HISTORIAL_KEY = 'certificados_historial';
@@ -205,35 +204,7 @@ export default function Certificados() {
           const padreCalculado = relTitular?.persona?.nombre_padre || "";
           const madreCalculada = relTitular?.persona?.nombre_madre || "";
 
-          // BUSCAR ESPOSA DEL PADRINO
-          let madrinaFinal = sac.nombre_madrina || "";
-
-          // Si no hay madrina registrada en este bautizo, pero sí tenemos un padrino con carnet de identidad:
-          if (!madrinaFinal && relPadrino?.persona?.carnet_identidad) {
-            try {
-              const matrimonioPadrinoRes = await sacramentosApi.buscarSacramentos({
-                carnet_identidad: relPadrino.persona.carnet_identidad,
-                activo: 'true',
-                tipo_sacramento_id_tipo: 2,
-                rol_sacramento_id_rol_sacra: ROL_IDS.ESPOSO,
-              });
-
-              // Si encontramos su matrimonio, extraemos a la esposa
-              if (matrimonioPadrinoRes?.resultados?.length > 0) {
-                const matSac = matrimonioPadrinoRes.resultados[0];
-                const relEsposaMadrina = (matSac.todasRelaciones || []).find(
-                  r => r.rol_sacramento_id_rol_sacra === ROL_IDS.ESPOSA
-                );
-                
-                if (relEsposaMadrina?.persona) {
-                  // Guardamos el nombre de su esposa como la madrina del certificado
-                  madrinaFinal = formatearNombre(relEsposaMadrina.persona);
-                }
-              }
-            } catch (error) {
-              console.error("Error intentando buscar la esposa del padrino:", error);
-            }
-          }
+          const madrinaFinal = sac.nombre_madrina || "";
 
           sac.personaSacramentos.forEach((rel) => {
             if (!rel.persona) return;
