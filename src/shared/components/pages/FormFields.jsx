@@ -1,48 +1,59 @@
 import { useState, useEffect } from 'react';
 import MultiSelectSearch from '../ui/MultiSelectSearch';
 
-// ── Normaliza una parte del nombre para usarla como prefijo de email ──────────
-const normalizePart = (s) =>
+const normalizeStr = (s) =>
   (s || '')
     .trim()
     .toLowerCase()
-    .split(/\s+/)[0]
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]/g, '');
+    .replace(/[^a-z0-9\s]/g, '');
+
+const getTokens = (s) => {
+  const words = normalizeStr(s).split(/\s+/).filter(Boolean);
+  const seen = new Set();
+  const tokens = [];
+  words.forEach((w) => {
+    if (!seen.has(w)) { tokens.push(w); seen.add(w); }
+    if (w.length > 1) {
+      const init = w[0];
+      if (!seen.has(init)) { tokens.push(init); seen.add(init); }
+    }
+  });
+  return tokens;
+};
 
 function EmailBuilderField({ field, values, setValues, errors = {} }) {
-  const n  = normalizePart(values.nombre);
-  const ap = normalizePart(values.apellido_paterno);
-  const am = normalizePart(values.apellido_materno);
+  const hasErrors = !!(errors.nombre || errors.apellido_paterno || errors.apellido_materno);
 
-  const hasErrors  = !!(errors.nombre || errors.apellido_paterno || errors.apellido_materno);
-  const namesReady = n.length >= 2 && ap.length >= 2 && !hasErrors;
+  const tokenGroups = [
+    { label: 'Nombre',       tokens: getTokens(values.nombre) },
+    { label: 'Ap. paterno',  tokens: getTokens(values.apellido_paterno) },
+    { label: 'Ap. materno',  tokens: getTokens(values.apellido_materno) },
+  ].filter((g) => g.tokens.length > 0);
 
-  const sugerencias = namesReady ? [
-    `${n}.${ap}`,
-    `${n[0]}${ap}`,
-    am ? `${n}.${ap}.${am[0]}`   : null,
-    am ? `${n[0]}${ap}.${am[0]}` : null,
-  ].filter(Boolean) : [];
+  const hasNames = tokenGroups.length > 0 && !hasErrors;
 
   const activeDomains = (field.domains || []).filter((d) => d.activo);
 
-  const [prefix, setPrefix]   = useState('');
-  const [domain, setDomain]   = useState(activeDomains[0]?.dominio || '');
+  const [selected, setSelected] = useState([]);
+  const [domain,   setDomain]   = useState(activeDomains[0]?.dominio || '');
 
-  // Resetear prefijo cuando cambian los datos del nombre o hay errores
+  const nNorm  = normalizeStr(values.nombre);
+  const apNorm = normalizeStr(values.apellido_paterno);
+  const amNorm = normalizeStr(values.apellido_materno);
+
   useEffect(() => {
-    setPrefix('');
+    setSelected([]);
     setValues((prev) => ({ ...prev, [field.name]: '' }));
-  }, [n, ap, am, hasErrors]);
+  }, [nNorm, apNorm, amNorm, hasErrors]);
 
-  // Actualizar el dominio por defecto si aún no hay uno seleccionado
   useEffect(() => {
     if (!domain && activeDomains[0]?.dominio) setDomain(activeDomains[0].dominio);
   }, [activeDomains.length]);
 
-  // Cuando cambia prefijo o dominio, actualizar el email en el formulario
+  const prefix = selected.map((s) => s.token).join('');
+
   useEffect(() => {
     const email = prefix && domain ? `${prefix}@${domain}` : '';
     setValues((prev) => ({ ...prev, [field.name]: email }));
@@ -50,46 +61,103 @@ function EmailBuilderField({ field, values, setValues, errors = {} }) {
 
   const assembled = prefix && domain ? `${prefix}@${domain}` : '';
 
+  const isTokenSelected = (gi, ti) =>
+    selected.some((s) => s.groupIdx === gi && s.tokenIdx === ti);
+
+  const addToken = (token, gi, ti) => {
+    if (isTokenSelected(gi, ti)) return;
+    setSelected((prev) => [...prev, { id: Date.now() + Math.random(), token, groupIdx: gi, tokenIdx: ti }]);
+  };
+
+  const addDot = () =>
+    setSelected((prev) => [...prev, { id: Date.now() + Math.random(), token: '.', isDot: true }]);
+
+  const removeToken = (id) => setSelected((prev) => prev.filter((s) => s.id !== id));
+
   return (
     <div className="space-y-3">
-      {/* Prefijos sugeridos */}
+      {/* Bloques disponibles */}
       <div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-          Selecciona el formato del nombre de usuario:
+          Toca las piezas para armar el nombre de usuario:
         </p>
-        {!n || !ap ? (
-          <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-            Ingrese nombre y apellido paterno para ver opciones
-          </span>
-        ) : hasErrors ? (
+        {hasErrors ? (
           <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[13px]">warning</span>
-            Corrige los errores en nombre y apellidos para ver las opciones de correo
+            Corrige los errores en nombre y apellidos primero
+          </span>
+        ) : !hasNames ? (
+          <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+            Ingrese nombre y apellido paterno para ver las opciones
           </span>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {sugerencias.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setPrefix(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all
-                  ${prefix === s
-                    ? 'bg-primary text-white border-primary'
-                    : 'border-primary text-primary hover:bg-primary hover:text-white'}`}
-              >
-                {s}
-              </button>
+          <div className="space-y-2">
+            {tokenGroups.map((group, gi) => (
+              <div key={gi} className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-400 dark:text-gray-500 w-20 shrink-0">
+                  {group.label}:
+                </span>
+                {group.tokens.map((token, ti) => {
+                  const sel = isTokenSelected(gi, ti);
+                  return (
+                    <button
+                      key={ti}
+                      type="button"
+                      onClick={() => addToken(token, gi, ti)}
+                      disabled={sel}
+                      className={`px-2.5 py-1 rounded-full text-xs font-mono font-medium border transition-all
+                        ${sel
+                          ? 'opacity-30 cursor-not-allowed border-gray-300 dark:border-gray-600 text-gray-400'
+                          : 'border-primary text-primary hover:bg-primary hover:text-white'}`}
+                    >
+                      {token}
+                    </button>
+                  );
+                })}
+              </div>
             ))}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-400 dark:text-gray-500 w-20 shrink-0">Separador:</span>
+              <button
+                type="button"
+                onClick={addDot}
+                className="px-2.5 py-1 rounded-full text-xs font-mono font-medium border border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary transition-all"
+                title="Insertar punto"
+              >
+                .
+              </button>
+            </div>
           </div>
         )}
       </div>
 
+      {/* Prefijo armado */}
+      {selected.length > 0 && (
+        <div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Nombre de usuario:</p>
+          <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[36px] items-center">
+            {selected.map((s) => (
+              <span
+                key={s.id}
+                className="flex items-center gap-0.5 pl-2 pr-1 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-mono"
+              >
+                {s.token}
+                <button
+                  type="button"
+                  onClick={() => removeToken(s.id)}
+                  className="ml-0.5 hover:text-red-500 transition-colors leading-none"
+                >
+                  <span className="material-symbols-outlined text-[12px]">close</span>
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Selector de dominio */}
       <div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-          Dominio permitido:
-        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Dominio permitido:</p>
         {!activeDomains.length ? (
           <span className="text-xs text-red-400">No hay dominios activos configurados.</span>
         ) : (
@@ -111,7 +179,7 @@ function EmailBuilderField({ field, values, setValues, errors = {} }) {
         )}
       </div>
 
-      {/* Vista previa del email */}
+      {/* Vista previa */}
       <div className={`rounded-xl border px-4 py-3 text-sm font-mono transition-all
         ${assembled
           ? 'border-primary/40 bg-primary/5 text-primary dark:text-primary'

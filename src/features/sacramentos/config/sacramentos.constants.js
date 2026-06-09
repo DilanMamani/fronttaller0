@@ -1,6 +1,6 @@
 export const ROL_IDS = {
   BAUTIZADO: 1,
-  COMULGADO: 8,
+  COMULGADO: 4,
   CONFIRMADO: 4,
   ESPOSO: 2,
   ESPOSA: 3,

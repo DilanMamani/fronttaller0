@@ -12,6 +12,9 @@ import Toast from '../../shared/components/ui/Toast.jsx';
 import { useEditEntityModal } from '../../shared/components/pages/EditEntityModal.jsx';
 import { extractError } from '../../shared/utils/extractError.js';
 
+import MapaParroquias from './components/MapaParroquias.jsx';
+import GeoPreviewMap from './components/GeoPreviewMap.jsx';
+
 import {
   parroquiaFields,
   parroquiaSearchFields,
@@ -65,6 +68,10 @@ export default function Parroquias() {
 
   const [toast, setToast] = useState(null);
 
+  const [geoCoords, setGeoCoords]     = useState(null);   // { lat, lng, displayName }
+  const [geoLoading, setGeoLoading]   = useState(false);
+  const [geoAdjusted, setGeoAdjusted] = useState(false);  // true si el usuario movió el pin
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 3000);
@@ -83,6 +90,8 @@ export default function Parroquias() {
     setQueryEncargado('');
     setListaEncargados([]);
     setOpenEncargadoList(false);
+    setGeoCoords(null);
+    setGeoAdjusted(false);
   };
 
   const cargarUsuariosParrocos = async (search = '') => {
@@ -185,6 +194,38 @@ export default function Parroquias() {
     return () => clearTimeout(delay);
   }, [queryEncargado, activeTab]);
 
+  // Geocodificación automática al escribir la dirección (debounce 700ms)
+  useEffect(() => {
+    if (activeTab !== 'agregar') return;
+    const query = [formData.nombre, formData.direccion].filter(Boolean).join(', ').trim();
+    if (query.length < 6) {
+      setGeoCoords(null);
+      return;
+    }
+    setGeoLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+          { headers: { 'Accept-Language': 'es' } }
+        );
+        const data = await res.json();
+        if (data.length > 0) {
+          setGeoCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName: data[0].display_name });
+          setGeoAdjusted(false);
+        } else {
+          setGeoCoords(null);
+          setGeoAdjusted(false);
+        }
+      } catch {
+        setGeoCoords(null);
+      } finally {
+        setGeoLoading(false);
+      }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [formData.nombre, formData.direccion, activeTab]);
+
   const handleCreate = async (e) => {
     e.preventDefault();
 
@@ -196,7 +237,12 @@ export default function Parroquias() {
       return;
     }
 
-    const action = await dispatch(createParroquia(formData));
+    const payload = {
+      ...formData,
+      ...(geoCoords && { latitud: geoCoords.lat, longitud: geoCoords.lng }),
+    };
+
+    const action = await dispatch(createParroquia(payload));
 
     if (createParroquia.fulfilled.match(action)) {
       setToast({
@@ -257,7 +303,8 @@ export default function Parroquias() {
         onChange={setActiveTab}
         tabs={[
           { key: 'agregar', label: 'Agregar Parroquia' },
-          { key: 'buscar', label: 'Buscar Parroquia' },
+          { key: 'buscar',  label: 'Buscar Parroquia'  },
+          { key: 'mapa',    label: 'Mapa'              },
         ]}
       />
 
@@ -342,6 +389,42 @@ export default function Parroquias() {
               </p>
             </div>
 
+            {/* Previsualización de ubicación geocodificada */}
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Ubicación en el mapa</span>
+                {geoLoading && (
+                  <span className="flex items-center gap-1 text-xs text-gray-400">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
+                    Buscando dirección…
+                  </span>
+                )}
+                {!geoLoading && !geoCoords && formData.direccion.trim().length > 5 && (
+                  <span className="flex items-center gap-1 text-xs text-amber-500">
+                    <span className="material-symbols-outlined text-sm">warning</span>
+                    No se encontró la dirección
+                  </span>
+                )}
+              </div>
+              {geoCoords ? (
+                <GeoPreviewMap
+                  lat={geoCoords.lat}
+                  lng={geoCoords.lng}
+                  displayName={geoCoords.displayName}
+                  adjusted={geoAdjusted}
+                  onMove={({ lat, lng }) => {
+                    setGeoCoords((prev) => ({ ...prev, lat, lng }));
+                    setGeoAdjusted(true);
+                  }}
+                />
+              ) : (
+                <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 flex items-center justify-center gap-2 text-gray-400 dark:text-gray-600 text-sm" style={{ height: 100 }}>
+                  <span className="material-symbols-outlined text-2xl">map</span>
+                  <span>Ingrese nombre y dirección para ver la ubicación</span>
+                </div>
+              )}
+            </div>
+
             <div className="mt-6 flex items-center gap-3">
               <button
                 type="submit"
@@ -404,6 +487,8 @@ export default function Parroquias() {
           )}
         </>
       )}
+
+      {activeTab === 'mapa' && <MapaParroquias />}
 
       <DuplicatesMergeModal
         open={mergeOpen}
