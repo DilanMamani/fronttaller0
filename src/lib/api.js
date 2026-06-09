@@ -159,6 +159,9 @@ export const parroquiasApi = {
 
   updateParroquia: (id, data) =>
     api.put(`/parroquias/${id}`, data).then((res) => res.data).catch(handleError),
+
+  fetchMapaResumen: () =>
+    api.get('/mapa/resumen').then((res) => res.data).catch(handleError),
 };
 export const passwordApi = {
   solicitar: (email) =>

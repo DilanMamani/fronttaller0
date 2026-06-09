@@ -105,15 +105,17 @@ export default function SacramentoEditModal({ ctx, onClose }) {
           onSubmit={handleSubmit}
           className="px-6 py-6 max-h-[65vh] overflow-y-auto space-y-6"
         >
-          {/* Persona (solo lectura) */}
-          <section>
-            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
-              Persona que recibió el Sacramento
-            </h4>
-            <div className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-3 text-gray-700 dark:text-gray-300">
-              {queryPersona || '—'}
-            </div>
-          </section>
+          {/* Persona (solo lectura) — oculto en matrimonio porque ya aparece como esposo/esposa */}
+          {tipoSacramento !== 'matrimonio' && (
+            <section>
+              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                Persona que recibió el Sacramento
+              </h4>
+              <div className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-3 text-gray-700 dark:text-gray-300">
+                {queryPersona || '—'}
+              </div>
+            </section>
+          )}
 
           {/* Detalles de matrimonio */}
           {tipoSacramento === 'matrimonio' && (
@@ -201,18 +203,27 @@ export default function SacramentoEditModal({ ctx, onClose }) {
             }}
           />
 
-          {/* Activo */}
-          <div className="flex items-center gap-3">
-            <input
-              id="modal-activo"
-              type="checkbox"
-              checked={form.activo}
-              onChange={(e) => handleChange('activo', e.target.checked)}
-              className="h-4 w-4 border-gray-300 dark:border-gray-700 rounded"
-            />
-            <label htmlFor="modal-activo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Activo
-            </label>
+          {/* Activo — toggle pill */}
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado del registro</span>
+            <button
+              type="button"
+              onClick={() => handleChange('activo', !form.activo)}
+              className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                form.activo
+                  ? 'bg-emerald-500 border-emerald-500 focus:ring-emerald-400'
+                  : 'bg-gray-300 dark:bg-gray-600 border-gray-300 dark:border-gray-600 focus:ring-gray-400'
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+                  form.activo ? 'translate-x-7' : 'translate-x-0.5'
+                } mt-px`}
+              />
+            </button>
+            <span className={`text-sm font-semibold ${form.activo ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
+              {form.activo ? 'Activo' : 'Inactivo'}
+            </span>
           </div>
         </form>
 
