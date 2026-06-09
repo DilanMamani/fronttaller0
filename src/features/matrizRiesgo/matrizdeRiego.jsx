@@ -32,10 +32,10 @@ const nivelRiesgo = (valor) => {
 };
 
 const NIVEL_STYLES = {
-  Bajo:     'bg-emerald-300 text-emerald-700 dark:bg-emerald-100 dark:text-emerald-200',
-  Moderado: 'bg-amber-300 text-amber-700 dark:bg-amber-300 dark:text-amber-200',
-  Alto:     'bg-orange-300 text-orange-700 dark:bg-orange-300 dark:text-orange-200',
-  Extremo:  'bg-rose-300 text-rose-700 dark:bg-rose-300 dark:text-rose-200',
+  Bajo:     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  Moderado: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  Alto:     'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  Extremo:  'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
 };
 
 const TIPOS_ACTIVO = ['hardware', 'software', 'datos', 'personas', 'instalaciones', 'servicios', 'otro'];
@@ -440,7 +440,7 @@ function FormVulnerabilidad({ initial = VULN_INIT, onSubmit, onCancel, isSaving,
 
   return (
     <div className="space-y-4">
-      <InputText label="Nombre" name="nombre" value={form.nombre} onChange={handle}
+      <InputText label="Vulnerabilidad / Amenaza" name="nombre" value={form.nombre} onChange={handle}
         placeholder="Ej: Acceso no autorizado a sistemas" required disabled={isEditing} />
 
       <div>
@@ -458,9 +458,6 @@ function FormVulnerabilidad({ initial = VULN_INIT, onSubmit, onCancel, isSaving,
           </optgroup>
         </select>
       </div>
-
-      <InputText label="Descripción" name="descripcion" value={form.descripcion} onChange={handle}
-        placeholder="Descripción detallada" textarea />
       <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
         <Btn type="button" onClick={() => onSubmit(form)} disabled={!isValid || isSaving}
           icon={isSaving ? 'progress_activity' : 'save'}>
@@ -705,7 +702,7 @@ function FormRiesgo({ activos, vulnerabilidades, onSubmit, onCancel, isSaving })
       </div>
 
       {/* Consecuencia */}
-      <InputText label="Consecuencia potencial" name="consecuencia" value={form.consecuencia} onChange={handle}
+      <InputText label="Descripción del riesgo / consecuencia" name="consecuencia" value={form.consecuencia} onChange={handle}
         placeholder="Describe el impacto potencial si el riesgo se materializa" textarea rows={3} required />
 
       {/* Riesgo inherente */}
@@ -1450,8 +1447,8 @@ const NIVEL_CELL = {
   Extremo:  'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
 };
 
-const TH_GROUP  = 'border border-gray-200 dark:border-gray-600/50 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider bg-gray-800 dark:bg-gray-900 text-gray-100';
-const TH_SUB    = 'border border-gray-200 dark:border-gray-600/50 px-3 py-2 text-center text-[10px] font-semibold uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
+const TH_GROUP  = 'border border-primary/20 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider bg-primary text-white';
+const TH_SUB    = 'border border-gray-200 dark:border-gray-600/50 px-3 py-2 text-center text-[10px] font-semibold uppercase bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300';
 const TD_BASE   = 'border border-gray-100 dark:border-gray-700/60 px-3 py-2.5 text-xs text-gray-700 dark:text-gray-300 align-top';
 const TD_CENTER = `${TD_BASE} text-center`;
 
@@ -1896,6 +1893,39 @@ function TabMatriz() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SUMMARY BAR
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SummaryBar({ activos, vulns, riesgos }) {
+  const enProceso  = riesgos.filter(r => !r.en_matriz).length;
+  const publicados = riesgos.filter(r =>  r.en_matriz).length;
+  const amenazas   = vulns.filter(v => getGrupo(v.tipo) === 'amenaza').length;
+  const vulnCount  = vulns.filter(v => getGrupo(v.tipo) === 'vulnerabilidad').length;
+
+  const items = [
+    { label: 'Activos',          value: activos.length, icon: 'dns',       cls: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-300' },
+    { label: 'Amenazas',         value: amenazas,        icon: 'warning',   cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+    { label: 'Vulnerabilidades', value: vulnCount,       icon: 'lock_open', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+    { label: 'En proceso',       value: enProceso,       icon: 'pending',   cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+    { label: 'Publicados',       value: publicados,      icon: 'verified',  cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+      {items.map(({ label, value, icon, cls }) => (
+        <div key={label} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${cls}`}>
+          <span className="material-symbols-outlined text-xl shrink-0">{icon}</span>
+          <div className="min-w-0">
+            <p className="text-2xl font-bold leading-none tabular-nums">{value}</p>
+            <p className="text-[11px] font-medium opacity-75 mt-0.5 truncate">{label}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1916,7 +1946,11 @@ export default function MatrizRiesgos() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  useEffect(() => { return () => { dispatch(clearError()); }; }, [dispatch]);
+  useEffect(() => {
+    dispatch(fetchActivos());
+    dispatch(fetchVulnerabilidades());
+    return () => { dispatch(clearError()); };
+  }, [dispatch]);
 
   const stepStatus = (key) => {
     if (key === 'activos')          return activos.length > 0;
@@ -1938,7 +1972,7 @@ export default function MatrizRiesgos() {
   return (
     <Layout title="Matriz de Análisis de Riesgos">
       {/* Stepper de flujo */}
-      <div className="mb-6 bg-white dark:bg-background-dark/50 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 px-5 py-3 flex items-center overflow-x-auto">
+      <div className="mb-6 bg-white dark:bg-background-dark/50 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 px-4 py-3 flex items-center overflow-x-auto gap-1">
         {STEP_KEYS.map((key, idx) => {
           const isActive = activeTab === key;
           const isDone   = stepStatus(key);
@@ -1947,23 +1981,25 @@ export default function MatrizRiesgos() {
             <div key={key} className="flex items-center shrink-0">
               <button
                 onClick={() => setActiveTab(key)}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all
                   ${isActive
-                    ? 'text-primary'
+                    ? 'text-primary bg-primary/5 dark:bg-primary/10'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/40'}`}
               >
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all
                   ${isActive
-                    ? 'bg-primary text-white shadow-sm'
+                    ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
                     : isDone
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
                       : 'bg-gray-100 dark:bg-gray-700/80 text-gray-400 dark:text-gray-500'}`}>
-                  {idx + 1}
+                  {isDone && !isActive
+                    ? <span className="material-symbols-outlined text-[14px]">check</span>
+                    : idx + 1}
                 </span>
                 <span className={isActive ? 'font-semibold' : ''}>{stepLabels[key]}</span>
               </button>
               {idx < STEP_KEYS.length - 1 && (
-                <div className={`h-px w-8 mx-1 shrink-0 rounded-full ${
+                <div className={`h-0.5 w-6 mx-1 shrink-0 rounded-full transition-colors ${
                   stepStatus(STEP_KEYS[idx]) ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-gray-200 dark:bg-gray-700'
                 }`} />
               )}
@@ -1971,6 +2007,8 @@ export default function MatrizRiesgos() {
           );
         })}
       </div>
+
+      <SummaryBar activos={activos} vulns={vulns} riesgos={riesgos} />
 
       {activeTab === 'activos'          && <TabActivos showToast={showToast} />}
       {activeTab === 'vulnerabilidades' && <TabVulnerabilidades showToast={showToast} />}
