@@ -2,6 +2,17 @@ const getFullName = (u) =>
   `${u.nombre || ''} ${u.apellido_paterno || ''} ${u.apellido_materno || ''}`.trim();
 
 export const buildUsuarioColumns = ({ onUnlock }) => [
+
+  {
+    key: 'nombre_usuario',
+    label: 'Usuario',
+    render: (u) => (
+      <span className="font-mono text-xs bg-gray-100 dark:bg-gray-800 
+                      text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
+        {u.nombre_usuario || '—'}
+      </span>
+    ),
+  },
   {
     key: 'nombre',
     label: 'Nombre',

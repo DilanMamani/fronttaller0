@@ -66,6 +66,9 @@ export default function Sidebar({ isOpen, onClose }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.name || 'Usuario'}</p>
+              <p className="text-xs text-muted-light dark:text-muted-dark truncate font-mono">
+                {user?.nombre_usuario || ''}
+              </p>
               <p className="text-xs text-muted-light dark:text-muted-dark truncate">
                 {user?.rol || 'Sin rol'}
               </p>

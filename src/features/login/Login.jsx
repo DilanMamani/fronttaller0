@@ -92,7 +92,7 @@ export default function Login() {
       Swal.fire({
         icon: 'warning',
         title: 'Campos incompletos',
-        text: 'Por favor ingrese email y contraseña',
+        text: 'Por favor ingrese email o User ID y contraseña',
       });
       return;
     }
@@ -124,7 +124,7 @@ export default function Login() {
         Swal.fire({
           icon: 'info',
           title: 'Verificación en dos pasos',
-          text: `Se envió un código de verificación al correo ${formData.email}`,
+          text: `Se envió un código de verificación al correo ${data.email || data.msg || 'registrado'}`,
         });
 
         return;

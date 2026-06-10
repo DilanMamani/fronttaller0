@@ -34,6 +34,7 @@ export const loginUser = createAsyncThunk(
       const accesos = await fetchAccesos(response.token);
       return {
         uid: response.uid || '',
+        nombre_usuario: response.nombre_usuario || '', 
         name: response.nombre || 'Usuario',
         email: response.email || '',
         rol: response.rol?.nombre || 'Usuario',
