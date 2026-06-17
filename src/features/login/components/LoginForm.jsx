@@ -43,9 +43,9 @@ export default function LoginForm({
         <>
           <InputField
             id="email"
-            label="Email"
-            type="email"
-            placeholder="Ingresa tu email"
+            label="Email o User ID"
+            type="text"
+            placeholder="Ingresa tu email o nombre de usuario"
             value={formData.email}
             onChange={(e) =>
               setFormData({ ...formData, email: e.target.value })

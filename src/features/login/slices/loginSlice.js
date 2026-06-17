@@ -3,6 +3,7 @@ import { loginUser, verify2FAUser } from './loginThunks';
 const initialState = {
   user: {
     uid: '',
+    nombre_usuario: '',
     name: '',
     rol: '',
     email: '',
