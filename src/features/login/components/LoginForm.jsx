@@ -43,7 +43,7 @@ export default function LoginForm({
         <>
           <InputField
             id="email"
-            label="nombre de usuario"
+            label="Nombre de usuario"
             type="text"
             placeholder="Ingresa tu nombre de usuario"
             value={formData.email}

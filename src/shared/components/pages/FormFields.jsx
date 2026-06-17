@@ -95,7 +95,7 @@ function EmailBuilderField({ field, values, setValues }) {
           type="text"
           value={prefix}
           onChange={(e) => setPrefix(e.target.value.replace(/\s/g, ''))}
-          placeholder="nombre.usuario"
+          placeholder="correo sin dominio"
           className={`${inputBaseCls} font-mono flex-1`}
         />
         <span className="text-gray-400 dark:text-gray-500 font-mono text-sm shrink-0 select-none">@</span>
