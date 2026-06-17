@@ -1190,6 +1190,9 @@ function TabRiesgos({ showToast }) {
                         {r.activo?.tipo && (
                           <span className="text-[10px] text-muted-light dark:text-muted-dark capitalize">{r.activo.tipo}</span>
                         )}
+                        {r.activo?.descripcion && (
+                          <p className="text-[10px] text-muted-light dark:text-muted-dark mt-0.5 line-clamp-2 leading-snug">{r.activo.descripcion}</p>
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <NivelBadge nivel={nivelRiesgo(ri)} />
@@ -1325,6 +1328,10 @@ function MatrizDetalleModal({ riesgo, onClose }) {
   const ri = calcRiesgo(riesgo.probabilidad_inherente, riesgo.impacto_inherente);
   const nivelInherente = riesgo.nivel_riesgo_inherente || nivelRiesgo(ri);
 
+  const rrFinal = controles.length > 0
+    ? Math.min(...controles.map(c => calcRiesgo(c.probabilidad_residual, c.impacto_residual)))
+    : null;
+
   const fmtFecha = (iso) => {
     if (!iso) return null;
     return new Date(iso).toLocaleString('es-MX', {
@@ -1333,178 +1340,166 @@ function MatrizDetalleModal({ riesgo, onClose }) {
     });
   };
 
-  const efectividadStyle = (n) =>
-    n === 'Alto'
-      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-      : n === 'Satisfactorio'
-        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-
-  const SectionTitle = ({ icon, children }) => (
-    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+  const Label = ({ icon, children }) => (
+    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-light dark:text-muted-dark mb-2.5 flex items-center gap-1.5">
       <span className="material-symbols-outlined text-[13px]">{icon}</span>
       {children}
     </p>
   );
 
-  const Divider = () => <div className="border-t border-gray-100 dark:border-gray-700" />;
-
   return (
     <Modal title={`Riesgo #${riesgo.numero ?? riesgo.id_riesgo}`} onClose={onClose} maxW="max-w-2xl">
-      <div className="space-y-3">
+      <div className="space-y-4">
 
         {/* Publicado */}
-        <div className="flex items-center gap-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30 rounded-2xl px-4 py-2.5">
-          <span className="material-symbols-outlined text-emerald-500 dark:text-emerald-400 text-base">verified</span>
+        <div className="flex items-center gap-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl px-4 py-2.5">
+          <span className="material-symbols-outlined text-emerald-500 text-base">verified</span>
           <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex-1">Publicado en la Matriz</span>
           {fmtFecha(riesgo.updated_at || riesgo.created_at) && (
-            <span className="text-[11px] text-gray-400 flex items-center gap-1 shrink-0">
-              <span className="material-symbols-outlined text-[11px]">calendar_today</span>
+            <span className="text-xs text-muted-light dark:text-muted-dark shrink-0">
               {fmtFecha(riesgo.updated_at || riesgo.created_at)}
             </span>
           )}
         </div>
 
         {/* Activo */}
-        <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px]">dns</span>
-              Activo de información
-            </p>
-          </div>
-          <div className="grid grid-cols-3 divide-x divide-gray-50 dark:divide-gray-700/50">
-            <div className="px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Nombre</p>
-              <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-snug">{activo.nombre || `#${riesgo.activo_id}`}</p>
-            </div>
-            <div className="px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Tipo</p>
-              <span className="text-[11px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{activo.tipo || '—'}</span>
-            </div>
-            <div className="px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Propietario / Área</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">{activo.propietario || '—'}</p>
-            </div>
+        <div className="rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-4">
+          <Label icon="dns">Activo de información</Label>
+          <p className="text-base font-bold text-foreground-light dark:text-foreground-dark leading-snug mb-1">
+            {activo.nombre || `Activo #${riesgo.activo_id}`}
+          </p>
+          {activo.descripcion && (
+            <p className="text-sm text-muted-light dark:text-muted-dark leading-relaxed mb-3">{activo.descripcion}</p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-1">
+            {activo.tipo && (
+              <span className="text-xs bg-background-light dark:bg-gray-700 text-muted-light dark:text-muted-dark px-2.5 py-1 rounded-full border border-border-light dark:border-border-dark capitalize flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">category</span>
+                {activo.tipo}
+              </span>
+            )}
+            {activo.propietario && (
+              <span className="text-xs bg-background-light dark:bg-gray-700 text-muted-light dark:text-muted-dark px-2.5 py-1 rounded-full border border-border-light dark:border-border-dark flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">person</span>
+                {activo.propietario}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Amenazas / Vulnerabilidades */}
+        {/* Vulnerabilidades */}
         {vulns.length > 0 && (
-          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px]">bug_report</span>
-              Amenazas y vulnerabilidades asociadas
-            </p>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-4">
+            <Label icon="bug_report">Vulnerabilidades y amenazas ({vulns.length})</Label>
+            <div className="flex flex-wrap gap-2">
               {vulns.map((v) => (
-                <span key={v.id_vulnerabilidad}
-                  className={`text-[11px] px-2.5 py-1 rounded-full font-medium flex items-center gap-1 border
+                <div key={v.id_vulnerabilidad}
+                  className={`text-xs px-3 py-1.5 rounded-xl font-medium flex items-center gap-1.5 border
                     ${getGrupo(v.tipo) === 'amenaza'
                       ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/30'
                       : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30'}`}>
-                  <span className="material-symbols-outlined text-[11px]">
+                  <span className="material-symbols-outlined text-[13px]">
                     {getGrupo(v.tipo) === 'amenaza' ? 'warning' : 'lock_open'}
                   </span>
-                  {v.nombre}
-                  <span className="opacity-40 text-[10px]">({getTipoLabel(v.tipo)})</span>
-                </span>
+                  <span className="font-semibold">{v.nombre}</span>
+                  <span className="opacity-50 text-[10px]">{getTipoLabel(v.tipo)}</span>
+                </div>
               ))}
             </div>
           </div>
         )}
 
         {/* Consecuencia + Tratamiento */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px]">report_problem</span>
-              Consecuencia potencial
-            </p>
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{riesgo.consecuencia}</p>
-          </div>
-          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px]">tune</span>
-              Tratamiento
-            </p>
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-full">
-              <span className="material-symbols-outlined text-[13px] text-primary">shield</span>
+        <div className="rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-4">
+          <Label icon="report_problem">Consecuencia potencial</Label>
+          <p className="text-sm text-foreground-light dark:text-foreground-dark leading-relaxed">{riesgo.consecuencia}</p>
+          <div className="mt-3 pt-3 border-t border-border-light dark:border-border-dark flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark">Tratamiento:</span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-300 px-3 py-1 rounded-full border border-primary/20">
+              <span className="material-symbols-outlined text-[13px]">shield</span>
               {riesgo.tratamiento}
             </span>
           </div>
         </div>
 
-        {/* Evaluación inherente */}
-        <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px]">analytics</span>
-              Evaluación del riesgo inherente
+        {/* Evaluación: inherente vs residual */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-4">
+            <Label icon="analytics">Riesgo inherente</Label>
+            <p className="text-xs text-muted-light dark:text-muted-dark mb-1">
+              P {riesgo.probabilidad_inherente} × I {riesgo.impacto_inherente}
             </p>
-          </div>
-          <div className="grid grid-cols-4 divide-x divide-gray-50 dark:divide-gray-700/50">
-            {[
-              { label: 'Probabilidad (P)', value: riesgo.probabilidad_inherente, sub: '/ 5' },
-              { label: 'Impacto (I)',       value: riesgo.impacto_inherente,      sub: '/ 5' },
-              { label: 'R. Inherente',      value: ri,                            sub: null  },
-            ].map(({ label, value, sub }) => (
-              <div key={label} className="px-4 py-4 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1.5 leading-tight">{label}</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white leading-none">{value}</p>
-                {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
-              </div>
-            ))}
-            <div className="px-4 py-4 flex flex-col items-center justify-center gap-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-gray-400">Nivel</p>
-              <NivelBadge nivel={nivelInherente} />
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-4xl font-bold text-foreground-light dark:text-foreground-dark">{ri}</span>
+              <span className="text-xs text-muted-light dark:text-muted-dark">/ 25</span>
             </div>
+            <NivelBadge nivel={nivelInherente} />
+            <p className="text-[10px] text-muted-light dark:text-muted-dark mt-2">Sin controles aplicados</p>
+          </div>
+          <div className={`rounded-xl border p-4 ${rrFinal !== null ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-900/10' : 'border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark'}`}>
+            <Label icon="verified_user">Riesgo residual</Label>
+            {rrFinal !== null ? (
+              <>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-4xl font-bold text-foreground-light dark:text-foreground-dark">{rrFinal}</span>
+                  {rrFinal < ri && (
+                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                      <span className="material-symbols-outlined text-[14px]">trending_down</span>
+                      −{ri - rrFinal}
+                    </span>
+                  )}
+                </div>
+                <NivelBadge nivel={nivelRiesgo(rrFinal)} />
+                <p className="text-[10px] text-muted-light dark:text-muted-dark mt-2">Con {controles.length} control{controles.length !== 1 ? 'es' : ''}</p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-light dark:text-muted-dark italic mt-2">Sin controles registrados</p>
+            )}
           </div>
         </div>
 
         {/* Controles */}
-        <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50 flex items-center gap-2">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px]">security</span>
-              Controles implementados
-            </p>
-            <span className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full text-[9px] font-bold">{controles.length}</span>
+        <div className="rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark overflow-hidden">
+          <div className="px-4 py-3 border-b border-border-light dark:border-border-dark flex items-center justify-between">
+            <Label icon="security">Controles implementados</Label>
+            <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full -mt-2.5">{controles.length}</span>
           </div>
-
           {controles.length === 0 ? (
-            <p className="text-xs text-gray-400 italic px-4 py-5">Sin controles registrados.</p>
+            <p className="text-sm text-muted-light dark:text-muted-dark italic px-4 py-6 text-center">Sin controles registrados.</p>
           ) : (
-            <div className="divide-y divide-gray-50 dark:divide-gray-700/40">
+            <div className="divide-y divide-border-light dark:divide-border-dark">
               {controles.map((c, idx) => {
-                const crr     = calcRiesgo(c.probabilidad_residual, c.impacto_residual);
+                const crr = calcRiesgo(c.probabilidad_residual, c.impacto_residual);
                 const nivelRR = c.nivel_riesgo_residual || nivelRiesgo(crr);
                 return (
-                  <div key={c.id_control ?? idx} className="px-4 py-3">
-                    <div className="flex items-start gap-2 mb-2.5">
-                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
-                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 flex-1 leading-relaxed">{c.descripcion}</p>
-                      {fmtFecha(c.created_at) && (
-                        <span className="text-[10px] text-gray-400 flex items-center gap-0.5 shrink-0">
-                          <span className="material-symbols-outlined text-[10px]">calendar_today</span>
-                          {fmtFecha(c.created_at)}
-                        </span>
-                      )}
+                  <div key={c.id_control ?? idx} className="p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
+                      <p className="text-sm font-semibold text-foreground-light dark:text-foreground-dark leading-relaxed flex-1">{c.descripcion}</p>
                     </div>
-                    <div className="ml-7 flex flex-wrap gap-1.5 mb-2.5">
-                      <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{c.tipo_control}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${efectividadStyle(c.nivel_efectividad)}`}>{c.nivel_efectividad}</span>
-                      <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{c.frecuencia_control}</span>
+                    <div className="ml-9 flex flex-wrap gap-1.5 mb-3">
+                      <span className="text-xs bg-background-light dark:bg-gray-700 text-muted-light dark:text-muted-dark px-2.5 py-1 rounded-full border border-border-light dark:border-border-dark capitalize flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[11px]">category</span>
+                        {c.tipo_control}
+                      </span>
+                      <span className="text-xs bg-background-light dark:bg-gray-700 text-muted-light dark:text-muted-dark px-2.5 py-1 rounded-full border border-border-light dark:border-border-dark capitalize flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[11px]">settings</span>
+                        {c.nivel_efectividad}
+                      </span>
+                      <span className="text-xs bg-background-light dark:bg-gray-700 text-muted-light dark:text-muted-dark px-2.5 py-1 rounded-full border border-border-light dark:border-border-dark capitalize flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[11px]">schedule</span>
+                        {c.frecuencia_control}
+                      </span>
                     </div>
-                    <div className="ml-7 bg-background-light dark:bg-gray-800/60 rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap">
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 shrink-0">Riesgo residual:</p>
-                      <span className="text-[11px] text-gray-500">{c.probabilidad_residual} × {c.impacto_residual} =</span>
-                      <span className="text-base font-bold text-gray-800 dark:text-white">{crr}</span>
+                    <div className="ml-9 bg-background-light dark:bg-gray-800/60 rounded-xl px-4 py-2.5 border border-border-light dark:border-border-dark flex items-center gap-3 flex-wrap">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-light dark:text-muted-dark shrink-0">Riesgo residual</span>
+                      <span className="text-xs text-muted-light dark:text-muted-dark">P {c.probabilidad_residual} × I {c.impacto_residual} =</span>
+                      <span className="text-lg font-bold text-foreground-light dark:text-foreground-dark">{crr}</span>
                       <NivelBadge nivel={nivelRR} />
                       {crr < ri && (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5 ml-1">
-                          <span className="material-symbols-outlined text-[11px]">trending_down</span>
-                          −{ri - crr}
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5 ml-auto">
+                          <span className="material-symbols-outlined text-[13px]">trending_down</span>
+                          −{ri - crr} vs inherente
                         </span>
                       )}
                     </div>
@@ -1517,28 +1512,25 @@ function MatrizDetalleModal({ riesgo, onClose }) {
 
         {/* Registrado por */}
         {(usuario || riesgo.created_at) && (
-          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2.5 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[12px]">manage_accounts</span>
-              Registrado por
-            </p>
+          <div className="rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark px-4 py-4">
+            <Label icon="manage_accounts">Registrado por</Label>
             <div className="flex items-center gap-3">
-              <span className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0 uppercase">
+              <span className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shrink-0 uppercase">
                 {((usuario?.nombre?.[0] || '') + (usuario?.apellido_paterno?.[0] || '')) || '?'}
               </span>
               <div className="min-w-0">
                 {usuario ? (
                   <>
-                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">
+                    <p className="text-sm font-semibold text-foreground-light dark:text-foreground-dark">
                       {[usuario.nombre, usuario.apellido_paterno, usuario.apellido_materno].filter(Boolean).join(' ')}
                     </p>
-                    {usuario.email && <p className="text-xs text-gray-400 mt-0.5">{usuario.email}</p>}
+                    {usuario.email && <p className="text-xs text-muted-light dark:text-muted-dark mt-0.5">{usuario.email}</p>}
                   </>
                 ) : (
-                  <p className="text-sm text-gray-400 italic">Usuario no disponible</p>
+                  <p className="text-sm text-muted-light dark:text-muted-dark italic">Usuario no disponible</p>
                 )}
                 {fmtFecha(riesgo.created_at) && (
-                  <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                  <p className="text-xs text-muted-light dark:text-muted-dark mt-1 flex items-center gap-1">
                     <span className="material-symbols-outlined text-[11px]">calendar_today</span>
                     {fmtFecha(riesgo.created_at)}
                   </p>
