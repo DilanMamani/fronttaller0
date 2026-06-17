@@ -869,7 +869,7 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
           <div className="px-4 pb-3 border-t border-border-light dark:border-border-dark pt-3">
             <p className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-1 flex items-center gap-1">
               <span className="material-symbols-outlined text-[11px]">report_problem</span>
-              Consecuencia potencial
+              Descripción del riesgo / consecuencia
             </p>
             <p className="text-xs text-foreground-light dark:text-foreground-dark leading-relaxed">{riesgo.consecuencia}</p>
           </div>
@@ -1169,6 +1169,7 @@ function TabRiesgos({ showToast }) {
                 const listoParaPublicar = controles.length > 0;
 
                 const vulns = r.vulnerabilidades || [];
+                const activoInfo = activos.find(a => a.id_activo === r.activo_id) || r.activo || {};
 
                 return (
                   <button key={r.id_riesgo} onClick={() => setDetalle(isSelected ? null : r)}
@@ -1185,13 +1186,13 @@ function TabRiesgos({ showToast }) {
                           Activo de información
                         </p>
                         <p className="font-semibold text-sm text-foreground-light dark:text-foreground-dark truncate">
-                          {r.activo?.nombre || `Activo #${r.activo_id}`}
+                          {activoInfo.nombre || `Activo #${r.activo_id}`}
                         </p>
-                        {r.activo?.tipo && (
-                          <span className="text-[10px] text-muted-light dark:text-muted-dark capitalize">{r.activo.tipo}</span>
+                        {activoInfo.tipo && (
+                          <span className="text-[10px] text-muted-light dark:text-muted-dark capitalize">{activoInfo.tipo}</span>
                         )}
-                        {r.activo?.descripcion && (
-                          <p className="text-[10px] text-muted-light dark:text-muted-dark mt-0.5 line-clamp-2 leading-snug">{r.activo.descripcion}</p>
+                        {activoInfo.descripcion && (
+                          <p className="text-[10px] text-muted-light dark:text-muted-dark mt-0.5 line-clamp-2 leading-snug">{activoInfo.descripcion}</p>
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -1228,7 +1229,7 @@ function TabRiesgos({ showToast }) {
                     <div className="mb-2">
                       <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5 flex items-center gap-1">
                         <span className="material-symbols-outlined text-[10px]">report_problem</span>
-                        Consecuencia
+                        Descripción del riesgo / consecuencia
                       </p>
                       <p className="text-[11px] text-muted-light dark:text-muted-dark line-clamp-2 leading-relaxed">{r.consecuencia}</p>
                     </div>

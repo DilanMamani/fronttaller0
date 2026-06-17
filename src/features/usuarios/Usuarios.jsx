@@ -123,8 +123,8 @@ export default function Usuarios() {
   );
 
   const existingUsernames = useMemo(
-    () => allUsuarios.map((u) => u.nombre_usuario).filter(Boolean),
-    [allUsuarios]
+    () => usuarios.map((u) => u.nombre_usuario).filter(Boolean),
+    [usuarios]
   );
 
   const usuarioFields = useMemo(
