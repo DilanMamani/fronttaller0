@@ -35,7 +35,7 @@ function UsernameSuggestField({ field, values, setValues }) {
       .replace(/[^a-z0-9._]/g, '');
 
   const ap = norm(values.apellido_paterno);
-  const nm = norm((values.nombre || '').trim().split(/\s+/)[0]);
+  const nm = norm(values.nombre);
   const am = norm(values.apellido_materno);
   const fn = values.fecha_nacimiento
     ? values.fecha_nacimiento.split('-').reverse().join('')
