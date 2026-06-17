@@ -92,7 +92,7 @@ export default function Login() {
       Swal.fire({
         icon: 'warning',
         title: 'Campos incompletos',
-        text: 'Por favor ingrese email o User ID y contraseña',
+        text: 'Por favor nombre de usuario y contraseña',
       });
       return;
     }
