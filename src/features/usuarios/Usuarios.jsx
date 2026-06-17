@@ -89,6 +89,7 @@ export default function Usuarios() {
     dispatch(fetchRoles());
     dispatch(fetchParroquias({}));
     dispatch(fetchUsuarios({ page: 1 }));
+    dispatch(fetchAllUsuarios());
     dispatch(fetchDominiosPermitidos());
   }, [dispatch]);
 
@@ -121,12 +122,18 @@ export default function Usuarios() {
     (p) => !p.parroco
   );
 
+  const existingUsernames = useMemo(
+    () => allUsuarios.map((u) => u.nombre_usuario).filter(Boolean),
+    [allUsuarios]
+  );
+
   const usuarioFields = useMemo(
   () =>
     buildUsuarioFields({
       roles,
       parroquias: parroquiasDisponibles,
       dominios,
+      existingUsernames,
       isLoadingRoles,
       isLoadingParroquias,
       mostrarParroquia: mostrarParroquiaEnAdd,
@@ -136,6 +143,7 @@ export default function Usuarios() {
     roles,
     allParroquias,
     dominios,
+    existingUsernames,
     isLoadingRoles,
     isLoadingParroquias,
     mostrarParroquiaEnAdd,
@@ -182,6 +190,7 @@ export default function Usuarios() {
   formAdd.nombre?.trim() &&
   formAdd.nombre.trim().length >= 2 &&
   Object.keys(nameErrors).length === 0 &&
+  formAdd.nombre_usuario?.trim() &&
   formAdd.email?.trim() &&
   /\S+@\S+\.\S+/.test(formAdd.email) &&
   formAdd.id_rol &&
@@ -192,6 +201,7 @@ export default function Usuarios() {
     nombre: formAdd.nombre?.trim(),
     apellido_paterno: formAdd.apellido_paterno?.trim() || undefined,
     apellido_materno: formAdd.apellido_materno?.trim() || undefined,
+    nombre_usuario: formAdd.nombre_usuario?.trim() || undefined,
     email: formAdd.email?.trim(),
     password: formAdd.password || undefined,
     fecha_nacimiento: formAdd.fecha_nacimiento || undefined,
@@ -541,6 +551,10 @@ export default function Usuarios() {
                 {[pendingPayload.nombre, pendingPayload.apellido_paterno, pendingPayload.apellido_materno]
                   .filter(Boolean)
                   .join(' ')}
+              </li>
+              <li>
+                <strong>Usuario:</strong>{' '}
+                <span className="font-mono">{pendingPayload.nombre_usuario || '—'}</span>
               </li>
               <li>
                 <strong>Email:</strong> {pendingPayload.email}

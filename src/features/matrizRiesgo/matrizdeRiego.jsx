@@ -80,10 +80,10 @@ function ScaleInput({ label, name, value, onChange, max = 5 }) {
 }
 
 function InputText({ label, name, value, onChange, placeholder, required, textarea, rows = 2, disabled }) {
-  const cls = `w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm${disabled ? ' opacity-50 cursor-not-allowed' : ''}`;
+  const cls = `w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary p-3 text-sm text-foreground-light dark:text-foreground-dark transition-colors${disabled ? ' opacity-50 cursor-not-allowed' : ''}`;
   return (
     <div>
-      <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+      <label className="flex items-center text-sm font-medium text-foreground-light dark:text-foreground-dark mb-1">
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {textarea
@@ -97,9 +97,9 @@ function InputText({ label, name, value, onChange, placeholder, required, textar
 function SelectField({ label, name, value, onChange, options }) {
   return (
     <div>
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">{label}</label>
+      <label className="text-sm font-medium text-foreground-light dark:text-foreground-dark mb-1 block">{label}</label>
       <select name={name} value={value} onChange={onChange}
-        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm">
+        className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary p-3 text-sm text-foreground-light dark:text-foreground-dark transition-colors">
         {options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}
       </select>
     </div>
@@ -116,10 +116,10 @@ function Spinner() {
 
 function SectionCard({ title, children, action }) {
   return (
-    <div className="bg-white dark:bg-background-dark/50 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm overflow-hidden border border-border-light dark:border-border-dark">
       {(title || action) && (
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-4">
-          {title && <h3 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h3>}
+        <div className="px-6 py-4 border-b border-border-light dark:border-border-dark flex items-center justify-between gap-4">
+          {title && <h3 className="text-base font-semibold text-foreground-light dark:text-foreground-dark">{title}</h3>}
           {action}
         </div>
       )}
@@ -431,7 +431,7 @@ const getTipoLabel = (tipo) => {
 
 const VULN_INIT = { nombre: '', descripcion: '', tipo: 'amenaza_natural' };
 
-const selectCls = 'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm';
+const selectCls = 'w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary p-3 text-sm text-foreground-light dark:text-foreground-dark transition-colors';
 
 function FormVulnerabilidad({ initial = VULN_INIT, onSubmit, onCancel, isSaving, isEditing }) {
   const [form, setForm] = useState({ ...initial });
@@ -654,7 +654,7 @@ function FormRiesgo({ activos, vulnerabilidades, onSubmit, onCancel, isSaving })
           </p>
         ) : (
           <select name="activo_id" value={form.activo_id} onChange={handle}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary p-3 text-sm">
+            className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary p-3 text-sm text-foreground-light dark:text-foreground-dark transition-colors">
             <option value="">— Selecciona un activo —</option>
             {activos.map(a => (
               <option key={a.id_activo} value={a.id_activo}>{a.nombre} ({a.tipo})</option>
@@ -706,7 +706,7 @@ function FormRiesgo({ activos, vulnerabilidades, onSubmit, onCancel, isSaving })
         placeholder="Describe el impacto potencial si el riesgo se materializa" textarea rows={3} required />
 
       {/* Riesgo inherente */}
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-4">
+      <div className="bg-background-light dark:bg-gray-800/60 rounded-xl p-4 space-y-4 border border-border-light dark:border-border-dark">
         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           Evaluación del Riesgo Inherente (sin controles)
         </p>
@@ -762,7 +762,7 @@ function FormControl({ riesgoInherente, onSubmit, onCancel, isSaving }) {
         <SelectField label="Frecuencia" name="frecuencia_control" value={form.frecuencia_control} onChange={handle} options={FRECUENCIAS} />
       </div>
 
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-4">
+      <div className="bg-background-light dark:bg-gray-800/60 rounded-xl p-4 space-y-4 border border-border-light dark:border-border-dark">
         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           Riesgo Residual (después de este control)
         </p>
@@ -834,36 +834,84 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
   return (
     <div className="space-y-3">
 
-      {/* ── Cabecera: activo + valores ── */}
-      <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+      {/* ── Cabecera: activo + consecuencia + evaluación ── */}
+      <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
+
         {/* Activo */}
         <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Activo de información</p>
-            <p className="font-bold text-gray-900 dark:text-white text-sm leading-tight">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[11px]">dns</span>
+              Activo de información
+            </p>
+            <p className="font-bold text-foreground-light dark:text-foreground-dark text-sm leading-tight">
               {activo.nombre || riesgo.activo?.nombre || `Activo #${riesgo.activo_id}`}
             </p>
-            {(activo.tipo || riesgo.activo?.tipo) && (
-              <p className="text-[11px] text-gray-400 capitalize mt-0.5">{activo.tipo || riesgo.activo?.tipo}</p>
-            )}
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              {(activo.tipo || riesgo.activo?.tipo) && (
+                <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-muted-light dark:text-muted-dark px-2 py-0.5 rounded-full capitalize">
+                  {activo.tipo || riesgo.activo?.tipo}
+                </span>
+              )}
+              {(activo.propietario || riesgo.activo?.propietario) && (
+                <span className="text-[10px] text-muted-light dark:text-muted-dark flex items-center gap-0.5">
+                  <span className="material-symbols-outlined text-[10px]">person</span>
+                  {activo.propietario || riesgo.activo?.propietario}
+                </span>
+              )}
+            </div>
           </div>
           <NivelBadge nivel={nivelRiesgo(ri)} />
         </div>
 
+        {/* Consecuencia */}
         {riesgo.consecuencia && (
-          <div className="px-4 pb-3 border-t border-gray-50 dark:border-gray-700/50 pt-3">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Consecuencia potencial</p>
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{riesgo.consecuencia}</p>
+          <div className="px-4 pb-3 border-t border-border-light dark:border-border-dark pt-3">
+            <p className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-1 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[11px]">report_problem</span>
+              Consecuencia potencial
+            </p>
+            <p className="text-xs text-foreground-light dark:text-foreground-dark leading-relaxed">{riesgo.consecuencia}</p>
           </div>
         )}
 
-        {/* Inherente → Residual */}
-        <div className="px-4 pb-4 border-t border-gray-50 dark:border-gray-700/50 pt-3">
+        {/* Vulnerabilidades / Amenazas */}
+        {vulns.length > 0 && (
+          <div className="px-4 pb-3 border-t border-border-light dark:border-border-dark pt-3">
+            <p className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-2 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[11px]">bug_report</span>
+              Vulnerabilidades / Amenazas asociadas ({vulns.length})
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {vulns.map(v => (
+                <span key={v.id_vulnerabilidad}
+                  className={`text-[11px] px-2.5 py-1 rounded-full font-medium flex items-center gap-1 border
+                    ${getGrupo(v.tipo) === 'amenaza'
+                      ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/30'
+                      : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30'}`}>
+                  <span className="material-symbols-outlined text-[11px]">
+                    {getGrupo(v.tipo) === 'amenaza' ? 'warning' : 'lock_open'}
+                  </span>
+                  {v.nombre}
+                  <span className="opacity-50 text-[9px]">({getTipoLabel(v.tipo)})</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Evaluación inherente → residual */}
+        <div className="px-4 pb-4 border-t border-border-light dark:border-border-dark pt-3">
+          <p className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-2">Evaluación del riesgo</p>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            {[{ label: 'Inherente', val: ri }, { label: 'Residual', val: rr }].map(({ label, val }) => (
-              <div key={label} className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">{label}</p>
-                <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 leading-none">{val}</p>
+            {[
+              { label: 'Riesgo Inherente', sub: `P ${riesgo.probabilidad_inherente} × I ${riesgo.impacto_inherente}`, val: ri },
+              { label: 'Riesgo Residual',  sub: controles.length ? `después de ${controles.length} control${controles.length !== 1 ? 'es' : ''}` : 'sin controles aún', val: rr },
+            ].map(({ label, sub, val }) => (
+              <div key={label} className="bg-background-light dark:bg-gray-800/60 rounded-xl p-3 text-center border border-border-light dark:border-border-dark">
+                <p className="text-[10px] uppercase tracking-wider text-muted-light dark:text-muted-dark mb-0.5">{label}</p>
+                <p className="text-[10px] text-muted-light dark:text-muted-dark mb-1">{sub}</p>
+                <p className="text-2xl font-bold text-foreground-light dark:text-foreground-dark leading-none">{val}</p>
                 <div className="mt-2 flex justify-center">
                   <NivelBadge nivel={nivelRiesgo(val)} />
                 </div>
@@ -873,65 +921,39 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
           {reduccion > 0 && (
             <div className="flex items-center justify-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
               <span className="material-symbols-outlined text-[13px]">trending_down</span>
-              Reducción de {reduccion} punto{reduccion !== 1 ? 's' : ''}
+              Reducción de {reduccion} punto{reduccion !== 1 ? 's' : ''} gracias a los controles
             </div>
           )}
         </div>
 
-        {/* Metadatos */}
-        <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-700/50 flex items-center gap-3 flex-wrap">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Tratamiento:</span>
-          <span className="text-[10px] bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full font-medium">
+        {/* Tratamiento */}
+        <div className="px-4 py-2.5 bg-background-light dark:bg-gray-800/40 border-t border-border-light dark:border-border-dark flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] text-muted-light dark:text-muted-dark uppercase tracking-wider">Tratamiento del riesgo:</span>
+          <span className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-300 border border-primary/20 dark:border-primary/30 px-2.5 py-0.5 rounded-full font-semibold">
+            <span className="material-symbols-outlined text-[11px]">shield</span>
             {riesgo.tratamiento}
-          </span>
-          <span className="text-[10px] text-gray-400 ml-auto">
-            P {riesgo.probabilidad_inherente} × I {riesgo.impacto_inherente} = <strong>{ri}</strong>
           </span>
         </div>
       </div>
 
-      {/* ── Amenazas / Vulnerabilidades ── */}
-      {vulns.length > 0 && (
-        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
-          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[13px]">bug_report</span>
-            Amenazas y vulnerabilidades
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {vulns.map(v => (
-              <span key={v.id_vulnerabilidad}
-                className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 border
-                  ${getGrupo(v.tipo) === 'amenaza'
-                    ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/30'
-                    : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30'}`}>
-                <span className="material-symbols-outlined text-[11px]">
-                  {getGrupo(v.tipo) === 'amenaza' ? 'warning' : 'lock_open'}
-                </span>
-                {v.nombre}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── Controles ── */}
-      <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
-          <p className="text-sm font-semibold text-gray-800 dark:text-white flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[15px] text-gray-400">security</span>
+      <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-border-light dark:border-border-dark flex items-center justify-between">
+          <p className="text-sm font-semibold text-foreground-light dark:text-foreground-dark flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[15px] text-muted-light dark:text-muted-dark">security</span>
             Controles
-            <span className="text-xs font-normal text-gray-400">({controles.length})</span>
+            <span className="text-xs font-normal text-muted-light dark:text-muted-dark">({controles.length})</span>
           </p>
-          {!riesgo.en_matriz && !addCtrl && (
-            <Btn size="sm" onClick={() => setAddCtrl(true)} icon="add">Agregar</Btn>
+          {!riesgo.en_matriz && (
+            <Btn size="sm" onClick={() => setAddCtrl(true)} icon="add">Agregar control</Btn>
           )}
         </div>
 
-        {!controles.length && !addCtrl && (
+        {!controles.length && (
           <div className="text-center py-8 px-4">
             <span className="material-symbols-outlined text-4xl text-gray-200 dark:text-gray-700 block mb-2">shield</span>
-            <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">Sin controles aún</p>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Agrega al menos uno para poder publicar.</p>
+            <p className="text-xs text-muted-light dark:text-muted-dark font-medium">Sin controles aún</p>
+            <p className="text-[11px] text-muted-light dark:text-muted-dark mt-0.5">Agrega al menos uno para poder publicar.</p>
             {!riesgo.en_matriz && (
               <div className="mt-3">
                 <Btn size="sm" onClick={() => setAddCtrl(true)} icon="add">Agregar primer control</Btn>
@@ -940,7 +962,7 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
           </div>
         )}
 
-        <div className="divide-y divide-gray-50 dark:divide-gray-700/40">
+        <div className="divide-y divide-border-light dark:divide-border-dark">
           {controles.map((c, idx) => {
             const crr = calcRiesgo(c.probabilidad_residual, c.impacto_residual);
             return (
@@ -949,40 +971,42 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
                   <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                     {idx + 1}
                   </span>
-                  <p className="text-xs text-gray-700 dark:text-gray-300 flex-1 leading-relaxed">{c.descripcion}</p>
+                  <p className="text-xs text-foreground-light dark:text-foreground-dark flex-1 leading-relaxed">{c.descripcion}</p>
                   {!riesgo.en_matriz && (
                     <IconBtn icon="delete" title="Eliminar control" variant="danger"
                       onClick={() => handleDeleteControl(c.id_control)} />
                   )}
                 </div>
-                <div className="ml-7 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{c.tipo_control}</span>
-                  <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">{c.nivel_efectividad}</span>
-                  <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">{c.frecuencia_control}</span>
-                  <div className="ml-auto flex items-center gap-1 text-[10px] text-gray-400">
-                    Residual <strong className="text-gray-600 dark:text-gray-300 font-bold mx-0.5">{crr}</strong>
-                    <NivelBadge nivel={nivelRiesgo(crr)} />
+                <div className="ml-7 grid grid-cols-3 gap-2 mb-2">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5">Tipo</p>
+                    <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-foreground-light dark:text-foreground-dark px-2 py-0.5 rounded-full capitalize">{c.tipo_control}</span>
                   </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5">Nivel</p>
+                    <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-foreground-light dark:text-foreground-dark px-2 py-0.5 rounded-full">{c.nivel_efectividad}</span>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5">Frecuencia</p>
+                    <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-foreground-light dark:text-foreground-dark px-2 py-0.5 rounded-full capitalize">{c.frecuencia_control}</span>
+                  </div>
+                </div>
+                <div className="ml-7 bg-background-light dark:bg-gray-800/60 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark shrink-0">Riesgo residual:</p>
+                  <span className="text-[11px] text-muted-light dark:text-muted-dark">{c.probabilidad_residual} × {c.impacto_residual} =</span>
+                  <span className="text-sm font-bold text-foreground-light dark:text-foreground-dark">{crr}</span>
+                  <NivelBadge nivel={nivelRiesgo(crr)} />
+                  {crr < ri && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5 ml-1">
+                      <span className="material-symbols-outlined text-[11px]">trending_down</span>
+                      −{ri - crr}
+                    </span>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
-
-        {addCtrl && (
-          <div className="p-4 border-t border-primary/20 bg-primary/5 dark:bg-primary/10">
-            <p className="text-xs font-semibold text-primary mb-3 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]">add_circle</span>
-              Nuevo control
-            </p>
-            <FormControl
-              riesgoInherente={ri}
-              onSubmit={handleAddControl}
-              onCancel={() => setAddCtrl(false)}
-              isSaving={isSaving}
-            />
-          </div>
-        )}
       </div>
 
       {/* ── Publicar ── */}
@@ -1000,19 +1024,50 @@ function RiesgoDetallePanel({ riesgo, onPublicar, isSaving, showToast }) {
       )}
 
       {!riesgo.en_matriz && controles.length === 0 && (
-        <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
-          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-4 py-3">
+          <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5 font-medium">
             <span className="material-symbols-outlined text-[14px]">warning</span>
-            Necesitas agregar al menos un control para publicar este riesgo.
+            Necesitas agregar al menos un control para poder publicar este riesgo.
           </p>
         </div>
       )}
 
       {riesgo.en_matriz && (
-        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl px-4 py-3">
           <span className="material-symbols-outlined text-base">verified</span>
-          Publicado en la Matriz — solo lectura
+          <span className="font-medium">Publicado en la Matriz</span>
+          <span className="text-muted-light dark:text-muted-dark text-xs ml-1">— este riesgo es solo lectura</span>
         </div>
+      )}
+
+      {/* ── Modal: nuevo control ── */}
+      {addCtrl && (
+        <Modal title="Agregar control" onClose={() => setAddCtrl(false)} maxW="max-w-2xl">
+          {/* Contexto del riesgo */}
+          <div className="mb-5 bg-background-light dark:bg-gray-800/60 rounded-xl border border-border-light dark:border-border-dark px-4 py-3 flex items-start gap-3">
+            <span className="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">dns</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5">Activo afectado</p>
+              <p className="text-sm font-semibold text-foreground-light dark:text-foreground-dark truncate">
+                {activo.nombre || `Activo #${riesgo.activo_id}`}
+              </p>
+              {activo.tipo && <p className="text-[11px] text-muted-light dark:text-muted-dark capitalize mt-0.5">{activo.tipo}</p>}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-[10px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-1">Riesgo inherente</p>
+              <div className="flex items-center gap-1.5 justify-end">
+                <span className="text-lg font-bold text-foreground-light dark:text-foreground-dark">{ri}</span>
+                <NivelBadge nivel={nivelRiesgo(ri)} />
+              </div>
+            </div>
+          </div>
+          <FormControl
+            riesgoInherente={ri}
+            onSubmit={handleAddControl}
+            onCancel={() => setAddCtrl(false)}
+            isSaving={isSaving}
+          />
+        </Modal>
       )}
     </div>
   );
@@ -1113,35 +1168,93 @@ function TabRiesgos({ showToast }) {
                 const isSelected = detalle?.id_riesgo === r.id_riesgo;
                 const listoParaPublicar = controles.length > 0;
 
+                const vulns = r.vulnerabilidades || [];
+
                 return (
                   <button key={r.id_riesgo} onClick={() => setDetalle(isSelected ? null : r)}
                     className={`w-full text-left rounded-xl border p-4 transition-all
                       ${isSelected
-                        ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm'
-                        : 'border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'}`}>
-                    <div className="flex items-start justify-between mb-1.5">
-                      <p className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate max-w-[70%]">
-                        {r.activo?.nombre || `Activo #${r.activo_id}`}
-                      </p>
-                      <NivelBadge nivel={nivelRiesgo(ri)} />
+                        ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm ring-1 ring-primary/20'
+                        : 'border-border-light dark:border-border-dark hover:border-primary/40 hover:shadow-sm'}`}>
+
+                    {/* Fila superior: activo + badge */}
+                    <div className="flex items-start justify-between mb-2 gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[10px]">dns</span>
+                          Activo de información
+                        </p>
+                        <p className="font-semibold text-sm text-foreground-light dark:text-foreground-dark truncate">
+                          {r.activo?.nombre || `Activo #${r.activo_id}`}
+                        </p>
+                        {r.activo?.tipo && (
+                          <span className="text-[10px] text-muted-light dark:text-muted-dark capitalize">{r.activo.tipo}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <NivelBadge nivel={nivelRiesgo(ri)} />
+                        <span className="text-[9px] text-muted-light dark:text-muted-dark">inherente {ri}</span>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{r.consecuencia}</p>
-                    <div className="flex items-center gap-3 text-xs text-gray-400">
-                      <span>Inherente: <strong className="text-gray-600 dark:text-gray-300">{ri}</strong></span>
+
+                    {/* Vulnerabilidades / Amenazas */}
+                    {vulns.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-1 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[10px]">bug_report</span>
+                          Vulnerabilidades / Amenazas
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {vulns.map(v => (
+                            <span key={v.id_vulnerabilidad}
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-0.5 border
+                                ${getGrupo(v.tipo) === 'amenaza'
+                                  ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800/30'
+                                  : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30'}`}>
+                              <span className="material-symbols-outlined text-[10px]">
+                                {getGrupo(v.tipo) === 'amenaza' ? 'warning' : 'lock_open'}
+                              </span>
+                              {v.nombre}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Consecuencia */}
+                    <div className="mb-2">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-light dark:text-muted-dark mb-0.5 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[10px]">report_problem</span>
+                        Consecuencia
+                      </p>
+                      <p className="text-[11px] text-muted-light dark:text-muted-dark line-clamp-2 leading-relaxed">{r.consecuencia}</p>
+                    </div>
+
+                    {/* Footer: scores + controles + tratamiento */}
+                    <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border-light dark:border-border-dark">
+                      <span className="text-[10px] text-muted-light dark:text-muted-dark">
+                        R. Inherente: <strong className="text-foreground-light dark:text-foreground-dark">{ri}</strong>
+                      </span>
                       {rr !== null && (
                         <>
-                          <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
-                          <span>Residual: <strong className="text-gray-600 dark:text-gray-300">{rr}</strong></span>
+                          <span className="material-symbols-outlined text-[11px] text-muted-light dark:text-muted-dark">arrow_forward</span>
+                          <span className="text-[10px] text-muted-light dark:text-muted-dark">
+                            Residual: <strong className="text-foreground-light dark:text-foreground-dark">{rr}</strong>
+                          </span>
                         </>
                       )}
-                      <span className="ml-auto flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[12px]">security</span>
+                      <span className="ml-auto inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                        <span className="material-symbols-outlined text-[11px]">shield</span>
+                        {r.tratamiento}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-light dark:text-muted-dark">
+                        <span className="material-symbols-outlined text-[11px]">security</span>
                         {controles.length} control{controles.length !== 1 ? 'es' : ''}
                       </span>
                       {listoParaPublicar && (
-                        <span className="text-emerald-500 flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                          Listo
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span className="material-symbols-outlined text-[11px]">check_circle</span>
+                          Listo para publicar
                         </span>
                       )}
                     </div>
@@ -1253,7 +1366,7 @@ function MatrizDetalleModal({ riesgo, onClose }) {
         </div>
 
         {/* Activo */}
-        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+        <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
           <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px]">dns</span>
@@ -1278,7 +1391,7 @@ function MatrizDetalleModal({ riesgo, onClose }) {
 
         {/* Amenazas / Vulnerabilidades */}
         {vulns.length > 0 && (
-          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px]">bug_report</span>
               Amenazas y vulnerabilidades asociadas
@@ -1303,14 +1416,14 @@ function MatrizDetalleModal({ riesgo, onClose }) {
 
         {/* Consecuencia + Tratamiento */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px]">report_problem</span>
               Consecuencia potencial
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{riesgo.consecuencia}</p>
           </div>
-          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px]">tune</span>
               Tratamiento
@@ -1323,7 +1436,7 @@ function MatrizDetalleModal({ riesgo, onClose }) {
         </div>
 
         {/* Evaluación inherente */}
-        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+        <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
           <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px]">analytics</span>
@@ -1350,7 +1463,7 @@ function MatrizDetalleModal({ riesgo, onClose }) {
         </div>
 
         {/* Controles */}
-        <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+        <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
           <div className="px-4 py-2.5 border-b border-gray-50 dark:border-gray-700/50 flex items-center gap-2">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px]">security</span>
@@ -1383,7 +1496,7 @@ function MatrizDetalleModal({ riesgo, onClose }) {
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${efectividadStyle(c.nivel_efectividad)}`}>{c.nivel_efectividad}</span>
                       <span className="text-[10px] bg-gray-100 dark:bg-gray-700/60 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full capitalize">{c.frecuencia_control}</span>
                     </div>
-                    <div className="ml-7 bg-gray-50 dark:bg-gray-800/60 rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap">
+                    <div className="ml-7 bg-background-light dark:bg-gray-800/60 rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap">
                       <p className="text-[10px] uppercase tracking-wider text-gray-400 shrink-0">Riesgo residual:</p>
                       <span className="text-[11px] text-gray-500">{c.probabilidad_residual} × {c.impacto_residual} =</span>
                       <span className="text-base font-bold text-gray-800 dark:text-white">{crr}</span>
@@ -1404,7 +1517,7 @@ function MatrizDetalleModal({ riesgo, onClose }) {
 
         {/* Registrado por */}
         {(usuario || riesgo.created_at) && (
-          <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm px-4 py-3">
+          <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm px-4 py-3">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2.5 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px]">manage_accounts</span>
               Registrado por
@@ -1473,7 +1586,7 @@ function HeatMatrix({ riesgos }) {
   };
 
   return (
-    <div className="bg-white dark:bg-background-dark/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm overflow-hidden">
+    <div className="bg-card-light dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
       {/* Header colapsable */}
       <button
         type="button"

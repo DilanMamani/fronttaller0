@@ -23,36 +23,98 @@ const getTokens = (s) => {
   return tokens;
 };
 
-function EmailBuilderField({ field, values, setValues, errors = {} }) {
-  const hasErrors = !!(errors.nombre || errors.apellido_paterno || errors.apellido_materno);
+const inputBaseCls = `w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-background-dark px-4 py-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all`;
 
-  const tokenGroups = [
-    { label: 'Nombre',       tokens: getTokens(values.nombre) },
-    { label: 'Ap. paterno',  tokens: getTokens(values.apellido_paterno) },
-    { label: 'Ap. materno',  tokens: getTokens(values.apellido_materno) },
-  ].filter((g) => g.tokens.length > 0);
+function UsernameSuggestField({ field, values, setValues }) {
+  const norm = (s) =>
+    (s || '').trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9._]/g, '');
 
-  const hasNames = tokenGroups.length > 0 && !hasErrors;
+  const ap = norm(values.apellido_paterno);
+  const nm = norm((values.nombre || '').trim().split(/\s+/)[0]);
+  const am = norm(values.apellido_materno);
+  const fn = values.fecha_nacimiento
+    ? values.fecha_nacimiento.split('-').reverse().join('')
+    : '';
 
+  const taken = new Set(field.existingUsernames || []);
+  const currentValue = values[field.name] || '';
+
+  const suggestions = [];
+  if (ap && nm) {
+    const base = `${ap}.${nm}`;
+    const withAM = am ? `${base}.${am[0]}` : null;
+    const withDate = fn ? `${base}.${fn}` : null;
+    suggestions.push({ id: 'base', label: base });
+    if (withAM) suggestions.push({ id: 'am', label: withAM });
+    if (withDate) suggestions.push({ id: 'date', label: withDate });
+  }
+
+  const handleSelect = (s) => {
+    if (!taken.has(s.label))
+      setValues((prev) => ({ ...prev, [field.name]: s.label }));
+  };
+
+  const handleChange = (e) => {
+    const v = e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '');
+    setValues((prev) => ({ ...prev, [field.name]: v }));
+  };
+
+  return (
+    <div className="space-y-2">
+      {suggestions.length > 0 ? (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-gray-400 dark:text-gray-500">Sugerencias:</span>
+          {suggestions.map((s) => {
+            const isTaken = taken.has(s.label);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => handleSelect(s)}
+                disabled={isTaken}
+                title={isTaken ? 'Ya está en uso' : 'Clic para usar'}
+                className={`px-3 py-1 rounded-full text-xs font-mono border transition-all
+                  ${isTaken
+                    ? 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 line-through cursor-not-allowed'
+                    : currentValue === s.label
+                      ? 'bg-primary text-white border-primary'
+                      : 'border-primary text-primary hover:bg-primary hover:text-white cursor-pointer'}`}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+          Ingresa nombre y apellido paterno para ver sugerencias
+        </p>
+      )}
+      <input
+        type="text"
+        value={currentValue}
+        onChange={handleChange}
+        placeholder="apellido.nombre"
+        className={`${inputBaseCls} font-mono`}
+      />
+    </div>
+  );
+}
+
+function EmailBuilderField({ field, values, setValues }) {
   const activeDomains = (field.domains || []).filter((d) => d.activo);
 
-  const [selected, setSelected] = useState([]);
-  const [domain,   setDomain]   = useState(activeDomains[0]?.dominio || '');
-
-  const nNorm  = normalizeStr(values.nombre);
-  const apNorm = normalizeStr(values.apellido_paterno);
-  const amNorm = normalizeStr(values.apellido_materno);
-
-  useEffect(() => {
-    setSelected([]);
-    setValues((prev) => ({ ...prev, [field.name]: '' }));
-  }, [nNorm, apNorm, amNorm, hasErrors]);
+  const [prefix, setPrefix] = useState('');
+  const [domain, setDomain] = useState(activeDomains[0]?.dominio || '');
 
   useEffect(() => {
     if (!domain && activeDomains[0]?.dominio) setDomain(activeDomains[0].dominio);
   }, [activeDomains.length]);
-
-  const prefix = selected.map((s) => s.token).join('');
 
   useEffect(() => {
     const email = prefix && domain ? `${prefix}@${domain}` : '';
@@ -61,125 +123,49 @@ function EmailBuilderField({ field, values, setValues, errors = {} }) {
 
   const assembled = prefix && domain ? `${prefix}@${domain}` : '';
 
-  const isTokenSelected = (gi, ti) =>
-    selected.some((s) => s.groupIdx === gi && s.tokenIdx === ti);
-
-  const addToken = (token, gi, ti) => {
-    if (isTokenSelected(gi, ti)) return;
-    setSelected((prev) => [...prev, { id: Date.now() + Math.random(), token, groupIdx: gi, tokenIdx: ti }]);
-  };
-
-  const addDot = () =>
-    setSelected((prev) => [...prev, { id: Date.now() + Math.random(), token: '.', isDot: true }]);
-
-  const removeToken = (id) => setSelected((prev) => prev.filter((s) => s.id !== id));
-
   return (
     <div className="space-y-3">
-      {/* Bloques disponibles */}
-      <div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-          Toca las piezas para armar el nombre de usuario:
-        </p>
-        {hasErrors ? (
-          <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[13px]">warning</span>
-            Corrige los errores en nombre y apellidos primero
+      {/* Prefix input + domain inline */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={prefix}
+          onChange={(e) => setPrefix(e.target.value.replace(/\s/g, ''))}
+          placeholder="nombre.usuario"
+          className={`${inputBaseCls} font-mono flex-1`}
+        />
+        <span className="text-gray-400 dark:text-gray-500 font-mono text-sm shrink-0 select-none">@</span>
+        {activeDomains.length === 1 && (
+          <span className="text-sm font-mono text-gray-700 dark:text-gray-300 shrink-0">
+            {activeDomains[0].dominio}
           </span>
-        ) : !hasNames ? (
-          <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-            Ingrese nombre y apellido paterno para ver las opciones
-          </span>
-        ) : (
-          <div className="space-y-2">
-            {tokenGroups.map((group, gi) => (
-              <div key={gi} className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-400 dark:text-gray-500 w-20 shrink-0">
-                  {group.label}:
-                </span>
-                {group.tokens.map((token, ti) => {
-                  const sel = isTokenSelected(gi, ti);
-                  return (
-                    <button
-                      key={ti}
-                      type="button"
-                      onClick={() => addToken(token, gi, ti)}
-                      disabled={sel}
-                      className={`px-2.5 py-1 rounded-full text-xs font-mono font-medium border transition-all
-                        ${sel
-                          ? 'opacity-30 cursor-not-allowed border-gray-300 dark:border-gray-600 text-gray-400'
-                          : 'border-primary text-primary hover:bg-primary hover:text-white'}`}
-                    >
-                      {token}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-gray-400 dark:text-gray-500 w-20 shrink-0">Separador:</span>
-              <button
-                type="button"
-                onClick={addDot}
-                className="px-2.5 py-1 rounded-full text-xs font-mono font-medium border border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary transition-all"
-                title="Insertar punto"
-              >
-                .
-              </button>
-            </div>
-          </div>
         )}
       </div>
 
-      {/* Prefijo armado */}
-      {selected.length > 0 && (
-        <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Nombre de usuario:</p>
-          <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[36px] items-center">
-            {selected.map((s) => (
-              <span
-                key={s.id}
-                className="flex items-center gap-0.5 pl-2 pr-1 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-mono"
-              >
-                {s.token}
-                <button
-                  type="button"
-                  onClick={() => removeToken(s.id)}
-                  className="ml-0.5 hover:text-red-500 transition-colors leading-none"
-                >
-                  <span className="material-symbols-outlined text-[12px]">close</span>
-                </button>
-              </span>
-            ))}
-          </div>
+      {/* Domain selector (only when multiple options) */}
+      {activeDomains.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {activeDomains.map((d) => (
+            <button
+              key={d.id_dominio}
+              type="button"
+              onClick={() => setDomain(d.dominio)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all
+                ${domain === d.dominio
+                  ? 'bg-primary text-white border-primary'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary'}`}
+            >
+              @{d.dominio}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Selector de dominio */}
-      <div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Dominio permitido:</p>
-        {!activeDomains.length ? (
-          <span className="text-xs text-red-400">No hay dominios activos configurados.</span>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {activeDomains.map((d) => (
-              <button
-                key={d.id_dominio}
-                type="button"
-                onClick={() => setDomain(d.dominio)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all
-                  ${domain === d.dominio
-                    ? 'bg-primary text-white border-primary'
-                    : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary'}`}
-              >
-                @{d.dominio}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      {!activeDomains.length && (
+        <span className="text-xs text-red-400">No hay dominios activos configurados.</span>
+      )}
 
-      {/* Vista previa */}
+      {/* Preview */}
       <div className={`rounded-xl border px-4 py-3 text-sm font-mono transition-all
         ${assembled
           ? 'border-primary/40 bg-primary/5 text-primary dark:text-primary'
@@ -288,6 +274,9 @@ export default function FormFields({ fields = [], values = {}, setValues, errors
                   onChange={(e) => handleChange(field, e.target.value)}
                   className={inputClass}
                 />
+
+              ) : field.type === 'username-suggest' ? (
+                <UsernameSuggestField field={field} values={values} setValues={setValues} />
 
               ) : field.type === 'email-builder' ? (
                 <EmailBuilderField field={field} values={values} setValues={setValues} errors={errors} />
