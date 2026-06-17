@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import MultiSelectSearch from '../ui/MultiSelectSearch';
 
 const normalizeStr = (s) =>
@@ -41,68 +41,32 @@ function UsernameSuggestField({ field, values, setValues }) {
     ? values.fecha_nacimiento.split('-').reverse().join('')
     : '';
 
-  const taken = new Set(field.existingUsernames || []);
-  const currentValue = values[field.name] || '';
+  const existingUsernames = field.existingUsernames || [];
 
-  const suggestions = [];
-  if (ap && nm) {
+  const computed = useMemo(() => {
+    if (!ap || !nm) return '';
+    const taken = new Set(existingUsernames);
     const base = `${ap}.${nm}`;
     const withAM = am ? `${base}.${am[0]}` : null;
     const withDate = fn ? `${base}.${fn}` : null;
-    suggestions.push({ id: 'base', label: base });
-    if (withAM) suggestions.push({ id: 'am', label: withAM });
-    if (withDate) suggestions.push({ id: 'date', label: withDate });
-  }
+    if (!taken.has(base)) return base;
+    if (withAM && !taken.has(withAM)) return withAM;
+    if (withDate && !taken.has(withDate)) return withDate;
+    return base;
+  }, [ap, nm, am, fn, existingUsernames]);
 
-  const handleSelect = (s) => {
-    if (!taken.has(s.label))
-      setValues((prev) => ({ ...prev, [field.name]: s.label }));
-  };
+  useEffect(() => {
+    setValues((prev) => ({ ...prev, [field.name]: computed }));
+  }, [computed]);
 
-  const handleChange = (e) => {
-    const v = e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '');
-    setValues((prev) => ({ ...prev, [field.name]: v }));
-  };
-
-  return (
-    <div className="space-y-2">
-      {suggestions.length > 0 ? (
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-gray-400 dark:text-gray-500">Sugerencias:</span>
-          {suggestions.map((s) => {
-            const isTaken = taken.has(s.label);
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => handleSelect(s)}
-                disabled={isTaken}
-                title={isTaken ? 'Ya está en uso' : 'Clic para usar'}
-                className={`px-3 py-1 rounded-full text-xs font-mono border transition-all
-                  ${isTaken
-                    ? 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 line-through cursor-not-allowed'
-                    : currentValue === s.label
-                      ? 'bg-primary text-white border-primary'
-                      : 'border-primary text-primary hover:bg-primary hover:text-white cursor-pointer'}`}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-          Ingresa nombre y apellido paterno para ver sugerencias
-        </p>
-      )}
-      <input
-        type="text"
-        value={currentValue}
-        onChange={handleChange}
-        placeholder="apellido.nombre"
-        className={`${inputBaseCls} font-mono`}
-      />
+  return computed ? (
+    <div className={`${inputBaseCls} font-mono bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 cursor-default select-all`}>
+      {computed}
     </div>
+  ) : (
+    <p className="text-xs text-gray-400 dark:text-gray-500 italic py-2">
+      Se generará al ingresar nombre y apellido paterno
+    </p>
   );
 }
 
