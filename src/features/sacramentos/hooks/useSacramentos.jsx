@@ -109,6 +109,9 @@ export function useSacramentos() {
   const [forceUpdateLoading, setForceUpdateLoading] = useState(false);
   const [loadingSacramento, setLoadingSacramento] = useState(false);
   const [results, setResults] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // --- Formularios ---
   const [form, setForm] = useState({ ...initialSacramentoForm });
@@ -286,18 +289,19 @@ export function useSacramentos() {
   // ---------------------------------------------------------------------------
   // Búsqueda programática — puede llamarse con o sin evento de formulario
   // ---------------------------------------------------------------------------
-  const ejecutarBusqueda = (filtrosOverride = filters) => {
+  const ejecutarBusqueda = (filtrosOverride = filters, page = 1) => {
     setLoadingSacramento(true);
     setSelectedPerson(null);
     dispatch(buscarSacramentos({
       ...filtrosOverride,
       tipo_sacramento_id_tipo: TIPO_SACRAMENTO_IDS[tipoSacramento],
       rol_principal: ROLES_SACRAMENTO_IDS[tipoSacramento],
+      page,
     }))
       .unwrap()
       .then((res) => {
         const planos = [];
-        res.resultados.forEach((sac) => {
+        (res.resultados || []).forEach((sac) => {
           sac.personaSacramentos.forEach((rel) => {
             if (!rel.persona) return;
             planos.push({
@@ -320,9 +324,16 @@ export function useSacramentos() {
           });
         });
         setResults(planos);
+        setCurrentPage(res.currentPage || page);
+        setTotalPages(res.totalPages || 1);
+        setTotalItems(res.total ?? planos.length);
       })
       .catch(() => setToast({ type: 'error', message: 'No se pudo realizar la búsqueda' }))
       .finally(() => setLoadingSacramento(false));
+  };
+
+  const handlePageChange = (page) => {
+    ejecutarBusqueda(filters, page);
   };
 
   // Carga automática al entrar al tab "buscar"
@@ -451,6 +462,7 @@ export function useSacramentos() {
     forceUpdateLoading,
     loadingSacramento,
     results,
+    currentPage, totalPages, totalItems, handlePageChange,
     isLoading,
     isUpdating,
 

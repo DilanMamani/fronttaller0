@@ -14,11 +14,13 @@ const HISTORIAL_KEY = 'certificados_historial';
 const TIPO_ICONS = {
   'Bautizo': 'water_drop',
   'Primera Comunión': 'volunteer_activism',
+  'Confirmación': 'auto_awesome',
   'Matrimonio': 'favorite',
 };
 const TIPO_COLORS = {
   'Bautizo': 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
   'Primera Comunión': 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  'Confirmación': 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
   'Matrimonio': 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
 };
 
@@ -28,7 +30,8 @@ export default function Certificados() {
   const TIPO_SACRAMENTO_IDS = {
     Bautizo: 1,
     Matrimonio: 2,
-    'Primera Comunión': 3
+    'Primera Comunión': 3,
+    'Confirmación': 4,
   };
 
   const [tipo, setTipo] = useState('Bautizo'); 
@@ -51,11 +54,19 @@ export default function Certificados() {
   });
   const [modalUrl, setModalUrl] = useState(null);
   const [loadingHistorialId, setLoadingHistorialId] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Sincroniza dinámicamente la clave S3 de la plantilla según el sacramento activo
   useEffect(() => {
     if (tipo === 'Bautizo') setPlantilla('templates/plantilla-bautizo.pdf');
     if (tipo === 'Primera Comunión') setPlantilla('templates/plantilla-comunion.pdf');
+    if (tipo === 'Confirmación') setPlantilla('templates/plantilla-confirmacion.pdf');
     if (tipo === 'Matrimonio') setPlantilla('templates/plantilla-matrimonio.pdf');
   }, [tipo]);
 
@@ -83,7 +94,7 @@ export default function Certificados() {
       
     } catch (error) {
       console.error('Error:', error);
-      Toast('No se pudo generar el certificado');
+      setToast({ type: 'error', message: 'No se pudo generar el certificado' });
     } finally {
       setLoading(false);
     }
@@ -103,23 +114,19 @@ export default function Certificados() {
       const data = await response.json();
       
       if (data.ok && data.url) {
-        const s3Response = await fetch(data.url);
-        const blob = await s3Response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `Certificado_${datos.nombre || 'Sacramento'}_${datos.apellidoPaterno || ''}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(blobUrl);
+        // El bucket S3 no tiene CORS habilitado, así que no se puede leer el
+        // PDF vía fetch() para forzar la descarga como blob. Se abre en una
+        // pestaña nueva (igual que la previsualización) para que el usuario
+        // lo guarde desde el visor de PDF del navegador.
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+        return true;
       } else {
         throw new Error('No se recibió la URL de descarga');
       }
     } catch (error) {
       console.error('Error:', error);
-      Toast('No se pudo descargar el certificado');
+      setToast({ type: 'error', message: 'No se pudo descargar el certificado' });
+      return false;
     } finally {
       setLoading(false);
     }
@@ -128,7 +135,7 @@ export default function Certificados() {
   const handleBuscarSacramento = (e) => {
     e.preventDefault();
     if (!searchNombre && !searchCI) {
-      Toast("Ingresa al menos un nombre o CI para buscar.");
+      setToast({ type: 'error', message: "Ingresa al menos un nombre o CI para buscar." });
       return;
     }
 
@@ -136,13 +143,16 @@ export default function Certificados() {
     setSacramentoSeleccionado(null);
     setBusquedaRealizada(true);
 
-    let tipoKey = tipo; 
+    let tipoKey = tipo;
     let rolBusqueda = ROL_IDS.COMULGADO;
-    if(tipo === 'Comunion') {
+    if(tipo === 'Primera Comunión') {
         rolBusqueda = ROL_IDS.COMULGADO;
-    } 
+    }
     else if( tipo === 'Bautizo'){
         rolBusqueda = ROL_IDS.BAUTIZADO;
+    }
+    else if (tipo === 'Confirmación') {
+        rolBusqueda = ROL_IDS.CONFIRMADO;
     }
     else if (tipo === 'Matrimonio') {
         rolBusqueda = ROL_IDS.ESPOSO;
@@ -151,6 +161,7 @@ export default function Certificados() {
     const notasPorDefecto = {
       'Bautizo': "Renacido por el agua y el Espíritu Santo, incorporado a la santa Iglesia de Cristo.",
       'Primera Comunión': "Ha recibido el Sagrado Cuerpo de Cristo por primera vez, como alimento para su alma.",
+      'Confirmación': "Ha recibido la plenitud del Espíritu Santo, fortaleciendo su fe cristiana.",
       'Matrimonio': "La unión por la Iglesia es el acto sagrado de unir dos vidas en la comunidad de Dios."
     };
 
@@ -184,8 +195,10 @@ export default function Certificados() {
           const rolesTitularPorTipo = tipo === 'Bautizo'
             ? [ROL_IDS.BAUTIZADO]
             : tipo === 'Primera Comunión'
-              ? [ROL_IDS.COMULGADO, ROL_IDS.CONFIRMADO]
-              : [ROL_IDS.ESPOSO, ROL_IDS.ESPOSA];
+              ? [ROL_IDS.COMULGADO]
+              : tipo === 'Confirmación'
+                ? [ROL_IDS.CONFIRMADO]
+                : [ROL_IDS.ESPOSO, ROL_IDS.ESPOSA];
 
           const relTitular = relaciones.find(r => rolesTitularPorTipo.includes(r.rol_sacramento_id_rol_sacra));
           const relMinistro = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.MINISTRO);
@@ -216,6 +229,7 @@ export default function Certificados() {
             if ([ROL_IDS.ESPOSO, ROL_IDS.ESPOSA].includes(rolId)) nombreRolUI = 'Contrayente (Esposo/a)';
             if ([ROL_IDS.COMULGADO].includes(rolId)) nombreRolUI = 'Comulgante';
             if ([ROL_IDS.BAUTIZADO].includes(rolId)) nombreRolUI = 'Bautizado';
+            if ([ROL_IDS.CONFIRMADO].includes(rolId)) nombreRolUI = 'Confirmando';
 
             const fechaActual = new Date();
             const diaStr = fechaActual.getDate().toString();
@@ -355,6 +369,26 @@ export default function Certificados() {
       });
     }
 
+    if (tipo === 'Confirmación') {
+      return sanitize({
+        ...basePayload,
+        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno,
+        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno,
+        nombre: sacramentoSeleccionado.nombre,
+        lugarFechaConfirmacion: `La Paz, ${sacramentoSeleccionado.fecha ?? ''}`,
+        padre: sacramentoSeleccionado.padre,
+        madre: sacramentoSeleccionado.madre,
+        padrino: sacramentoSeleccionado.padrino,
+        madrina: sacramentoSeleccionado.madrina,
+        parroco: sacramentoSeleccionado.parroco,
+        notas: sacramentoSeleccionado.notas1,
+        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion,
+        diaExpedicion: sacramentoSeleccionado.diaExpedicion,
+        mesExpedicion: sacramentoSeleccionado.mesExpedicionLetras,
+        anioExpedicion: sacramentoSeleccionado.anioExpedicion,
+      });
+    }
+
     if (tipo === 'Matrimonio') {
       return sanitize({
         ...basePayload,
@@ -380,7 +414,7 @@ export default function Certificados() {
 
   const handlePrevisualizar = async () => {
     if (!sacramentoSeleccionado) {
-      Toast("Primero debes buscar y SELECCIONAR un sacramento de la lista.");
+      setToast({ type: 'error', message: "Primero debes buscar y SELECCIONAR un sacramento de la lista." });
       return;
     }
     setLoadingPdf(true);
@@ -394,11 +428,12 @@ export default function Certificados() {
 
   const handleGenerar = async () => {
     if (!sacramentoSeleccionado) {
-      Toast("Primero debes buscar y SELECCIONAR un sacramento de la lista.");
+      setToast({ type: 'error', message: "Primero debes buscar y SELECCIONAR un sacramento de la lista." });
       return;
     }
     const payloadLambda = construirPayloadLambda();
-    await descargarCertificado(payloadLambda);
+    const exito = await descargarCertificado(payloadLambda);
+    if (!exito) return;
 
     const entrada = {
       id: Date.now(),
@@ -419,7 +454,7 @@ export default function Certificados() {
 
   const handleVerDesdeHistorial = async (entry) => {
     if (!entry.payload) {
-      Toast("Este registro no tiene datos suficientes para regenerar el certificado.");
+      setToast({ type: 'error', message: "Este registro no tiene datos suficientes para regenerar el certificado." });
       return;
     }
     setLoadingHistorialId(entry.id);
@@ -438,7 +473,7 @@ export default function Certificados() {
       }
     } catch (err) {
       console.error(err);
-      Toast("No se pudo cargar el certificado.");
+      setToast({ type: 'error', message: "No se pudo cargar el certificado." });
     } finally {
       setLoadingHistorialId(null);
     }
@@ -490,8 +525,8 @@ export default function Certificados() {
                 {/* Tipo de certificado como botones */}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Tipo de Certificado</label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {['Bautizo', 'Primera Comunión', 'Matrimonio'].map((t) => (
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Bautizo', 'Primera Comunión', 'Confirmación', 'Matrimonio'].map((t) => (
                       <button
                         key={t}
                         type="button"
@@ -502,14 +537,14 @@ export default function Certificados() {
                           setBusquedaRealizada(false);
                           setPdfUrl(null);
                         }}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg border text-xs font-medium transition-all ${
+                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border text-sm font-medium transition-all ${
                           tipo === t
                             ? 'border-primary bg-primary/5 text-primary dark:bg-primary/10'
                             : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-base">{TIPO_ICONS[t]}</span>
-                        <span className="leading-tight text-center">{t === 'Primera Comunión' ? 'P. Comunión' : t}</span>
+                        <span className="material-symbols-outlined text-xl">{TIPO_ICONS[t]}</span>
+                        <span className="leading-tight text-center">{t}</span>
                       </button>
                     ))}
                   </div>
@@ -656,10 +691,11 @@ export default function Certificados() {
                       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
                         Plantilla asignada por sistema
                       </label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-4 gap-3">
                         {[
                           { t: 'Bautizo', key: 'templates/plantilla-bautizo.pdf', label: 'Bautizo' },
                           { t: 'Primera Comunión', key: 'templates/plantilla-comunion.pdf', label: 'P. Comunión' },
+                          { t: 'Confirmación', key: 'templates/plantilla-confirmacion.pdf', label: 'Confirmación' },
                           { t: 'Matrimonio', key: 'templates/plantilla-matrimonio.pdf', label: 'Matrimonio' },
                         ].map(({ t, key, label }) => (
                           <div key={t} className={getTemplateStyle(t, tipo, plantilla === key)}>
@@ -838,6 +874,8 @@ export default function Certificados() {
         </div>
       </div>
     )}
+
+    <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }
