@@ -189,8 +189,8 @@ export default function Usuarios() {
   const isCreateValid =
   formAdd.nombre?.trim() &&
   formAdd.nombre.trim().length >= 2 &&
+  formAdd.apellido_paterno?.trim() &&
   Object.keys(nameErrors).length === 0 &&
-  formAdd.nombre_usuario?.trim() &&
   formAdd.email?.trim() &&
   /\S+@\S+\.\S+/.test(formAdd.email) &&
   formAdd.id_rol &&
