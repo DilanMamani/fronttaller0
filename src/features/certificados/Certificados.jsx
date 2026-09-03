@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { ClipLoader } from "react-spinners";
 //const CERT_API = import.meta.env.VITE_AWS_CERTIFICADOS;
-const CERT_API = "https://3lx4xvmaug4jowyyf5qlavxq2y0rkkou.lambda-url.us-east-2.on.aws";
+const CERT_API = "https://pfahqjigyhquxqqve4niyarkxq0gvgsk.lambda-url.us-east-1.on.aws";
 import Layout from '../../shared/components/layout/Layout';
 
 // === IMPORTACIONES DE CONSTANTES Y REDUX ===
