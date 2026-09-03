@@ -203,11 +203,13 @@ export default function Certificados() {
           const relTitular = relaciones.find(r => rolesTitularPorTipo.includes(r.rol_sacramento_id_rol_sacra));
           const relMinistro = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.MINISTRO);
           const relPadrino = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.PADRINO);
-          
+          const relMadrina = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.MADRINA);
+
           const nombreEsposoCalculado = formatearNombre(relEsposo?.persona);
           const nombreEsposaCalculada = formatearNombre(relEsposa?.persona);
           const nombreMinistroCalculado = formatearNombre(relMinistro?.persona);
           const nombrePadrinoCalculado = formatearNombre(relPadrino?.persona);
+          const nombreMadrinaCalculada = formatearNombre(relMadrina?.persona);
 
           const nacEsposo = relEsposo?.persona?.fecha_nacimiento || "";
           const nacEsposa = relEsposa?.persona?.fecha_nacimiento || "";
@@ -217,7 +219,7 @@ export default function Certificados() {
           const padreCalculado = relTitular?.persona?.nombre_padre || "";
           const madreCalculada = relTitular?.persona?.nombre_madre || "";
 
-          const madrinaFinal = sac.nombre_madrina || "";
+          const madrinaFinal = nombreMadrinaCalculada || sac.nombre_madrina || "";
 
           sac.personaSacramentos.forEach((rel) => {
             if (!rel.persona) return;

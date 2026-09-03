@@ -1,6 +1,7 @@
 export const initialSacramentoForm = {
   personaId: null,
   padrinoId: null,
+  madrinaId: null,
   ministroId: null,
   parroquiaId: null,
   foja: '',

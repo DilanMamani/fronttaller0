@@ -39,6 +39,7 @@ export default function SacramentoEditModal({ ctx, onClose }) {
 
     queryPersona,
     queryPadrino,    setQueryPadrino,    padrinoSelected,    setPadrinoSelected,    padrinoSearch,
+    queryMadrina,    setQueryMadrina,    madrinaSelected,    setMadrinaSelected,    madrinaSearch,
     queryMinistro,   setQueryMinistro,   ministroSelected,   setMinistroSelected,   ministroSearch,
     queryParroquia,  setQueryParroquia,  parroquiaSelected,  setParroquiaSelected,  parroquiaSearch,
     queryEsposo,
@@ -180,6 +181,16 @@ export default function SacramentoEditModal({ ctx, onClose }) {
               setQueryPadrino(nombreCompleto(p));
               setPadrinoSelected(true);
               padrinoSearch.setOpen(false);
+            }}
+
+            queryMadrina={queryMadrina}     setQueryMadrina={setQueryMadrina}
+            madrinaSelected={madrinaSelected} setMadrinaSelected={setMadrinaSelected}
+            madrinaSearch={madrinaSearch}
+            onSelectMadrina={(p) => {
+              handleChange('madrinaId', p.id_persona);
+              setQueryMadrina(nombreCompleto(p));
+              setMadrinaSelected(true);
+              madrinaSearch.setOpen(false);
             }}
 
             queryMinistro={queryMinistro}     setQueryMinistro={setQueryMinistro}

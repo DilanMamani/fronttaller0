@@ -5,6 +5,7 @@ export const ROL_IDS = {
   ESPOSO: 2,
   ESPOSA: 3,
   PADRINO: 5,
+  MADRINA: 6,
   MINISTRO: 7,
 };
 
@@ -33,6 +34,7 @@ export const obtenerNombreRol = (id) => {
   const roles = {
     1: 'Bautizado',
     5: 'Padrino',
+    6: 'Madrina',
     7: 'Ministro',
     4: 'Confirmado',
     2: 'Esposo',

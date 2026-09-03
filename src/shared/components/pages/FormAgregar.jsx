@@ -24,6 +24,11 @@ export default function FormAgregar({ ctx }) {
     padrinoSelected, setPadrinoSelected,
     padrinoSearch,
 
+    // Madrina
+    queryMadrina, setQueryMadrina,
+    madrinaSelected, setMadrinaSelected,
+    madrinaSearch,
+
     // Ministro
     queryMinistro, setQueryMinistro,
     ministroSelected, setMinistroSelected,
@@ -54,7 +59,8 @@ export default function FormAgregar({ ctx }) {
   // ---------------------------------------------------------------------------
   // Validación — todos los campos obligatorios según tipo
   // ---------------------------------------------------------------------------
-  const camposBase = form.parroquiaId && form.padrinoId && form.ministroId &&
+  // Padrino y madrina son opcionales — no bloquean el envío del formulario
+  const camposBase = form.parroquiaId && form.ministroId &&
     form.foja?.trim() && form.numero?.trim() && form.fecha_sacramento;
 
   const isFormValid = (() => {
@@ -87,7 +93,6 @@ export default function FormAgregar({ ctx }) {
       if (!matrimonio.reg_civil?.trim())       faltantes.push('Acta del registro civil');
       if (!matrimonio.numero_acta?.trim())     faltantes.push('Número de acta');
     }
-    if (!form.padrinoId)          faltantes.push('Padrino');
     if (!form.ministroId)         faltantes.push('Ministro');
     if (!form.parroquiaId)        faltantes.push('Parroquia');
     if (!form.foja?.trim())       faltantes.push('Foja');
@@ -156,6 +161,15 @@ export default function FormAgregar({ ctx }) {
                 setQueryPadrino(nombreCompleto(p));
                 setPadrinoSelected(true);
                 padrinoSearch.setOpen(false);
+              }}
+              queryMadrina={queryMadrina} setQueryMadrina={setQueryMadrina}
+              madrinaSelected={madrinaSelected} setMadrinaSelected={setMadrinaSelected}
+              madrinaSearch={madrinaSearch}
+              onSelectMadrina={(p) => {
+                handleChange('madrinaId', p.id_persona);
+                setQueryMadrina(nombreCompleto(p));
+                setMadrinaSelected(true);
+                madrinaSearch.setOpen(false);
               }}
               queryMinistro={queryMinistro} setQueryMinistro={setQueryMinistro}
               ministroSelected={ministroSelected} setMinistroSelected={setMinistroSelected}
@@ -291,6 +305,15 @@ export default function FormAgregar({ ctx }) {
                   setQueryPadrino(nombreCompleto(p));
                   setPadrinoSelected(true);
                   padrinoSearch.setOpen(false);
+                }}
+                queryMadrina={queryMadrina} setQueryMadrina={setQueryMadrina}
+                madrinaSelected={madrinaSelected} setMadrinaSelected={setMadrinaSelected}
+                madrinaSearch={madrinaSearch}
+                onSelectMadrina={(p) => {
+                  handleChange('madrinaId', p.id_persona);
+                  setQueryMadrina(nombreCompleto(p));
+                  setMadrinaSelected(true);
+                  madrinaSearch.setOpen(false);
                 }}
                 queryMinistro={queryMinistro} setQueryMinistro={setQueryMinistro}
                 ministroSelected={ministroSelected} setMinistroSelected={setMinistroSelected}

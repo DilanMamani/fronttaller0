@@ -15,6 +15,12 @@ export default function CamposComunes({
   padrinoSearch,
   onSelectPadrino,
 
+  // Madrina
+  queryMadrina, setQueryMadrina,
+  madrinaSelected, setMadrinaSelected,
+  madrinaSearch,
+  onSelectMadrina,
+
   // Ministro
   queryMinistro, setQueryMinistro,
   ministroSelected, setMinistroSelected,
@@ -57,6 +63,34 @@ export default function CamposComunes({
           getTitle={(p) => `${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}`}
           getSubtitle={(p) => `CI: ${p.carnet_identidad}`}
           emptyMessage="No se encontraron padrinos."
+          helpText="Escriba nombre o CI para buscar."
+        />
+      </div>
+
+      {/* Madrina */}
+      <div>
+        {modoEdicion && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+            Actual: <span className="font-medium">{queryMadrina || '—'}</span>
+          </p>
+        )}
+        <SearchField
+          label={modoEdicion ? 'Nueva madrina (opcional)' : 'Madrina'}
+          placeholder="Buscar madrina por nombre o CI"
+          value={queryMadrina}
+          onChange={(v) => {
+            setQueryMadrina(v);
+            setMadrinaSelected(false);
+          }}
+          onSelect={onSelectMadrina}
+          items={madrinaSearch.lista}
+          loading={madrinaSearch.loading}
+          open={madrinaSearch.open}
+          selected={madrinaSelected}
+          getKey={(p) => p.id_persona}
+          getTitle={(p) => `${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}`}
+          getSubtitle={(p) => `CI: ${p.carnet_identidad}`}
+          emptyMessage="No se encontraron madrinas."
           helpText="Escriba nombre o CI para buscar."
         />
       </div>

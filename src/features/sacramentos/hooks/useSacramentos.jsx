@@ -121,6 +121,7 @@ export function useSacramentos() {
   // --- Queries de texto para los campos de búsqueda ---
   const [queryPersona, setQueryPersona] = useState('');
   const [queryPadrino, setQueryPadrino] = useState('');
+  const [queryMadrina, setQueryMadrina] = useState('');
   const [queryMinistro, setQueryMinistro] = useState('');
   const [queryParroquia, setQueryParroquia] = useState('');
   const [queryEsposo, setQueryEsposo] = useState('');
@@ -129,6 +130,7 @@ export function useSacramentos() {
   // --- Flags de selección (evitan re-disparar búsquedas al cargar un registro) ---
   const [personaSelected, setPersonaSelected] = useState(false);
   const [padrinoSelected, setPadrinoSelected] = useState(false);
+  const [madrinaSelected, setMadrinaSelected] = useState(false);
   const [ministroSelected, setMinistroSelected] = useState(false);
   const [parroquiaSelected, setParroquiaSelected] = useState(false);
 
@@ -143,6 +145,12 @@ export function useSacramentos() {
     query: queryPadrino,
     enabled: !padrinoSelected,
     fetchArgs: (q) => ({ search: q, rol: 'padrino', tipo: 'rol' }),
+  });
+
+  const madrinaSearch = usePersonaSearch({
+    query: queryMadrina,
+    enabled: !madrinaSelected,
+    fetchArgs: (q) => ({ search: q, rol: 'madrina', tipo: 'rol' }),
   });
 
   const ministroSearch = usePersonaSearch({
@@ -180,16 +188,19 @@ export function useSacramentos() {
     setMatrimonio({ ...initialMatrimonioForm });
     setQueryPersona('');
     setQueryPadrino('');
+    setQueryMadrina('');
     setQueryMinistro('');
     setQueryParroquia('');
     setQueryEsposo('');
     setQueryEsposa('');
     setPersonaSelected(false);
     setPadrinoSelected(false);
+    setMadrinaSelected(false);
     setMinistroSelected(false);
     setParroquiaSelected(false);
     personaSearch.setOpen(false);
     padrinoSearch.setOpen(false);
+    madrinaSearch.setOpen(false);
     ministroSearch.setOpen(false);
     parroquiaSearch.setOpen(false);
     esposoSearch.setOpen(false);
@@ -205,6 +216,9 @@ export function useSacramentos() {
     }
     if (form.padrinoId) {
       relaciones.push({ persona_id: form.padrinoId, rol_sacramento_id: ROL_IDS.PADRINO });
+    }
+    if (form.madrinaId) {
+      relaciones.push({ persona_id: form.madrinaId, rol_sacramento_id: ROL_IDS.MADRINA });
     }
     if (form.ministroId) {
       relaciones.push({ persona_id: form.ministroId, rol_sacramento_id: ROL_IDS.MINISTRO });
@@ -257,6 +271,16 @@ export function useSacramentos() {
       relaciones.push({ persona_id: form.padrinoId, rol_sacramento_id: ROL_IDS.PADRINO });
     } else if (relOriginalPadrino) {
       relaciones.push({ persona_id: relOriginalPadrino.persona_id_persona, rol_sacramento_id: ROL_IDS.PADRINO });
+    }
+
+    // Madrina: igual que padrino
+    const relOriginalMadrina = relacionesOriginales.find(
+      (r) => r.rolSacramento?.id_rol_sacra === ROL_IDS.MADRINA
+    );
+    if (form.madrinaId) {
+      relaciones.push({ persona_id: form.madrinaId, rol_sacramento_id: ROL_IDS.MADRINA });
+    } else if (relOriginalMadrina) {
+      relaciones.push({ persona_id: relOriginalMadrina.persona_id_persona, rol_sacramento_id: ROL_IDS.MADRINA });
     }
 
     // Ministro: igual que padrino
@@ -378,6 +402,7 @@ export function useSacramentos() {
 
     const relPrincipal = relaciones.find((r) => r.rol_sacramento_id_rol_sacra === ROLES_SACRAMENTO_IDS[tipoSacramento]);
     const relPadrino   = relaciones.find((r) => r.rol_sacramento_id_rol_sacra === ROL_IDS.PADRINO);
+    const relMadrina   = relaciones.find((r) => r.rol_sacramento_id_rol_sacra === ROL_IDS.MADRINA);
     const relMinistro  = relaciones.find((r) => r.rol_sacramento_id_rol_sacra === ROL_IDS.MINISTRO);
     const relEsposo    = relaciones.find((r) => r.rol_sacramento_id_rol_sacra === ROL_IDS.ESPOSO);
     const relEsposa    = relaciones.find((r) => r.rol_sacramento_id_rol_sacra === ROL_IDS.ESPOSA);
@@ -387,6 +412,7 @@ export function useSacramentos() {
     setForm({
       personaId: relPrincipal?.persona_id_persona || row.persona_id || null,
       padrinoId: relPadrino?.persona_id_persona || null,
+      madrinaId: relMadrina?.persona_id_persona || null,
       ministroId: relMinistro?.persona_id_persona || null,
       parroquiaId: row.parroquia?.id_parroquia || null,
       foja: row.foja || '',
@@ -398,11 +424,13 @@ export function useSacramentos() {
     // Cargar queries (sin disparar búsqueda porque ponemos selected=true)
     setQueryPersona(nombreCompleto(relPrincipal?.persona));
     setQueryPadrino(nombreCompleto(relPadrino?.persona));
+    setQueryMadrina(nombreCompleto(relMadrina?.persona));
     setQueryMinistro(nombreCompleto(relMinistro?.persona));
     setQueryParroquia(row.parroquia?.nombre || '');
 
     setPersonaSelected(true);
     setPadrinoSelected(!!relPadrino?.persona);
+    setMadrinaSelected(!!relMadrina?.persona);
     setMinistroSelected(!!relMinistro?.persona);
     setParroquiaSelected(!!row.parroquia);
 
@@ -474,6 +502,7 @@ export function useSacramentos() {
     // Queries y búsquedas
     queryPersona, setQueryPersona, personaSelected, setPersonaSelected, personaSearch,
     queryPadrino, setQueryPadrino, padrinoSelected, setPadrinoSelected, padrinoSearch,
+    queryMadrina, setQueryMadrina, madrinaSelected, setMadrinaSelected, madrinaSearch,
     queryMinistro, setQueryMinistro, ministroSelected, setMinistroSelected, ministroSearch,
     queryParroquia, setQueryParroquia, parroquiaSelected, setParroquiaSelected, parroquiaSearch,
     queryEsposo, setQueryEsposo, esposoSearch,
