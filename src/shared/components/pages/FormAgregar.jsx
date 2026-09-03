@@ -39,9 +39,14 @@ export default function FormAgregar({ ctx }) {
     queryEsposa, setQueryEsposa, esposaSearch,
   } = ctx;
 
-  const labelTipo = tipoSacramento === 'comunion'
-    ? 'Primera Comunión'
-    : tipoSacramento.charAt(0).toUpperCase() + tipoSacramento.slice(1);
+  const LABELS_TIPO = {
+    bautizo: 'Bautizo',
+    comunion: 'Primera Comunión',
+    confirmacion: 'Confirmación',
+    matrimonio: 'Matrimonio',
+  };
+  const labelTipo = LABELS_TIPO[tipoSacramento]
+    || tipoSacramento.charAt(0).toUpperCase() + tipoSacramento.slice(1);
 
   // Helpers de selección reutilizables
   const nombreCompleto = (p) => `${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}`;
@@ -53,7 +58,7 @@ export default function FormAgregar({ ctx }) {
     form.foja?.trim() && form.numero?.trim() && form.fecha_sacramento;
 
   const isFormValid = (() => {
-    if (tipoSacramento === 'bautizo' || tipoSacramento === 'comunion') {
+    if (tipoSacramento !== 'matrimonio') {
       return !!(form.personaId && camposBase);
     }
     if (tipoSacramento === 'matrimonio') {
@@ -72,7 +77,7 @@ export default function FormAgregar({ ctx }) {
   // Campos faltantes para mostrar en el tooltip
   const camposFaltantes = (() => {
     const faltantes = [];
-    if (tipoSacramento === 'bautizo' || tipoSacramento === 'comunion') {
+    if (tipoSacramento !== 'matrimonio') {
       if (!form.personaId)        faltantes.push('Persona');
     }
     if (tipoSacramento === 'matrimonio') {
@@ -101,8 +106,8 @@ export default function FormAgregar({ ctx }) {
 
       <form className="p-6 space-y-8" onSubmit={handleSubmitAgregar}>
 
-        {/* ── Persona principal (Bautizo / Comunión) ── */}
-        {(tipoSacramento === 'bautizo' || tipoSacramento === 'comunion') && (
+        {/* ── Persona principal (Bautizo / Comunión / Confirmación) ── */}
+        {tipoSacramento !== 'matrimonio' && (
           <section>
             <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
               Persona que recibió el {labelTipo}
@@ -134,8 +139,8 @@ export default function FormAgregar({ ctx }) {
           </section>
         )}
 
-        {/* ── Detalles Bautizo / Comunión ── */}
-        {(tipoSacramento === 'bautizo' || tipoSacramento === 'comunion') && (
+        {/* ── Detalles Bautizo / Comunión / Confirmación ── */}
+        {tipoSacramento !== 'matrimonio' && (
           <section>
             <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
               Detalles de {labelTipo}

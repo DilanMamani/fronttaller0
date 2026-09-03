@@ -138,9 +138,14 @@ export default function FormBuscarEditar({ ctx }) {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const labelTipo = tipoSacramento === 'comunion'
-    ? 'Primera Comunión'
-    : tipoSacramento.charAt(0).toUpperCase() + tipoSacramento.slice(1);
+  const LABELS_TIPO = {
+    bautizo: 'Bautizo',
+    comunion: 'Primera Comunión',
+    confirmacion: 'Confirmación',
+    matrimonio: 'Matrimonio',
+  };
+  const labelTipo = LABELS_TIPO[tipoSacramento]
+    || tipoSacramento.charAt(0).toUpperCase() + tipoSacramento.slice(1);
 
   const FILTER_FIELDS = [
     { id: 'nombre',           label: 'Nombre',              type: 'text', placeholder: 'Nombre' },

@@ -3,12 +3,9 @@ import { useSacramentos } from './hooks/useSacramentos';
 import FormAgregar from '../../shared/components/pages/FormAgregar';
 import FormBuscarEditar from '../../shared/components/pages/FormBuscarEditar';
 import Toast from '../../shared/components/ui/Toast.jsx';
+import { TIPOS_SACRAMENTO } from './config/sacramentos.constants';
 
-const TIPO_OPTIONS = [
-  { key: 'bautizo',    label: 'Bautizo' },
-  { key: 'comunion',  label: 'Primera Comunión' },
-  { key: 'matrimonio', label: 'Matrimonio' },
-];
+const TIPO_OPTIONS = TIPOS_SACRAMENTO;
 
 const TAB_OPTIONS = [
   { key: 'agregar', label: 'Agregar Sacramento' },

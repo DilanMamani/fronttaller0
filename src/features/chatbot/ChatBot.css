@@ -31,6 +31,8 @@
   --cb-matrimonio-text: #9d174d;
   --cb-comunion-bg: #d1fae5;
   --cb-comunion-text: #065f46;
+  --cb-confirmacion-bg: #ede9fe;
+  --cb-confirmacion-text: #5b21b6;
 }
 
 /* ══════════════════════════════════════
@@ -350,6 +352,11 @@
 .chatbot-badge--comunion {
   background: var(--cb-comunion-bg);
   color: var(--cb-comunion-text);
+}
+
+.chatbot-badge--confirmacion {
+  background: var(--cb-confirmacion-bg);
+  color: var(--cb-confirmacion-text);
 }
 
 /* ── Botón de selección ── */

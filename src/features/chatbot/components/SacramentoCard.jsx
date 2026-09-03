@@ -5,6 +5,7 @@ const TIPO_LABELS = {
   1: { texto: 'Bautizo', clase: 'chatbot-badge--bautizo' },
   2: { texto: 'Matrimonio', clase: 'chatbot-badge--matrimonio' },
   3: { texto: 'Comunión', clase: 'chatbot-badge--comunion' },
+  4: { texto: 'Confirmación', clase: 'chatbot-badge--confirmacion' },
 };
 
 /**
