@@ -531,7 +531,7 @@ export default function Certificados() {
                 {/* Tipo de certificado como botones */}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Tipo de Certificado</label>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {['Bautizo', 'Primera Comunión', 'Confirmación', 'Matrimonio'].map((t) => (
                       <button
                         key={t}
@@ -543,14 +543,14 @@ export default function Certificados() {
                           setBusquedaRealizada(false);
                           setPdfUrl(null);
                         }}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg border text-xs font-medium transition-all ${
+                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border text-sm font-medium transition-all ${
                           tipo === t
                             ? 'border-primary bg-primary/5 text-primary dark:bg-primary/10'
                             : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-base">{TIPO_ICONS[t]}</span>
-                        <span className="leading-tight text-center">{t === 'Primera Comunión' ? 'P. Comunión' : t}</span>
+                        <span className="material-symbols-outlined text-xl">{TIPO_ICONS[t]}</span>
+                        <span className="leading-tight text-center">{t}</span>
                       </button>
                     ))}
                   </div>
