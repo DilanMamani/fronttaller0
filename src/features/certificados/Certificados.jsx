@@ -114,17 +114,11 @@ export default function Certificados() {
       const data = await response.json();
       
       if (data.ok && data.url) {
-        const s3Response = await fetch(data.url);
-        const blob = await s3Response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `Certificado_${datos.nombre || 'Sacramento'}_${datos.apellidoPaterno || ''}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(blobUrl);
+        // El bucket S3 no tiene CORS habilitado, así que no se puede leer el
+        // PDF vía fetch() para forzar la descarga como blob. Se abre en una
+        // pestaña nueva (igual que la previsualización) para que el usuario
+        // lo guarde desde el visor de PDF del navegador.
+        window.open(data.url, '_blank', 'noopener,noreferrer');
         return true;
       } else {
         throw new Error('No se recibió la URL de descarga');
