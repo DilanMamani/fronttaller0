@@ -1,125 +1,17 @@
 import { useState } from 'react';
-import { ClipLoader } from 'react-spinners';
 import SearchField from './SearchField';
 import CamposComunes from './CamposComunes';
 import SacramentoEditModal from './SacramentoEditModal';
+import DataTable from './DataTable';
 
-const PAGE_SIZE = 10;
-
-// ---------------------------------------------------------------------------
-// Tabla de resultados
-// ---------------------------------------------------------------------------
-function TablaResultados({ results, onSelect }) {
-  const [page, setPage] = useState(1);
-
-  if (results.length === 0) {
-    return (
-      <div className="py-10 text-center text-gray-500 dark:text-gray-400">
-        No se encontraron resultados para esta búsqueda.
-      </div>
-    );
-  }
-
-  const totalPages = Math.ceil(results.length / PAGE_SIZE);
-  const paginated = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  return (
-    <div>
-      <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700/50 dark:text-gray-400">
-          <tr>
-            {['Nombre completo', 'CI', 'Fecha del sacramento', 'Rol', 'Foja', 'Número'].map((h) => (
-              <th key={h} className="px-6 py-3">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {paginated.map((row) => (
-            <tr
-              key={`${row.id_sacramento}-${row.carnet_identidad}`}
-              onClick={() => onSelect(row)}
-              className="cursor-pointer bg-white dark:bg-background-dark/50 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              <td className="px-6 py-4">{row.nombre} {row.apellido_paterno} {row.apellido_materno}</td>
-              <td className="px-6 py-4">{row.carnet_identidad}</td>
-              <td className="px-6 py-4">{row.fecha_sacramento}</td>
-              <td className="px-6 py-4">{row.rol_nombre}</td>
-              <td className="px-6 py-4">{row.foja}</td>
-              <td className="px-6 py-4">{row.numero}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 dark:border-gray-800">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, results.length)} de <strong>{results.length}</strong>
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(1)}
-              disabled={page === 1}
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors"
-              title="Primera página"
-            >
-              <span className="material-symbols-outlined text-sm">first_page</span>
-            </button>
-            <button
-              onClick={() => setPage((p) => p - 1)}
-              disabled={page === 1}
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">chevron_left</span>
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-              .reduce((acc, p, idx, arr) => {
-                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, i) =>
-                p === '…' ? (
-                  <span key={`ellipsis-${i}`} className="px-1 text-gray-400 text-xs">…</span>
-                ) : (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className={`min-w-[28px] h-7 rounded text-xs font-medium transition-colors ${
-                      p === page
-                        ? 'bg-primary text-white'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page === totalPages}
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">chevron_right</span>
-            </button>
-            <button
-              onClick={() => setPage(totalPages)}
-              disabled={page === totalPages}
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors"
-              title="Última página"
-            >
-              <span className="material-symbols-outlined text-sm">last_page</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+const SACRAMENTO_COLUMNS = [
+  { key: 'nombre_completo', label: 'Nombre completo', render: (row) => `${row.nombre} ${row.apellido_paterno} ${row.apellido_materno}` },
+  { key: 'carnet_identidad', label: 'CI' },
+  { key: 'fecha_sacramento', label: 'Fecha del sacramento' },
+  { key: 'rol_nombre', label: 'Rol' },
+  { key: 'foja', label: 'Foja' },
+  { key: 'numero', label: 'Número' },
+];
 
 // ---------------------------------------------------------------------------
 // Componente principal exportado
@@ -131,6 +23,7 @@ export default function FormBuscarEditar({ ctx }) {
     handleBuscar,
     results,
     loadingSacramento,
+    currentPage, totalPages, totalItems, handlePageChange,
     selectedPerson,
     modalOpen, closeModal,
     handleSelectResultado,
@@ -265,12 +158,19 @@ export default function FormBuscarEditar({ ctx }) {
           </p>
         </div>
 
-        <div className="overflow-x-auto">
-          {loadingSacramento
-            ? <div className="flex justify-center items-center py-10"><ClipLoader size={40} color="#4f46e5" /></div>
-            : <TablaResultados results={results} onSelect={handleSelectResultado} />
-          }
-        </div>
+        <DataTable
+          columns={SACRAMENTO_COLUMNS}
+          data={results}
+          loading={loadingSacramento}
+          loadingMessage="Cargando resultados..."
+          emptyMessage="No se encontraron resultados para esta búsqueda."
+          onRowClick={handleSelectResultado}
+          getRowKey={(row) => `${row.id_sacramento}-${row.carnet_identidad}`}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={handlePageChange}
+        />
       </div>
 
       {/* Modal de edición — se monta sobre toda la página */}
