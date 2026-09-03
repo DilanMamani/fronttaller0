@@ -25,7 +25,12 @@ export default function Paso1Upload() {
   const [archivo, setArchivo] = useState(null);
   const [preview, setPreview] = useState(null);
   const [localError, setLocalError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const inputRef = useRef(null);
+
+  const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+  const TAMANO_MAXIMO_MB = 10;
 
   // ── Buscador de parroquia ─────────────────────────────────────────
   const [parroquiaQuery, setParroquiaQuery] = useState('');
@@ -90,6 +95,17 @@ export default function Paso1Upload() {
 
   const handleArchivo = (file) => {
     if (!file) return;
+
+    if (!TIPOS_PERMITIDOS.includes(file.type)) {
+      setLocalError('Formato no soportado. Usa una imagen JPG, PNG o WEBP.');
+      return;
+    }
+
+    if (file.size > TAMANO_MAXIMO_MB * 1024 * 1024) {
+      setLocalError(`El archivo pesa más de ${TAMANO_MAXIMO_MB} MB. Usa una imagen más liviana.`);
+      return;
+    }
+
     setArchivo(file);
     setLocalError('');
     const reader = new FileReader();
@@ -99,8 +115,25 @@ export default function Paso1Upload() {
 
   const handleDrop = (e) => {
     e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) handleArchivo(file);
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    dragCounter.current += 1;
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -227,20 +260,41 @@ export default function Paso1Upload() {
 
       {/* Zona de carga */}
       <div
-        onDrop={handleDrop}
+        onDrop={isUploading ? undefined : handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        onClick={() => inputRef.current?.click()}
-        className={`relative flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
-          archivo
+        onDragEnter={isUploading ? undefined : handleDragEnter}
+        onDragLeave={isUploading ? undefined : handleDragLeave}
+        onClick={() => !isUploading && inputRef.current?.click()}
+        role="button"
+        tabIndex={isUploading ? -1 : 0}
+        aria-disabled={isUploading}
+        aria-label="Subir imagen del documento"
+        onKeyDown={(e) => {
+          if (!isUploading && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        className={`relative flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-background-dark ${
+          isUploading
+            ? 'cursor-not-allowed opacity-60 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40'
+            : 'cursor-pointer'
+        } ${
+          !isUploading && isDragging
+            ? 'border-primary bg-primary/10 scale-[1.01]'
+            : !isUploading && archivo
             ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20'
-            : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/40 hover:border-primary hover:bg-primary/5'
+            : !isUploading
+            ? 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/40 hover:border-primary hover:bg-primary/5'
+            : ''
         }`}
       >
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           className="hidden"
+          disabled={isUploading}
           onChange={(e) => handleArchivo(e.target.files?.[0])}
         />
 
@@ -251,14 +305,18 @@ export default function Paso1Upload() {
               alt="Vista previa"
               className="max-h-48 rounded-lg object-contain shadow"
             />
+            <p className="text-xs text-gray-400">
+              {isUploading ? 'Procesando...' : 'Arrastra otra imagen o haz clic para reemplazarla'}
+            </p>
             <button
               type="button"
+              disabled={isUploading}
               onClick={(e) => {
                 e.stopPropagation();
                 setArchivo(null);
                 setPreview(null);
               }}
-              className="text-xs text-red-500 hover:underline flex items-center gap-1"
+              className="text-xs text-red-500 hover:underline flex items-center gap-1 disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
             >
               <span className="material-symbols-outlined text-[13px]">delete</span>
               Quitar imagen
@@ -266,12 +324,18 @@ export default function Paso1Upload() {
           </div>
         ) : (
           <>
-            <span className="material-symbols-outlined text-4xl text-gray-400">upload_file</span>
+            <span className="material-symbols-outlined text-4xl text-gray-400">
+              {isDragging ? 'file_download' : 'upload_file'}
+            </span>
             <div className="text-center">
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Arrastra aquí la imagen o haz clic para seleccionar
+                {isDragging
+                  ? 'Suelta la imagen aquí'
+                  : 'Arrastra aquí la imagen o haz clic para seleccionar'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP — máx. 10 MB</p>
+              <p className="text-xs text-gray-400 mt-1">
+                PNG, JPG, WEBP — máx. {TAMANO_MAXIMO_MB} MB
+              </p>
             </div>
           </>
         )}
@@ -288,7 +352,7 @@ export default function Paso1Upload() {
       {(localError || error) && (
         <p className="text-sm text-red-600 flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[16px]">error</span>
-          {localError || (typeof error === 'string' ? error : JSON.stringify(error))}
+          {localError || (typeof error === 'string' ? error : error?.msg || 'Ocurrió un error inesperado.')}
         </p>
       )}
 
@@ -311,6 +375,25 @@ export default function Paso1Upload() {
           </>
         )}
       </button>
+
+      {/* Vista previa de carga — deja claro que el sistema sigue trabajando
+          y qué está por aparecer, en vez de solo un spinner en el botón. */}
+      {isUploading && (
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+            Leyendo el documento con OCR — esto puede tardar unos segundos.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-2.5 w-16 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+                <div className="h-8 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import Swal from 'sweetalert2';
 import { rechazarOcr, confirmarOcr } from '../slices/ocrThunk';
 import {
   selectOcrHistoricoId,
@@ -8,8 +9,12 @@ import {
   selectOcrIsRechazando,
   selectOcrError,
   clearError,
+  setPaso,
 } from '../slices/ocrSlice';
 import PersonaBuscador from './PersonaBuscador';
+import ParroquiaDetectadaField from './ParroquiaDetectadaField';
+import { SectionHeader, Section, Field } from './FormPrimitives';
+import { ic, parseFecha } from './formUtils';
 
 /**
  * Roles adicionales para matrimonio
@@ -23,16 +28,6 @@ const ROLES_ADICIONALES_MATRIMONIO = [
 
 const ADV_MATRIMONIO =
   'Esta persona debe tener bautismo y primera comunión registrados en el sistema.';
-
-const parseFecha = (str = '') => {
-  if (!str) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  const match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (!match) return null;
-  const [, d, m, y] = match;
-  const iso = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  return isNaN(new Date(iso).getTime()) ? null : iso;
-};
 
 export default function Paso2Matrimonio() {
   const dispatch = useDispatch();
@@ -59,6 +54,9 @@ export default function Paso2Matrimonio() {
   const [relaciones, setRelaciones] = useState([]);
   const [errores, setErrores] = useState({});
 
+  const confianza = dd?._confianza || {};
+  const esIncierto = (campo) => confianza[campo] === false;
+
   const handleCampo = (f, v) => setCampos((p) => ({ ...p, [f]: v }));
 
   const agregarRelacion = () =>
@@ -78,8 +76,17 @@ export default function Paso2Matrimonio() {
     updateRelacion(idx, { rolKey, rol_sacramento_id: def?.rol_sacramento_id ?? 6, persona: null });
   };
 
-  const handleRechazar = () => {
-    if (confirm('¿Rechazar este registro OCR?')) dispatch(rechazarOcr(historicoId));
+  const handleRechazar = async () => {
+    const { isConfirmed } = await Swal.fire({
+      icon: 'warning',
+      title: '¿Rechazar este registro OCR?',
+      text: 'Esta acción no se puede deshacer.',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, rechazar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33',
+    });
+    if (isConfirmed) dispatch(rechazarOcr(historicoId));
   };
 
   const handleConfirmar = () => {
@@ -125,42 +132,48 @@ export default function Paso2Matrimonio() {
       {/* ── Datos del documento ── */}
       <Section title="Datos del documento">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Fecha del matrimonio">
+          <Field label="Fecha del matrimonio" incierto={esIncierto('fecha_sacramento')}>
             <input type="text" value={campos.fecha_sacramento}
               onChange={(e) => handleCampo('fecha_sacramento', e.target.value)}
-              placeholder="dd/mm/aaaa" className={ic()} />
+              placeholder="dd/mm/aaaa" className={ic(esIncierto('fecha_sacramento'))} />
           </Field>
-          <Field label="Foja">
+          <Field label="Foja" incierto={esIncierto('foja')}>
             <input type="text" value={campos.foja}
-              onChange={(e) => handleCampo('foja', e.target.value)} className={ic()} />
+              onChange={(e) => handleCampo('foja', e.target.value)} className={ic(esIncierto('foja'))} />
           </Field>
-          <Field label="Número">
+          <Field label="Número" incierto={esIncierto('numero')}>
             <input type="text" value={campos.numero}
-              onChange={(e) => handleCampo('numero', e.target.value)} className={ic()} />
+              onChange={(e) => handleCampo('numero', e.target.value)} className={ic(esIncierto('numero'))} />
           </Field>
-          <Field label="Parroquia detectada">
-            <input type="text" value={campos.parroquia} readOnly
-              className={ic() + ' bg-gray-50 dark:bg-gray-800/60 cursor-default'} />
-          </Field>
-          <Field label="Nombre del contrayente (él)">
+          <ParroquiaDetectadaField
+            value={campos.parroquia}
+            onChange={(v) => handleCampo('parroquia', v)}
+            sugerencia={
+              dd?.parroquia_sugerida_nombre
+                ? { nombre: dd.parroquia_sugerida_nombre }
+                : null
+            }
+            incierto={esIncierto('parroquia')}
+          />
+          <Field label="Nombre del contrayente (él)" incierto={esIncierto('nombre_contrayente')}>
             <input type="text" value={campos.nombre_contrayente}
-              onChange={(e) => handleCampo('nombre_contrayente', e.target.value)} className={ic()} />
+              onChange={(e) => handleCampo('nombre_contrayente', e.target.value)} className={ic(esIncierto('nombre_contrayente'))} />
           </Field>
-          <Field label="Nombre de la contrayenta (ella)">
+          <Field label="Nombre de la contrayenta (ella)" incierto={esIncierto('nombre_contrayenta')}>
             <input type="text" value={campos.nombre_contrayenta}
-              onChange={(e) => handleCampo('nombre_contrayenta', e.target.value)} className={ic()} />
+              onChange={(e) => handleCampo('nombre_contrayenta', e.target.value)} className={ic(esIncierto('nombre_contrayenta'))} />
           </Field>
-          <Field label="Lugar de la ceremonia">
+          <Field label="Lugar de la ceremonia" incierto={esIncierto('lugar_ceremonia')}>
             <input type="text" value={campos.lugar_ceremonia}
-              onChange={(e) => handleCampo('lugar_ceremonia', e.target.value)} className={ic()} />
+              onChange={(e) => handleCampo('lugar_ceremonia', e.target.value)} className={ic(esIncierto('lugar_ceremonia'))} />
           </Field>
-          <Field label="Registro civil">
+          <Field label="Registro civil" incierto={esIncierto('reg_civil')}>
             <input type="text" value={campos.reg_civil}
-              onChange={(e) => handleCampo('reg_civil', e.target.value)} className={ic()} />
+              onChange={(e) => handleCampo('reg_civil', e.target.value)} className={ic(esIncierto('reg_civil'))} />
           </Field>
-          <Field label="Número de acta">
+          <Field label="Número de acta" incierto={esIncierto('numero_acta')}>
             <input type="text" value={campos.numero_acta}
-              onChange={(e) => handleCampo('numero_acta', e.target.value)} className={ic()} />
+              onChange={(e) => handleCampo('numero_acta', e.target.value)} className={ic(esIncierto('numero_acta'))} />
           </Field>
         </div>
       </Section>
@@ -204,6 +217,7 @@ export default function Paso2Matrimonio() {
       {/* ── Relaciones adicionales ── */}
       <Section
         title="Testigos / Ministro / Padrinos (opcional)"
+        optional
         action={
           <button onClick={agregarRelacion}
             className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
@@ -258,11 +272,18 @@ export default function Paso2Matrimonio() {
       )}
 
       <div className="flex justify-between pt-2">
-        <button onClick={handleRechazar} disabled={isRechazando}
-          className="px-4 py-2 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors flex items-center gap-2">
-          {isRechazando && <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>}
-          Rechazar
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => dispatch(setPaso(3))}
+            className="px-3 py-2 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+            Atrás
+          </button>
+          <button onClick={handleRechazar} disabled={isRechazando}
+            className="px-4 py-2 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-50 transition-colors flex items-center gap-2">
+            {isRechazando && <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>}
+            Rechazar
+          </button>
+        </div>
         <button onClick={handleConfirmar} disabled={isConfirming}
           className="px-5 py-2 text-sm rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2">
           {isConfirming && <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>}
@@ -273,33 +294,3 @@ export default function Paso2Matrimonio() {
     </div>
   );
 }
-
-function SectionHeader({ icon, title }) {
-  return (
-    <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-      <span className="material-symbols-outlined text-primary">{icon}</span>
-      <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
-    </div>
-  );
-}
-function Section({ title, children, action }) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{title}</h3>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
-function Field({ label, children }) {
-  return (
-    <div className="flex flex-col gap-1 flex-1">
-      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</label>
-      {children}
-    </div>
-  );
-}
-const ic = () =>
-  'w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors';

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createPersona } from '../../personas/slices/personasThunk';
 import { selectIsCreating } from '../../personas/slices/personasSlice';
+import { parseFecha } from './formUtils';
 
 /**
  * Modal para crear una nueva persona desde el flujo OCR.
@@ -10,7 +11,7 @@ import { selectIsCreating } from '../../personas/slices/personasSlice';
  *  - isOpen         : bool
  *  - onClose        : () => void
  *  - onPersonaCreada: (persona) => void
- *  - datosOcr       : { nombre_completo?, fecha_nacimiento?, lugar_nacimiento? }
+ *  - datosOcr       : { nombre_completo?, fecha_nacimiento?, lugar_nacimiento?, nombre_padre?, nombre_madre? }
  */
 export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, datosOcr = {} }) {
   const dispatch = useDispatch();
@@ -47,10 +48,10 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     apellido_paterno: apellidoPaterno || NA,
     apellido_materno: apellidoMaterno || NA,
     carnet_identidad: generarCITemporal(datosOcr.nombre_completo || ''),
-    fecha_nacimiento: datosOcr.fecha_nacimiento || '',
+    fecha_nacimiento: parseFecha(datosOcr.fecha_nacimiento) || '',
     lugar_nacimiento: datosOcr.lugar_nacimiento || NA,
-    nombre_padre: NA,
-    nombre_madre: NA,
+    nombre_padre: datosOcr.nombre_padre || NA,
+    nombre_madre: datosOcr.nombre_madre || NA,
     activo: true,
     estado: 'no verificado',
   });

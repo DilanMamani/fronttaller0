@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import Swal from 'sweetalert2';
+import { useSelector } from 'react-redux';
 import {
   selectOcrPaso,
   selectOcrTipoSacramento,
@@ -8,37 +6,20 @@ import {
   selectOcrError,
   selectOcrSuccessData,
   selectOcrTipoSacramentoId,
-  clearError,
 } from '../slices/ocrSlice';
 
 /**
  * Hook ligero que expone el estado del flujo OCR para la vista principal.
- * Muestra automáticamente un SweetAlert2 cuando el slice registra un error
- * y lo limpia del store al cerrarlo.
+ * El error se muestra en línea en cada paso (Paso1Upload, Paso2*, Paso3,
+ * OcrHistorico ya lo hacen) — no se duplica en un modal aquí.
  */
 export function useOcr() {
-  const dispatch = useDispatch();
-
   const paso = useSelector(selectOcrPaso);
   const tipoSacramento = useSelector(selectOcrTipoSacramento);
   const datosDetectados = useSelector(selectOcrDatosDetectados);
   const error = useSelector(selectOcrError);
   const successData = useSelector(selectOcrSuccessData);
   const tipoSacramentoId = useSelector(selectOcrTipoSacramentoId);
-
-  useEffect(() => {
-    if (!error) return;
-
-    Swal.fire({
-      icon: 'error',
-      title: 'Error del sistema',
-      text: typeof error === 'string' ? error : 'Ocurrió un error inesperado.',
-      confirmButtonText: 'Cerrar',
-      confirmButtonColor: '#d33',
-    }).then(() => {
-      dispatch(clearError());
-    });
-  }, [error, dispatch]);
 
   return {
     paso,

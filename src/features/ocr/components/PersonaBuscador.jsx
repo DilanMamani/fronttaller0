@@ -285,12 +285,27 @@ export default function PersonaBuscador({
         </div>
       )}
 
-      {/* Error de validación externo */}
+      {/* Error de validación externo — con salida clara hacia "registrar nueva persona"
+          en vez de dejar al usuario con un input en rojo sin saber qué hacer. */}
       {error && (
-        <p className="text-xs text-red-600 flex items-center gap-1">
-          <span className="material-symbols-outlined text-[13px]">error</span>
-          {error}
-        </p>
+        <div className="space-y-1.5">
+          <p className="text-xs text-red-600 flex items-center gap-1">
+            <span className="material-symbols-outlined text-[13px]">error</span>
+            {error}
+          </p>
+          {!personaSeleccionada && permitirCrear && (
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <span className="material-symbols-outlined text-[14px]">person_add</span>
+              {query.trim().length > 0
+                ? `No encontramos a "${query.trim()}" — registrar como persona nueva`
+                : 'Registrar nueva persona'}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Modal nueva persona */}

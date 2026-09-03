@@ -1,24 +1,36 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { asignarParroquiaOcr, crearParroquiaOcr } from '../slices/ocrThunk';
 import {
   selectOcrHistoricoId,
   selectOcrIsSavingParroquia,
   selectOcrError,
+  selectOcrDatosDetectados,
   clearError,
 } from '../slices/ocrSlice';
 import { parroquiasApi } from '../../../lib/api';
 
 /**
  * Paso 3 — Confirmar parroquia.
- * Usa campo de texto con búsqueda para seleccionar parroquia existente
- * o crear una nueva.
+ * Si el backend ya sugirió una parroquia por similitud de texto (fuzzy-match
+ * contra el catálogo real), se ofrece como confirmación de un clic antes que
+ * nada — la búsqueda manual queda como alternativa, no como único camino.
  */
 export default function Paso3Parroquia() {
   const dispatch = useDispatch();
   const historicoId = useSelector(selectOcrHistoricoId);
   const isSaving = useSelector(selectOcrIsSavingParroquia);
   const errorGlobal = useSelector(selectOcrError);
+  const datosDetectados = useSelector(selectOcrDatosDetectados);
+
+  const sugerenciaId = datosDetectados?.parroquia_sugerida_id ?? null;
+  const sugerenciaNombre = datosDetectados?.parroquia_sugerida_nombre ?? null;
+  const textoOcrParroquia = datosDetectados?.parroquia ?? null;
+  const haySugerencia = Boolean(sugerenciaId && sugerenciaNombre);
+
+  // La búsqueda manual arranca oculta cuando hay una sugerencia fuerte del
+  // backend (revelar complejidad solo cuando hace falta), y visible si no.
+  const [mostrarBusqueda, setMostrarBusqueda] = useState(!haySugerencia);
 
   const [modo, setModo] = useState('existente');
   const [query, setQuery] = useState('');
@@ -35,6 +47,10 @@ export default function Paso3Parroquia() {
 
   const containerRef = useRef(null);
   const debounceRef = useRef(null);
+  const nombreFieldId = useId();
+  const direccionFieldId = useId();
+  const ciudadFieldId = useId();
+  const buscarFieldId = useId();
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -88,6 +104,11 @@ export default function Paso3Parroquia() {
     setResultados([]);
   };
 
+  const handleAceptarSugerencia = () => {
+    dispatch(clearError());
+    dispatch(asignarParroquiaOcr({ historicoId, parroquiaId: sugerenciaId }));
+  };
+
   const handleSubmit = () => {
     dispatch(clearError());
     setLocalError('');
@@ -114,11 +135,69 @@ export default function Paso3Parroquia() {
           Confirmar parroquia
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          El OCR no pudo identificar la parroquia con certeza. Búscala por nombre o registra una
-          nueva.
+          {haySugerencia
+            ? 'El OCR detectó una parroquia parecida en el catálogo. Confírmala o busca otra.'
+            : 'El OCR no pudo identificar la parroquia con certeza. Búscala por nombre o registra una nueva.'}
         </p>
       </div>
 
+      {/* Sugerencia por similitud de texto — confirmación de un clic */}
+      {haySugerencia && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-primary text-[22px] mt-0.5">
+              auto_awesome
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                El documento parece ser de
+              </p>
+              <p className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                {sugerenciaNombre}
+              </p>
+              {textoOcrParroquia && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Texto leído del documento: "{textoOcrParroquia}"
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAceptarSugerencia}
+              disabled={isSaving}
+              className="flex-1 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {isSaving ? (
+                <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+              ) : (
+                <span className="material-symbols-outlined text-[16px]">check</span>
+              )}
+              Sí, es esta parroquia
+            </button>
+            {!mostrarBusqueda && (
+              <button
+                type="button"
+                onClick={() => setMostrarBusqueda(true)}
+                className="px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                No es correcta
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!haySugerencia && textoOcrParroquia && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+          Texto leído del documento: "{textoOcrParroquia}"
+        </p>
+      )}
+
+      {/* Búsqueda manual — visible siempre que no hay sugerencia, o bajo demanda si la hay */}
+      {mostrarBusqueda && (
+      <>
       {/* Selector de modo */}
       <div className="flex gap-2">
         {[
@@ -142,7 +221,7 @@ export default function Paso3Parroquia() {
       {/* Búsqueda de parroquia existente */}
       {modo === 'existente' && (
         <div className="flex flex-col gap-1.5" ref={containerRef}>
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+          <label htmlFor={buscarFieldId} className="text-xs font-medium text-gray-600 dark:text-gray-400">
             Buscar parroquia *
           </label>
 
@@ -150,12 +229,9 @@ export default function Paso3Parroquia() {
             <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
-                <div>
-                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-                    {parroquiaSeleccionada.nombre ?? parroquiaSeleccionada.nombre_parroquia}
-                  </p>
-                  <p className="text-xs text-emerald-600">ID: {parroquiaSeleccionada.id_parroquia}</p>
-                </div>
+                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                  {parroquiaSeleccionada.nombre ?? parroquiaSeleccionada.nombre_parroquia}
+                </p>
               </div>
               <button
                 type="button"
@@ -172,6 +248,7 @@ export default function Paso3Parroquia() {
                   search
                 </span>
                 <input
+                  id={buscarFieldId}
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -228,8 +305,9 @@ export default function Paso3Parroquia() {
       {/* Nueva parroquia */}
       {modo === 'nueva' && (
         <div className="space-y-3">
-          <Field label="Nombre de la parroquia *">
+          <Field id={nombreFieldId} label="Nombre de la parroquia *">
             <input
+              id={nombreFieldId}
               type="text"
               value={nuevaParroquia.nombre_parroquia}
               onChange={(e) =>
@@ -238,16 +316,18 @@ export default function Paso3Parroquia() {
               className={ic(!!localError && !nuevaParroquia.nombre_parroquia)}
             />
           </Field>
-          <Field label="Dirección">
+          <Field id={direccionFieldId} label="Dirección">
             <input
+              id={direccionFieldId}
               type="text"
               value={nuevaParroquia.direccion}
               onChange={(e) => setNuevaParroquia((p) => ({ ...p, direccion: e.target.value }))}
               className={ic()}
             />
           </Field>
-          <Field label="Ciudad">
+          <Field id={ciudadFieldId} label="Ciudad">
             <input
+              id={ciudadFieldId}
               type="text"
               value={nuevaParroquia.ciudad}
               onChange={(e) => setNuevaParroquia((p) => ({ ...p, ciudad: e.target.value }))}
@@ -255,6 +335,8 @@ export default function Paso3Parroquia() {
             />
           </Field>
         </div>
+      )}
+      </>
       )}
 
       {/* Errores */}
@@ -265,31 +347,33 @@ export default function Paso3Parroquia() {
         </p>
       )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={isSaving}
-        className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-      >
-        {isSaving ? (
-          <>
-            <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
-            Guardando...
-          </>
-        ) : (
-          <>
-            <span className="material-symbols-outlined text-[16px]">check</span>
-            Confirmar parroquia y continuar
-          </>
-        )}
-      </button>
+      {mostrarBusqueda && (
+        <button
+          onClick={handleSubmit}
+          disabled={isSaving}
+          className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        >
+          {isSaving ? (
+            <>
+              <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+              Guardando...
+            </>
+          ) : (
+            <>
+              <span className="material-symbols-outlined text-[16px]">check</span>
+              Confirmar parroquia y continuar
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, children, id }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</label>
+      <label htmlFor={id} className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</label>
       {children}
     </div>
   );

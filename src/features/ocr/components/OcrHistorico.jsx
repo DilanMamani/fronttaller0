@@ -125,7 +125,7 @@ function DetalleModal({ item, onClose, onContinuar }) {
             <span className="material-symbols-outlined text-primary">document_search</span>
             <div>
               <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                Registro #{item.id}
+                Registro {item._numero != null ? `N.° ${item._numero}` : ''}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {item.tipoSacramento?.nombre ?? '—'}
@@ -171,7 +171,6 @@ function DetalleModal({ item, onClose, onContinuar }) {
               <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
                 {item.parroquia.nombre}
               </p>
-              <p className="text-xs text-blue-500">ID: {item.parroquia.id_parroquia}</p>
             </div>
           )}
 
@@ -212,7 +211,7 @@ function DetalleModal({ item, onClose, onContinuar }) {
           <div>
             <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-2">Metadatos</p>
             <div className="rounded-xl bg-gray-50 dark:bg-gray-800/40 px-4 py-2">
-              <DetailRow label="ID" value={`#${item.id}`} />
+              <DetailRow label="ID interno" value={`#${item.id}`} />
               <DetailRow label="Tipo sacramento" value={item.tipoSacramento?.nombre} />
               <DetailRow label="Sacramento ID" value={item.sacramento_id ?? '—'} />
               <DetailRow label="Fecha registro" value={fmtDateTime(item.fecha_registro)} />
@@ -417,7 +416,7 @@ export default function OcrHistorico() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800/60">
               <tr>
-                {['ID', 'Tipo', 'Estado', 'Parroquia', 'Registrado', 'Fecha', 'Acciones'].map(
+                {['N°', 'Tipo', 'Estado', 'Parroquia', 'Registrado', 'Fecha', 'Acciones'].map(
                   (h) => (
                     <th
                       key={h}
@@ -440,16 +439,19 @@ export default function OcrHistorico() {
                       ))}
                     </tr>
                   ))
-                : historico.map((item) => {
+                : historico.map((item, idx) => {
                     const puedeContin =
                       item.estado === 'pendiente' || item.estado === 'esperando_parroquia';
+                    // Numeración amigable (el registro más antiguo = 1), no el ID
+                    // autoincremental interno de la base de datos.
+                    const numero = totalItems - ((currentPage - 1) * PAGE_SIZE + idx);
                     return (
                       <tr
                         key={item.id}
                         className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
                       >
-                        <td className="px-4 py-3 text-gray-900 dark:text-white font-mono text-xs">
-                          #{item.id}
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">
+                          {numero}
                         </td>
                         <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                           {item.tipoSacramento?.nombre ?? '—'}
@@ -480,7 +482,7 @@ export default function OcrHistorico() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => setSelectedItem(item)}
+                              onClick={() => setSelectedItem({ ...item, _numero: numero })}
                               className="inline-flex items-center gap-1 text-xs text-primary hover:underline transition-colors"
                             >
                               <span className="material-symbols-outlined text-[14px]">
