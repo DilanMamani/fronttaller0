@@ -51,6 +51,13 @@ export default function Certificados() {
   });
   const [modalUrl, setModalUrl] = useState(null);
   const [loadingHistorialId, setLoadingHistorialId] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Sincroniza dinámicamente la clave S3 de la plantilla según el sacramento activo
   useEffect(() => {
@@ -83,7 +90,7 @@ export default function Certificados() {
       
     } catch (error) {
       console.error('Error:', error);
-      Toast('No se pudo generar el certificado');
+      setToast({ type: 'error', message: 'No se pudo generar el certificado' });
     } finally {
       setLoading(false);
     }
@@ -114,12 +121,14 @@ export default function Certificados() {
         link.click();
         link.remove();
         URL.revokeObjectURL(blobUrl);
+        return true;
       } else {
         throw new Error('No se recibió la URL de descarga');
       }
     } catch (error) {
       console.error('Error:', error);
-      Toast('No se pudo descargar el certificado');
+      setToast({ type: 'error', message: 'No se pudo descargar el certificado' });
+      return false;
     } finally {
       setLoading(false);
     }
@@ -128,7 +137,7 @@ export default function Certificados() {
   const handleBuscarSacramento = (e) => {
     e.preventDefault();
     if (!searchNombre && !searchCI) {
-      Toast("Ingresa al menos un nombre o CI para buscar.");
+      setToast({ type: 'error', message: "Ingresa al menos un nombre o CI para buscar." });
       return;
     }
 
@@ -380,7 +389,7 @@ export default function Certificados() {
 
   const handlePrevisualizar = async () => {
     if (!sacramentoSeleccionado) {
-      Toast("Primero debes buscar y SELECCIONAR un sacramento de la lista.");
+      setToast({ type: 'error', message: "Primero debes buscar y SELECCIONAR un sacramento de la lista." });
       return;
     }
     setLoadingPdf(true);
@@ -394,11 +403,12 @@ export default function Certificados() {
 
   const handleGenerar = async () => {
     if (!sacramentoSeleccionado) {
-      Toast("Primero debes buscar y SELECCIONAR un sacramento de la lista.");
+      setToast({ type: 'error', message: "Primero debes buscar y SELECCIONAR un sacramento de la lista." });
       return;
     }
     const payloadLambda = construirPayloadLambda();
-    await descargarCertificado(payloadLambda);
+    const exito = await descargarCertificado(payloadLambda);
+    if (!exito) return;
 
     const entrada = {
       id: Date.now(),
@@ -419,7 +429,7 @@ export default function Certificados() {
 
   const handleVerDesdeHistorial = async (entry) => {
     if (!entry.payload) {
-      Toast("Este registro no tiene datos suficientes para regenerar el certificado.");
+      setToast({ type: 'error', message: "Este registro no tiene datos suficientes para regenerar el certificado." });
       return;
     }
     setLoadingHistorialId(entry.id);
@@ -438,7 +448,7 @@ export default function Certificados() {
       }
     } catch (err) {
       console.error(err);
-      Toast("No se pudo cargar el certificado.");
+      setToast({ type: 'error', message: "No se pudo cargar el certificado." });
     } finally {
       setLoadingHistorialId(null);
     }
@@ -838,6 +848,8 @@ export default function Certificados() {
         </div>
       </div>
     )}
+
+    <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }
