@@ -14,11 +14,13 @@ const HISTORIAL_KEY = 'certificados_historial';
 const TIPO_ICONS = {
   'Bautizo': 'water_drop',
   'Primera Comunión': 'volunteer_activism',
+  'Confirmación': 'auto_awesome',
   'Matrimonio': 'favorite',
 };
 const TIPO_COLORS = {
   'Bautizo': 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
   'Primera Comunión': 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  'Confirmación': 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
   'Matrimonio': 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
 };
 
@@ -28,7 +30,8 @@ export default function Certificados() {
   const TIPO_SACRAMENTO_IDS = {
     Bautizo: 1,
     Matrimonio: 2,
-    'Primera Comunión': 3
+    'Primera Comunión': 3,
+    'Confirmación': 4,
   };
 
   const [tipo, setTipo] = useState('Bautizo'); 
@@ -63,6 +66,7 @@ export default function Certificados() {
   useEffect(() => {
     if (tipo === 'Bautizo') setPlantilla('templates/plantilla-bautizo.pdf');
     if (tipo === 'Primera Comunión') setPlantilla('templates/plantilla-comunion.pdf');
+    if (tipo === 'Confirmación') setPlantilla('templates/plantilla-confirmacion.pdf');
     if (tipo === 'Matrimonio') setPlantilla('templates/plantilla-matrimonio.pdf');
   }, [tipo]);
 
@@ -145,13 +149,16 @@ export default function Certificados() {
     setSacramentoSeleccionado(null);
     setBusquedaRealizada(true);
 
-    let tipoKey = tipo; 
+    let tipoKey = tipo;
     let rolBusqueda = ROL_IDS.COMULGADO;
-    if(tipo === 'Comunion') {
+    if(tipo === 'Primera Comunión') {
         rolBusqueda = ROL_IDS.COMULGADO;
-    } 
+    }
     else if( tipo === 'Bautizo'){
         rolBusqueda = ROL_IDS.BAUTIZADO;
+    }
+    else if (tipo === 'Confirmación') {
+        rolBusqueda = ROL_IDS.CONFIRMADO;
     }
     else if (tipo === 'Matrimonio') {
         rolBusqueda = ROL_IDS.ESPOSO;
@@ -160,6 +167,7 @@ export default function Certificados() {
     const notasPorDefecto = {
       'Bautizo': "Renacido por el agua y el Espíritu Santo, incorporado a la santa Iglesia de Cristo.",
       'Primera Comunión': "Ha recibido el Sagrado Cuerpo de Cristo por primera vez, como alimento para su alma.",
+      'Confirmación': "Ha recibido la plenitud del Espíritu Santo, fortaleciendo su fe cristiana.",
       'Matrimonio': "La unión por la Iglesia es el acto sagrado de unir dos vidas en la comunidad de Dios."
     };
 
@@ -193,8 +201,10 @@ export default function Certificados() {
           const rolesTitularPorTipo = tipo === 'Bautizo'
             ? [ROL_IDS.BAUTIZADO]
             : tipo === 'Primera Comunión'
-              ? [ROL_IDS.COMULGADO, ROL_IDS.CONFIRMADO]
-              : [ROL_IDS.ESPOSO, ROL_IDS.ESPOSA];
+              ? [ROL_IDS.COMULGADO]
+              : tipo === 'Confirmación'
+                ? [ROL_IDS.CONFIRMADO]
+                : [ROL_IDS.ESPOSO, ROL_IDS.ESPOSA];
 
           const relTitular = relaciones.find(r => rolesTitularPorTipo.includes(r.rol_sacramento_id_rol_sacra));
           const relMinistro = relaciones.find(r => r.rol_sacramento_id_rol_sacra === ROL_IDS.MINISTRO);
@@ -225,6 +235,7 @@ export default function Certificados() {
             if ([ROL_IDS.ESPOSO, ROL_IDS.ESPOSA].includes(rolId)) nombreRolUI = 'Contrayente (Esposo/a)';
             if ([ROL_IDS.COMULGADO].includes(rolId)) nombreRolUI = 'Comulgante';
             if ([ROL_IDS.BAUTIZADO].includes(rolId)) nombreRolUI = 'Bautizado';
+            if ([ROL_IDS.CONFIRMADO].includes(rolId)) nombreRolUI = 'Confirmando';
 
             const fechaActual = new Date();
             const diaStr = fechaActual.getDate().toString();
@@ -355,6 +366,26 @@ export default function Certificados() {
         padre: sacramentoSeleccionado.padre,
         madre: sacramentoSeleccionado.madre,
         catequista: sacramentoSeleccionado.catequista,
+        parroco: sacramentoSeleccionado.parroco,
+        notas: sacramentoSeleccionado.notas1,
+        ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion,
+        diaExpedicion: sacramentoSeleccionado.diaExpedicion,
+        mesExpedicion: sacramentoSeleccionado.mesExpedicionLetras,
+        anioExpedicion: sacramentoSeleccionado.anioExpedicion,
+      });
+    }
+
+    if (tipo === 'Confirmación') {
+      return sanitize({
+        ...basePayload,
+        apellidoPaterno: sacramentoSeleccionado.apellidoPaterno,
+        apellidoMaterno: sacramentoSeleccionado.apellidoMaterno,
+        nombre: sacramentoSeleccionado.nombre,
+        lugarFechaConfirmacion: `La Paz, ${sacramentoSeleccionado.fecha ?? ''}`,
+        padre: sacramentoSeleccionado.padre,
+        madre: sacramentoSeleccionado.madre,
+        padrino: sacramentoSeleccionado.padrino,
+        madrina: sacramentoSeleccionado.madrina,
         parroco: sacramentoSeleccionado.parroco,
         notas: sacramentoSeleccionado.notas1,
         ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion,
@@ -500,8 +531,8 @@ export default function Certificados() {
                 {/* Tipo de certificado como botones */}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Tipo de Certificado</label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {['Bautizo', 'Primera Comunión', 'Matrimonio'].map((t) => (
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {['Bautizo', 'Primera Comunión', 'Confirmación', 'Matrimonio'].map((t) => (
                       <button
                         key={t}
                         type="button"
@@ -666,10 +697,11 @@ export default function Certificados() {
                       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
                         Plantilla asignada por sistema
                       </label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-4 gap-3">
                         {[
                           { t: 'Bautizo', key: 'templates/plantilla-bautizo.pdf', label: 'Bautizo' },
                           { t: 'Primera Comunión', key: 'templates/plantilla-comunion.pdf', label: 'P. Comunión' },
+                          { t: 'Confirmación', key: 'templates/plantilla-confirmacion.pdf', label: 'Confirmación' },
                           { t: 'Matrimonio', key: 'templates/plantilla-matrimonio.pdf', label: 'Matrimonio' },
                         ].map(({ t, key, label }) => (
                           <div key={t} className={getTemplateStyle(t, tipo, plantilla === key)}>
