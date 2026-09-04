@@ -37,16 +37,21 @@ export default function Paso2Matrimonio() {
   const isRechazando = useSelector(selectOcrIsRechazando);
   const errorGlobal = useSelector(selectOcrError);
 
+  // Si el sistema marcó un campo como dudoso y propuso una corrección, el
+  // campo arranca ya con esa corrección puesta — "· verificar" avisa que fue
+  // así, pero sigue siendo editable.
+  const conSugerencia = (campo) => dd?._revision?.[campo]?.sugerencia || dd?.[campo] || '';
+
   const [campos, setCampos] = useState({
-    fecha_sacramento:    dd?.fecha_sacramento    || '',
-    foja:               dd?.foja               || '',
-    numero:             dd?.numero             || '',
+    fecha_sacramento:    conSugerencia('fecha_sacramento'),
+    foja:               conSugerencia('foja'),
+    numero:             conSugerencia('numero'),
     parroquia:          dd?.parroquia          || '',
-    nombre_contrayente: dd?.nombre_contrayente || '',
-    nombre_contrayenta: dd?.nombre_contrayenta || '',
-    lugar_ceremonia:    dd?.lugar_ceremonia    || '',
-    reg_civil:          dd?.reg_civil          || '',
-    numero_acta:        dd?.numero_acta        || '',
+    nombre_contrayente: conSugerencia('nombre_contrayente'),
+    nombre_contrayenta: conSugerencia('nombre_contrayenta'),
+    lugar_ceremonia:    conSugerencia('lugar_ceremonia'),
+    reg_civil:          conSugerencia('reg_civil'),
+    numero_acta:        conSugerencia('numero_acta'),
   });
 
   const [contrayente, setContrayente] = useState(null);
@@ -55,7 +60,11 @@ export default function Paso2Matrimonio() {
   const [errores, setErrores] = useState({});
 
   const confianza = dd?._confianza || {};
-  const esIncierto = (campo) => confianza[campo] === false;
+  const revision = dd?._revision || {};
+  const esVacio = (campo) => confianza[campo] === false;
+  const esDudoso = (campo) => !!revision[campo]?.dudoso;
+  const necesitaRevision = (campo) => esVacio(campo) || esDudoso(campo);
+  const motivoDe = (campo) => (esDudoso(campo) ? revision[campo]?.motivo : null);
 
   const handleCampo = (f, v) => setCampos((p) => ({ ...p, [f]: v }));
 
@@ -132,18 +141,24 @@ export default function Paso2Matrimonio() {
       {/* ── Datos del documento ── */}
       <Section title="Datos del documento">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Fecha del matrimonio" incierto={esIncierto('fecha_sacramento')}>
+          {/* El valor ya viene con la corrección aplicada cuando el sistema
+              tenía una (ver conSugerencia) — "· verificar" avisa que fue así,
+              pero el campo sigue siendo un texto libre editable por completo. */}
+          <Field label="Fecha del matrimonio" incierto={necesitaRevision('fecha_sacramento')}
+            motivo={motivoDe('fecha_sacramento')}>
             <input type="text" value={campos.fecha_sacramento}
               onChange={(e) => handleCampo('fecha_sacramento', e.target.value)}
-              placeholder="dd/mm/aaaa" className={ic(esIncierto('fecha_sacramento'))} />
+              placeholder="dd/mm/aaaa" className={ic(necesitaRevision('fecha_sacramento'))} />
           </Field>
-          <Field label="Foja" incierto={esIncierto('foja')}>
+          <Field label="Foja" incierto={necesitaRevision('foja')}
+            motivo={motivoDe('foja')}>
             <input type="text" value={campos.foja}
-              onChange={(e) => handleCampo('foja', e.target.value)} className={ic(esIncierto('foja'))} />
+              onChange={(e) => handleCampo('foja', e.target.value)} className={ic(necesitaRevision('foja'))} />
           </Field>
-          <Field label="Número" incierto={esIncierto('numero')}>
+          <Field label="Número" incierto={necesitaRevision('numero')}
+            motivo={motivoDe('numero')}>
             <input type="text" value={campos.numero}
-              onChange={(e) => handleCampo('numero', e.target.value)} className={ic(esIncierto('numero'))} />
+              onChange={(e) => handleCampo('numero', e.target.value)} className={ic(necesitaRevision('numero'))} />
           </Field>
           <ParroquiaDetectadaField
             value={campos.parroquia}
@@ -153,27 +168,32 @@ export default function Paso2Matrimonio() {
                 ? { nombre: dd.parroquia_sugerida_nombre }
                 : null
             }
-            incierto={esIncierto('parroquia')}
+            incierto={necesitaRevision('parroquia')}
           />
-          <Field label="Nombre del contrayente (él)" incierto={esIncierto('nombre_contrayente')}>
+          <Field label="Nombre del contrayente (él)" incierto={necesitaRevision('nombre_contrayente')}
+            motivo={motivoDe('nombre_contrayente')}>
             <input type="text" value={campos.nombre_contrayente}
-              onChange={(e) => handleCampo('nombre_contrayente', e.target.value)} className={ic(esIncierto('nombre_contrayente'))} />
+              onChange={(e) => handleCampo('nombre_contrayente', e.target.value)} className={ic(necesitaRevision('nombre_contrayente'))} />
           </Field>
-          <Field label="Nombre de la contrayenta (ella)" incierto={esIncierto('nombre_contrayenta')}>
+          <Field label="Nombre de la contrayenta (ella)" incierto={necesitaRevision('nombre_contrayenta')}
+            motivo={motivoDe('nombre_contrayenta')}>
             <input type="text" value={campos.nombre_contrayenta}
-              onChange={(e) => handleCampo('nombre_contrayenta', e.target.value)} className={ic(esIncierto('nombre_contrayenta'))} />
+              onChange={(e) => handleCampo('nombre_contrayenta', e.target.value)} className={ic(necesitaRevision('nombre_contrayenta'))} />
           </Field>
-          <Field label="Lugar de la ceremonia" incierto={esIncierto('lugar_ceremonia')}>
+          <Field label="Lugar de la ceremonia" incierto={necesitaRevision('lugar_ceremonia')}
+            motivo={motivoDe('lugar_ceremonia')}>
             <input type="text" value={campos.lugar_ceremonia}
-              onChange={(e) => handleCampo('lugar_ceremonia', e.target.value)} className={ic(esIncierto('lugar_ceremonia'))} />
+              onChange={(e) => handleCampo('lugar_ceremonia', e.target.value)} className={ic(necesitaRevision('lugar_ceremonia'))} />
           </Field>
-          <Field label="Registro civil" incierto={esIncierto('reg_civil')}>
+          <Field label="Registro civil" incierto={necesitaRevision('reg_civil')}
+            motivo={motivoDe('reg_civil')}>
             <input type="text" value={campos.reg_civil}
-              onChange={(e) => handleCampo('reg_civil', e.target.value)} className={ic(esIncierto('reg_civil'))} />
+              onChange={(e) => handleCampo('reg_civil', e.target.value)} className={ic(necesitaRevision('reg_civil'))} />
           </Field>
-          <Field label="Número de acta" incierto={esIncierto('numero_acta')}>
+          <Field label="Número de acta" incierto={necesitaRevision('numero_acta')}
+            motivo={motivoDe('numero_acta')}>
             <input type="text" value={campos.numero_acta}
-              onChange={(e) => handleCampo('numero_acta', e.target.value)} className={ic(esIncierto('numero_acta'))} />
+              onChange={(e) => handleCampo('numero_acta', e.target.value)} className={ic(necesitaRevision('numero_acta'))} />
           </Field>
         </div>
       </Section>

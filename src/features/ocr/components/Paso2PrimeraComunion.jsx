@@ -37,11 +37,17 @@ export default function Paso2PrimeraComunion() {
   const isRechazando = useSelector(selectOcrIsRechazando);
   const errorGlobal = useSelector(selectOcrError);
 
+  // Si el sistema marcó un campo como dudoso y propuso una corrección, el
+  // campo arranca ya con esa corrección puesta — "· verificar" avisa que fue
+  // así, pero sigue siendo editable.
+  const conSugerencia = (campo) =>
+    datosDetectados?._revision?.[campo]?.sugerencia || datosDetectados?.[campo] || '';
+
   const [campos, setCampos] = useState({
-    nombre: datosDetectados?.nombre || '',
-    fecha_sacramento: datosDetectados?.fecha_sacramento || '',
-    foja: datosDetectados?.foja || '',
-    numero: datosDetectados?.numero || '',
+    nombre: conSugerencia('nombre'),
+    fecha_sacramento: conSugerencia('fecha_sacramento'),
+    foja: conSugerencia('foja'),
+    numero: conSugerencia('numero'),
     parroquia: datosDetectados?.parroquia || '',
   });
 
@@ -50,7 +56,11 @@ export default function Paso2PrimeraComunion() {
   const [errorPersona, setErrorPersona] = useState('');
 
   const confianza = datosDetectados?._confianza || {};
-  const esIncierto = (campo) => confianza[campo] === false;
+  const revision = datosDetectados?._revision || {};
+  const esVacio = (campo) => confianza[campo] === false;
+  const esDudoso = (campo) => !!revision[campo]?.dudoso;
+  const necesitaRevision = (campo) => esVacio(campo) || esDudoso(campo);
+  const motivoDe = (campo) => (esDudoso(campo) ? revision[campo]?.motivo : null);
 
   const handleCampo = (f, v) => setCampos((p) => ({ ...p, [f]: v }));
 
@@ -123,22 +133,29 @@ export default function Paso2PrimeraComunion() {
 
       <Section title="Datos del documento">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Nombre del comulgado" incierto={esIncierto('nombre')}>
+          {/* El valor ya viene con la corrección aplicada cuando el sistema
+              tenía una (ver conSugerencia) — "· verificar" avisa que fue así,
+              pero el campo sigue siendo un texto libre editable por completo. */}
+          <Field label="Nombre del comulgado" incierto={necesitaRevision('nombre')}
+            motivo={motivoDe('nombre')}>
             <input type="text" value={campos.nombre}
-              onChange={(e) => handleCampo('nombre', e.target.value)} className={ic(esIncierto('nombre'))} />
+              onChange={(e) => handleCampo('nombre', e.target.value)} className={ic(necesitaRevision('nombre'))} />
           </Field>
-          <Field label="Fecha de la primera comunión" incierto={esIncierto('fecha_sacramento')}>
+          <Field label="Fecha de la primera comunión" incierto={necesitaRevision('fecha_sacramento')}
+            motivo={motivoDe('fecha_sacramento')}>
             <input type="text" value={campos.fecha_sacramento}
               onChange={(e) => handleCampo('fecha_sacramento', e.target.value)}
-              placeholder="dd/mm/aaaa" className={ic(esIncierto('fecha_sacramento'))} />
+              placeholder="dd/mm/aaaa" className={ic(necesitaRevision('fecha_sacramento'))} />
           </Field>
-          <Field label="Foja" incierto={esIncierto('foja')}>
+          <Field label="Foja" incierto={necesitaRevision('foja')}
+            motivo={motivoDe('foja')}>
             <input type="text" value={campos.foja}
-              onChange={(e) => handleCampo('foja', e.target.value)} className={ic(esIncierto('foja'))} />
+              onChange={(e) => handleCampo('foja', e.target.value)} className={ic(necesitaRevision('foja'))} />
           </Field>
-          <Field label="Número" incierto={esIncierto('numero')}>
+          <Field label="Número" incierto={necesitaRevision('numero')}
+            motivo={motivoDe('numero')}>
             <input type="text" value={campos.numero}
-              onChange={(e) => handleCampo('numero', e.target.value)} className={ic(esIncierto('numero'))} />
+              onChange={(e) => handleCampo('numero', e.target.value)} className={ic(necesitaRevision('numero'))} />
           </Field>
           <ParroquiaDetectadaField
             value={campos.parroquia}
@@ -148,7 +165,7 @@ export default function Paso2PrimeraComunion() {
                 ? { nombre: datosDetectados.parroquia_sugerida_nombre }
                 : null
             }
-            incierto={esIncierto('parroquia')}
+            incierto={necesitaRevision('parroquia')}
           />
         </div>
       </Section>

@@ -38,6 +38,12 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     return `${nombreNormalizado || 'PERSONA'}-${aleatorio}`;
   };
 
+  const revision = datosOcr.revision || {};
+  // Si el sistema marcó el dato como dudoso y propuso una corrección, se usa
+  // esa corrección de entrada (no el texto crudo del OCR) — "· verificar"
+  // sigue avisando que fue así, pero el campo sigue siendo editable.
+  const conSugerencia = (campo, valorCrudo) => revision[campo]?.sugerencia || valorCrudo;
+
   const { nombre, apellidoPaterno, apellidoMaterno } = parsearNombreCompleto(
     datosOcr.nombre_completo || ''
   );
@@ -48,10 +54,10 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
     apellido_paterno: apellidoPaterno || NA,
     apellido_materno: apellidoMaterno || NA,
     carnet_identidad: generarCITemporal(datosOcr.nombre_completo || ''),
-    fecha_nacimiento: parseFecha(datosOcr.fecha_nacimiento) || '',
-    lugar_nacimiento: datosOcr.lugar_nacimiento || NA,
-    nombre_padre: datosOcr.nombre_padre || NA,
-    nombre_madre: datosOcr.nombre_madre || NA,
+    fecha_nacimiento: parseFecha(conSugerencia('fecha_nacimiento', datosOcr.fecha_nacimiento)) || '',
+    lugar_nacimiento: conSugerencia('lugar_nacimiento', datosOcr.lugar_nacimiento) || NA,
+    nombre_padre: conSugerencia('nombre_padre', datosOcr.nombre_padre) || NA,
+    nombre_madre: conSugerencia('nombre_madre', datosOcr.nombre_madre) || NA,
     activo: true,
     estado: 'no verificado',
   });
@@ -59,6 +65,8 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
   const [camposVacios, setCamposVacios] = useState([]);
   const [errorGeneral, setErrorGeneral] = useState('');
   const [ciError, setCiError] = useState('');
+
+  const motivoDe = (campo) => revision[campo]?.motivo || null;
 
   if (!isOpen) return null;
 
@@ -193,9 +201,12 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
             {!datosOcr.fecha_nacimiento && (
               <p className="text-xs text-amber-600 mt-1">Fecha no detectada, ingrésala manualmente.</p>
             )}
+            {motivoDe('fecha_nacimiento') && (
+              <p className="text-xs text-amber-600 mt-1">Verificar: {motivoDe('fecha_nacimiento')}.</p>
+            )}
           </Field>
 
-          <Field label="Lugar de nacimiento *">
+          <Field label="Lugar de nacimiento *" motivo={motivoDe('lugar_nacimiento')}>
             <input
               type="text"
               value={form.lugar_nacimiento}
@@ -205,8 +216,11 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
             />
           </Field>
 
+          {/* Nombres: solo se avisa que hay que verificar, sin botón de un
+              clic para aplicar una corrección — el usuario escribe el nombre
+              correcto él mismo, nunca se lo cambiamos por él. */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nombre del padre *">
+            <Field label="Nombre del padre *" motivo={motivoDe('nombre_padre')}>
               <input
                 type="text"
                 value={form.nombre_padre}
@@ -215,7 +229,7 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
                 required
               />
             </Field>
-            <Field label="Nombre de la madre *">
+            <Field label="Nombre de la madre *" motivo={motivoDe('nombre_madre')}>
               <input
                 type="text"
                 value={form.nombre_madre}
@@ -261,10 +275,17 @@ export default function NuevaPersonaModal({ isOpen, onClose, onPersonaCreada, da
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, children, motivo }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</label>
+      <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+        {label}
+        {motivo && (
+          <span className="text-[10px] font-normal text-amber-600 dark:text-amber-400" title={motivo}>
+            · verificar
+          </span>
+        )}
+      </label>
       {children}
     </div>
   );

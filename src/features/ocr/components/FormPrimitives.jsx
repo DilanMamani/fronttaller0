@@ -42,7 +42,15 @@ export function Section({ title, children, action, optional = false }) {
   );
 }
 
-export function Field({ label, children, incierto }) {
+/**
+ * `motivo` distingue dos casos que ambos se muestran en ámbar: un campo vacío
+ * (nunca se detectó nada, motivo=null → "no detectado, revisa") de uno con un
+ * valor que el sistema marcó como dudoso y ya corrigió por su cuenta (motivo
+ * presente → "verificar" con el porqué) — el valor corregido va directo en
+ * el campo (ver conSugerencia en cada Paso2), esto solo avisa que conviene
+ * confirmarlo.
+ */
+export function Field({ label, children, incierto, motivo }) {
   const autoId = useId();
   const fieldId = isValidElement(children) ? children.props.id ?? autoId : undefined;
   const child = isValidElement(children) ? cloneElement(children, { id: fieldId }) : children;
@@ -55,8 +63,11 @@ export function Field({ label, children, incierto }) {
       >
         {label}
         {incierto && (
-          <span className="text-[10px] font-normal text-amber-600 dark:text-amber-400">
-            · no detectado, revisa
+          <span
+            className="text-[10px] font-normal text-amber-600 dark:text-amber-400"
+            title={motivo || undefined}
+          >
+            · {motivo ? 'verificar' : 'no detectado, revisa'}
           </span>
         )}
       </label>
