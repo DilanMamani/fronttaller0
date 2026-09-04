@@ -44,7 +44,7 @@ export default function Certificados() {
 
   const [sacramentoSeleccionado, setSacramentoSeleccionado] = useState(null);
 
-  const [plantilla, setPlantilla] = useState('templates/plantilla-bautizo.pdf');
+  const [plantilla, setPlantilla] = useState('templates/plantilla_bautismo.pdf');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,10 +64,10 @@ export default function Certificados() {
 
   // Sincroniza dinámicamente la clave S3 de la plantilla según el sacramento activo
   useEffect(() => {
-    if (tipo === 'Bautizo') setPlantilla('templates/plantilla-bautizo.pdf');
-    if (tipo === 'Primera Comunión') setPlantilla('templates/plantilla-comunion.pdf');
-    if (tipo === 'Confirmación') setPlantilla('templates/plantilla-confirmacion.pdf');
-    if (tipo === 'Matrimonio') setPlantilla('templates/plantilla-matrimonio.pdf');
+    if (tipo === 'Bautizo') setPlantilla('templates/plantilla_bautismo.pdf');
+    if (tipo === 'Primera Comunión') setPlantilla('templates/plantilla_primera_comunion.pdf');
+    if (tipo === 'Confirmación') setPlantilla('templates/plantilla_confirmacion.pdf');
+    if (tipo === 'Matrimonio') setPlantilla('templates/plantilla_matrimonio.pdf');
   }, [tipo]);
 
   const previsualizarCertificado = async (datos) => {
@@ -695,10 +695,10 @@ export default function Certificados() {
                       </label>
                       <div className="grid grid-cols-4 gap-3">
                         {[
-                          { t: 'Bautizo', key: 'templates/plantilla-bautizo.pdf', label: 'Bautizo' },
-                          { t: 'Primera Comunión', key: 'templates/plantilla-comunion.pdf', label: 'P. Comunión' },
-                          { t: 'Confirmación', key: 'templates/plantilla-confirmacion.pdf', label: 'Confirmación' },
-                          { t: 'Matrimonio', key: 'templates/plantilla-matrimonio.pdf', label: 'Matrimonio' },
+                          { t: 'Bautizo', key: 'templates/plantilla_bautismo.pdf', label: 'Bautizo' },
+                          { t: 'Primera Comunión', key: 'templates/plantilla_primera_comunion.pdf', label: 'P. Comunión' },
+                          { t: 'Confirmación', key: 'templates/plantilla_confirmacion.pdf', label: 'Confirmación' },
+                          { t: 'Matrimonio', key: 'templates/plantilla_matrimonio.pdf', label: 'Matrimonio' },
                         ].map(({ t, key, label }) => (
                           <div key={t} className={getTemplateStyle(t, tipo, plantilla === key)}>
                             <div className="h-10 w-8 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-[10px] text-gray-500 font-bold shrink-0">PDF</div>
