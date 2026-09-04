@@ -324,10 +324,6 @@ export default function Certificados() {
       libro: sacramentoSeleccionado.libro,
       pagina: sacramentoSeleccionado.pagina,
       partida: sacramentoSeleccionado.partida,
-      oficialiaRC: sacramentoSeleccionado.oficialiaRC,
-      libroRC: sacramentoSeleccionado.libroRC,
-      partidaRC: sacramentoSeleccionado.partidaRC,
-      firmado: sacramentoSeleccionado.presbitero 
     };
 
     if (tipo === 'Bautizo') {
@@ -394,16 +390,18 @@ export default function Certificados() {
     if (tipo === 'Matrimonio') {
       return sanitize({
         ...basePayload,
-        nombreEsposo: sacramentoSeleccionado.nombreEsposoMatrimonio,
-        fechaNacimientoEsposo: sacramentoSeleccionado.fechaNacimientoEsposo,
-        nombreEsposa: sacramentoSeleccionado.nombreEsposaMatrimonio,
-        fechaNacimientoEsposa: sacramentoSeleccionado.fechaNacimientoEsposa,
+        contrayente1Nombre: sacramentoSeleccionado.nombreEsposoMatrimonio,
+        contrayente1FechaNacimiento: sacramentoSeleccionado.fechaNacimientoEsposo,
+        contrayente2Nombre: sacramentoSeleccionado.nombreEsposaMatrimonio,
+        contrayente2FechaNacimiento: sacramentoSeleccionado.fechaNacimientoEsposa,
         lugarFechaMatrimonio: `La Paz, ${sacramentoSeleccionado.fecha ?? ''}`,
-        celebradoPor: sacramentoSeleccionado.presbitero,
-        testigos1: sacramentoSeleccionado.testigos1,
-        testigos2: sacramentoSeleccionado.testigos2,
-        notas1: sacramentoSeleccionado.notas1,
-        notas2: '',
+        testigos: [sacramentoSeleccionado.testigos1, sacramentoSeleccionado.testigos2]
+          .filter(Boolean)
+          .join(' / '),
+        registroCivilOficialia: sacramentoSeleccionado.oficialiaRC,
+        registroCivilLibro: sacramentoSeleccionado.libroRC,
+        registroCivilPartida: sacramentoSeleccionado.partidaRC,
+        notas: sacramentoSeleccionado.notas1,
         ciudadExpedicion: sacramentoSeleccionado.ciudadExpedicion,
         diaExpedicion: sacramentoSeleccionado.diaExpedicion,
         mesExpedicion: sacramentoSeleccionado.mesExpedicionLetras,
