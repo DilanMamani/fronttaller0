@@ -1,3 +1,4 @@
+import { ClipLoader } from 'react-spinners';
 import SearchField from './SearchField';
 import CamposComunes from './CamposComunes';
 import Toast from '../ui/Toast';
@@ -13,6 +14,7 @@ export default function FormAgregar({ ctx }) {
     handleChange, handleMatChange,
     resetForm,
     handleSubmitAgregar,
+    isSubmitting,
 
     // Persona
     queryPersona, setQueryPersona,
@@ -343,18 +345,19 @@ export default function FormAgregar({ ctx }) {
           <div className="relative group">
             <button
               type="submit"
-              disabled={!isFormValid}
-              className={`inline-flex items-center px-5 py-2.5 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors ${
-                isFormValid
+              disabled={!isFormValid || isSubmitting}
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors ${
+                isFormValid && !isSubmitting
                   ? 'bg-primary hover:bg-primary/90'
                   : 'bg-primary/40 cursor-not-allowed'
               }`}
             >
-              Registrar Sacramento
+              {isSubmitting && <ClipLoader size={16} color="#ffffff" />}
+              {isSubmitting ? 'Registrando...' : 'Registrar Sacramento'}
             </button>
 
             {/* Tooltip con campos faltantes */}
-            {!isFormValid && camposFaltantes.length > 0 && (
+            {!isFormValid && !isSubmitting && camposFaltantes.length > 0 && (
               <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 w-56">
                 <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg">
                   <p className="font-semibold mb-1">Campos requeridos:</p>
@@ -376,7 +379,8 @@ export default function FormAgregar({ ctx }) {
           <button
             type="button"
             onClick={resetForm}
-            className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/40"
+            disabled={isSubmitting}
+            className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/40 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Limpiar
           </button>

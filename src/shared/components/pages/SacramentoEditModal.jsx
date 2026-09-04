@@ -32,18 +32,18 @@ const STYLES = `
 export default function SacramentoEditModal({ ctx, onClose }) {
   const {
     tipoSacramento,
-    form, matrimonio,
-    handleChange, handleMatChange,
+    editForm: form, editMatrimonio: matrimonio,
+    handleEditChange: handleChange, handleEditMatChange: handleMatChange,
     isUpdating, forceUpdateLoading,
     handleGuardarEdicion,
 
-    queryPersona,
-    queryPadrino,    setQueryPadrino,    padrinoSelected,    setPadrinoSelected,    padrinoSearch,
-    queryMadrina,    setQueryMadrina,    madrinaSelected,    setMadrinaSelected,    madrinaSearch,
-    queryMinistro,   setQueryMinistro,   ministroSelected,   setMinistroSelected,   ministroSearch,
-    queryParroquia,  setQueryParroquia,  parroquiaSelected,  setParroquiaSelected,  parroquiaSearch,
-    queryEsposo,
-    queryEsposa,
+    editQueryPersona: queryPersona,
+    editQueryPadrino: queryPadrino,     setEditQueryPadrino: setQueryPadrino,     editPadrinoSelected: padrinoSelected,     setEditPadrinoSelected: setPadrinoSelected,     editPadrinoSearch: padrinoSearch,
+    editQueryMadrina: queryMadrina,     setEditQueryMadrina: setQueryMadrina,     editMadrinaSelected: madrinaSelected,     setEditMadrinaSelected: setMadrinaSelected,     editMadrinaSearch: madrinaSearch,
+    editQueryMinistro: queryMinistro,   setEditQueryMinistro: setQueryMinistro,   editMinistroSelected: ministroSelected,   setEditMinistroSelected: setMinistroSelected,   editMinistroSearch: ministroSearch,
+    editQueryParroquia: queryParroquia, setEditQueryParroquia: setQueryParroquia, editParroquiaSelected: parroquiaSelected, setEditParroquiaSelected: setParroquiaSelected, editParroquiaSearch: parroquiaSearch,
+    editQueryEsposo: queryEsposo,
+    editQueryEsposa: queryEsposa,
   } = ctx;
 
   const [closing, setClosing] = useState(false);

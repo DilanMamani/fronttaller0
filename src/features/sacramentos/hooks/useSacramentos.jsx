@@ -107,18 +107,19 @@ export function useSacramentos() {
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [forceUpdateLoading, setForceUpdateLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingSacramento, setLoadingSacramento] = useState(false);
   const [results, setResults] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  // --- Formularios ---
+  // --- Formularios (tab "Agregar") ---
   const [form, setForm] = useState({ ...initialSacramentoForm });
   const [matrimonio, setMatrimonio] = useState({ ...initialMatrimonioForm });
   const [filters, setFilters] = useState({ ...initialSacramentoFilters });
 
-  // --- Queries de texto para los campos de búsqueda ---
+  // --- Queries de texto para los campos de búsqueda (tab "Agregar") ---
   const [queryPersona, setQueryPersona] = useState('');
   const [queryPadrino, setQueryPadrino] = useState('');
   const [queryMadrina, setQueryMadrina] = useState('');
@@ -133,6 +134,25 @@ export function useSacramentos() {
   const [madrinaSelected, setMadrinaSelected] = useState(false);
   const [ministroSelected, setMinistroSelected] = useState(false);
   const [parroquiaSelected, setParroquiaSelected] = useState(false);
+
+  // --- Formulario de edición (modal "Buscar / Editar") ---
+  // Estado independiente del de "Agregar" para que seleccionar un resultado
+  // de búsqueda no pise lo que el usuario esté llenando en la otra pestaña.
+  const [editForm, setEditForm] = useState({ ...initialSacramentoForm });
+  const [editMatrimonio, setEditMatrimonio] = useState({ ...initialMatrimonioForm });
+
+  const [editQueryPersona, setEditQueryPersona] = useState('');
+  const [editQueryPadrino, setEditQueryPadrino] = useState('');
+  const [editQueryMadrina, setEditQueryMadrina] = useState('');
+  const [editQueryMinistro, setEditQueryMinistro] = useState('');
+  const [editQueryParroquia, setEditQueryParroquia] = useState('');
+  const [editQueryEsposo, setEditQueryEsposo] = useState('');
+  const [editQueryEsposa, setEditQueryEsposa] = useState('');
+
+  const [editPadrinoSelected, setEditPadrinoSelected] = useState(false);
+  const [editMadrinaSelected, setEditMadrinaSelected] = useState(false);
+  const [editMinistroSelected, setEditMinistroSelected] = useState(false);
+  const [editParroquiaSelected, setEditParroquiaSelected] = useState(false);
 
   // --- Búsquedas ---
   const personaSearch = usePersonaSearch({
@@ -171,6 +191,37 @@ export function useSacramentos() {
     fetchArgs: (q) => ({ search: q, rol: tipoSacramento, tipo: 'sacramento' }),
   });
 
+  // --- Búsquedas del modal de edición (independientes de las de "Agregar") ---
+  const editPadrinoSearch = usePersonaSearch({
+    query: editQueryPadrino,
+    enabled: !editPadrinoSelected,
+    fetchArgs: (q) => ({ search: q, rol: 'padrino', tipo: 'rol' }),
+  });
+
+  const editMadrinaSearch = usePersonaSearch({
+    query: editQueryMadrina,
+    enabled: !editMadrinaSelected,
+    fetchArgs: (q) => ({ search: q, rol: 'madrina', tipo: 'rol' }),
+  });
+
+  const editMinistroSearch = usePersonaSearch({
+    query: editQueryMinistro,
+    enabled: !editMinistroSelected,
+    fetchArgs: (q) => ({ search: q, rol: 'ministro', tipo: 'rol' }),
+  });
+
+  const editParroquiaSearch = useParroquiaSearch(editParroquiaSelected ? '' : editQueryParroquia);
+
+  const editEsposoSearch = usePersonaSearch({
+    query: editQueryEsposo,
+    fetchArgs: (q) => ({ search: q, rol: tipoSacramento, tipo: 'sacramento' }),
+  });
+
+  const editEsposaSearch = usePersonaSearch({
+    query: editQueryEsposa,
+    fetchArgs: (q) => ({ search: q, rol: tipoSacramento, tipo: 'sacramento' }),
+  });
+
   // --- Toast auto-dismiss ---
   useEffect(() => {
     if (!toast) return;
@@ -205,6 +256,32 @@ export function useSacramentos() {
     parroquiaSearch.setOpen(false);
     esposoSearch.setOpen(false);
     esposaSearch.setOpen(false);
+  };
+
+  // --- Helpers del formulario de edición (modal "Buscar / Editar") ---
+  const handleEditChange = (key, value) => setEditForm((prev) => ({ ...prev, [key]: value }));
+  const handleEditMatChange = (key, value) => setEditMatrimonio((prev) => ({ ...prev, [key]: value }));
+
+  const resetEditForm = () => {
+    setEditForm({ ...initialSacramentoForm });
+    setEditMatrimonio({ ...initialMatrimonioForm });
+    setEditQueryPersona('');
+    setEditQueryPadrino('');
+    setEditQueryMadrina('');
+    setEditQueryMinistro('');
+    setEditQueryParroquia('');
+    setEditQueryEsposo('');
+    setEditQueryEsposa('');
+    setEditPadrinoSelected(false);
+    setEditMadrinaSelected(false);
+    setEditMinistroSelected(false);
+    setEditParroquiaSelected(false);
+    editPadrinoSearch.setOpen(false);
+    editMadrinaSearch.setOpen(false);
+    editMinistroSearch.setOpen(false);
+    editParroquiaSearch.setOpen(false);
+    editEsposoSearch.setOpen(false);
+    editEsposaSearch.setOpen(false);
   };
 
   // --- Payload builders ---
@@ -253,13 +330,13 @@ export function useSacramentos() {
       const relOriginalEsposa = relacionesOriginales.find(
         (r) => r.rolSacramento?.id_rol_sacra === ROL_IDS.ESPOSA
       );
-      const esposoId = matrimonio.esposoId || relOriginalEsposo?.persona_id_persona;
-      const esposaId = matrimonio.esposaId || relOriginalEsposa?.persona_id_persona;
+      const esposoId = editMatrimonio.esposoId || relOriginalEsposo?.persona_id_persona;
+      const esposaId = editMatrimonio.esposaId || relOriginalEsposa?.persona_id_persona;
       if (esposoId) relaciones.push({ persona_id: esposoId, rol_sacramento_id: ROL_IDS.ESPOSO });
       if (esposaId) relaciones.push({ persona_id: esposaId, rol_sacramento_id: ROL_IDS.ESPOSA });
     } else {
-      if (form.personaId) {
-        relaciones.push({ persona_id: form.personaId, rol_sacramento_id: ROLES_SACRAMENTO_IDS[tipoSacramento] });
+      if (editForm.personaId) {
+        relaciones.push({ persona_id: editForm.personaId, rol_sacramento_id: ROLES_SACRAMENTO_IDS[tipoSacramento] });
       }
     }
 
@@ -267,8 +344,8 @@ export function useSacramentos() {
     const relOriginalPadrino = relacionesOriginales.find(
       (r) => r.rolSacramento?.id_rol_sacra === ROL_IDS.PADRINO
     );
-    if (form.padrinoId) {
-      relaciones.push({ persona_id: form.padrinoId, rol_sacramento_id: ROL_IDS.PADRINO });
+    if (editForm.padrinoId) {
+      relaciones.push({ persona_id: editForm.padrinoId, rol_sacramento_id: ROL_IDS.PADRINO });
     } else if (relOriginalPadrino) {
       relaciones.push({ persona_id: relOriginalPadrino.persona_id_persona, rol_sacramento_id: ROL_IDS.PADRINO });
     }
@@ -277,8 +354,8 @@ export function useSacramentos() {
     const relOriginalMadrina = relacionesOriginales.find(
       (r) => r.rolSacramento?.id_rol_sacra === ROL_IDS.MADRINA
     );
-    if (form.madrinaId) {
-      relaciones.push({ persona_id: form.madrinaId, rol_sacramento_id: ROL_IDS.MADRINA });
+    if (editForm.madrinaId) {
+      relaciones.push({ persona_id: editForm.madrinaId, rol_sacramento_id: ROL_IDS.MADRINA });
     } else if (relOriginalMadrina) {
       relaciones.push({ persona_id: relOriginalMadrina.persona_id_persona, rol_sacramento_id: ROL_IDS.MADRINA });
     }
@@ -287,23 +364,23 @@ export function useSacramentos() {
     const relOriginalMinistro = relacionesOriginales.find(
       (r) => r.rolSacramento?.id_rol_sacra === ROL_IDS.MINISTRO
     );
-    if (form.ministroId) {
-      relaciones.push({ persona_id: form.ministroId, rol_sacramento_id: ROL_IDS.MINISTRO });
+    if (editForm.ministroId) {
+      relaciones.push({ persona_id: editForm.ministroId, rol_sacramento_id: ROL_IDS.MINISTRO });
     } else if (relOriginalMinistro) {
       relaciones.push({ persona_id: relOriginalMinistro.persona_id_persona, rol_sacramento_id: ROL_IDS.MINISTRO });
     }
 
     return {
-      fecha_sacramento: safe(form.fecha_sacramento),
-      foja: safe(form.foja),
-      numero: safe(form.numero),
+      fecha_sacramento: safe(editForm.fecha_sacramento),
+      foja: safe(editForm.foja),
+      numero: safe(editForm.numero),
       tipo_sacramento_id_tipo: selectedPerson.tipoSacramento.id_tipo,
-      parroquiaId: safe(form.parroquiaId),
+      parroquiaId: safe(editForm.parroquiaId),
       matrimonioDetalle: tipoSacramento === 'matrimonio'
         ? {
-            lugar_ceremonia: matrimonio.lugar_ceremonia || undefined,
-            reg_civil:        matrimonio.reg_civil        || undefined,
-            numero_acta:      matrimonio.numero_acta      || undefined,
+            lugar_ceremonia: editMatrimonio.lugar_ceremonia || undefined,
+            reg_civil:        editMatrimonio.reg_civil        || undefined,
+            numero_acta:      editMatrimonio.numero_acta      || undefined,
           }
         : undefined,
       relaciones,
@@ -378,6 +455,7 @@ export function useSacramentos() {
   // --- Acciones ---
   const handleSubmitAgregar = (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     dispatch(crearSacramentoCompleto(buildPayloadCrear()))
       .unwrap()
       .then(() => {
@@ -387,7 +465,8 @@ export function useSacramentos() {
       .catch((err) => {
         const msg = typeof err === 'string' ? err : err?.message || err?.msg || 'Error al registrar sacramento';
         setToast({ type: 'error', message: msg });
-      });
+      })
+      .finally(() => setIsSubmitting(false));
   };
 
   const handleBuscar = (e) => {
@@ -409,7 +488,7 @@ export function useSacramentos() {
 
     const nombreCompleto = (p) => p ? `${p.nombre} ${p.apellido_paterno} ${p.apellido_materno}` : '';
 
-    setForm({
+    setEditForm({
       personaId: relPrincipal?.persona_id_persona || row.persona_id || null,
       padrinoId: relPadrino?.persona_id_persona || null,
       madrinaId: relMadrina?.persona_id_persona || null,
@@ -422,22 +501,21 @@ export function useSacramentos() {
     });
 
     // Cargar queries (sin disparar búsqueda porque ponemos selected=true)
-    setQueryPersona(nombreCompleto(relPrincipal?.persona));
-    setQueryPadrino(nombreCompleto(relPadrino?.persona));
-    setQueryMadrina(nombreCompleto(relMadrina?.persona));
-    setQueryMinistro(nombreCompleto(relMinistro?.persona));
-    setQueryParroquia(row.parroquia?.nombre || '');
+    setEditQueryPersona(nombreCompleto(relPrincipal?.persona));
+    setEditQueryPadrino(nombreCompleto(relPadrino?.persona));
+    setEditQueryMadrina(nombreCompleto(relMadrina?.persona));
+    setEditQueryMinistro(nombreCompleto(relMinistro?.persona));
+    setEditQueryParroquia(row.parroquia?.nombre || '');
 
-    setPersonaSelected(true);
-    setPadrinoSelected(!!relPadrino?.persona);
-    setMadrinaSelected(!!relMadrina?.persona);
-    setMinistroSelected(!!relMinistro?.persona);
-    setParroquiaSelected(!!row.parroquia);
+    setEditPadrinoSelected(!!relPadrino?.persona);
+    setEditMadrinaSelected(!!relMadrina?.persona);
+    setEditMinistroSelected(!!relMinistro?.persona);
+    setEditParroquiaSelected(!!row.parroquia);
 
     if (tipoSacramento === 'matrimonio') {
-      setQueryEsposo(nombreCompleto(relEsposo?.persona));
-      setQueryEsposa(nombreCompleto(relEsposa?.persona));
-      setMatrimonio({
+      setEditQueryEsposo(nombreCompleto(relEsposo?.persona));
+      setEditQueryEsposa(nombreCompleto(relEsposa?.persona));
+      setEditMatrimonio({
         esposoId: relEsposo?.persona_id_persona || null,
         esposaId: relEsposa?.persona_id_persona || null,
         lugar_ceremonia: row.matrimonio_detalle?.lugar_ceremonia || '',
@@ -456,7 +534,7 @@ export function useSacramentos() {
         setToast({ type: 'success', message: 'Sacramento actualizado correctamente' });
         setModalOpen(false);
         setSelectedPerson(null);
-        resetForm();
+        resetEditForm();
         ejecutarBusqueda();
       })
       .catch((err) => {
@@ -470,7 +548,7 @@ export function useSacramentos() {
     if (forceUpdateLoading || isUpdating) return;
     setModalOpen(false);
     setSelectedPerson(null);
-    resetForm();
+    resetEditForm();
   };
 
   const resetFilters = () => {
@@ -488,18 +566,19 @@ export function useSacramentos() {
     modalOpen, closeModal,
     toast,
     forceUpdateLoading,
+    isSubmitting,
     loadingSacramento,
     results,
     currentPage, totalPages, totalItems, handlePageChange,
     isLoading,
     isUpdating,
 
-    // Formularios
+    // Formularios (tab "Agregar")
     form, matrimonio, filters,
     handleChange, handleMatChange, handleFilterChange,
     resetForm, resetFilters,
 
-    // Queries y búsquedas
+    // Queries y búsquedas (tab "Agregar")
     queryPersona, setQueryPersona, personaSelected, setPersonaSelected, personaSearch,
     queryPadrino, setQueryPadrino, padrinoSelected, setPadrinoSelected, padrinoSearch,
     queryMadrina, setQueryMadrina, madrinaSelected, setMadrinaSelected, madrinaSearch,
@@ -507,6 +586,17 @@ export function useSacramentos() {
     queryParroquia, setQueryParroquia, parroquiaSelected, setParroquiaSelected, parroquiaSearch,
     queryEsposo, setQueryEsposo, esposoSearch,
     queryEsposa, setQueryEsposa, esposaSearch,
+
+    // Formulario de edición (modal "Buscar / Editar") — estado independiente
+    editForm, editMatrimonio,
+    handleEditChange, handleEditMatChange, resetEditForm,
+    editQueryPersona,
+    editQueryPadrino, setEditQueryPadrino, editPadrinoSelected, setEditPadrinoSelected, editPadrinoSearch,
+    editQueryMadrina, setEditQueryMadrina, editMadrinaSelected, setEditMadrinaSelected, editMadrinaSearch,
+    editQueryMinistro, setEditQueryMinistro, editMinistroSelected, setEditMinistroSelected, editMinistroSearch,
+    editQueryParroquia, setEditQueryParroquia, editParroquiaSelected, setEditParroquiaSelected, editParroquiaSearch,
+    editQueryEsposo, editEsposoSearch,
+    editQueryEsposa, editEsposaSearch,
 
     // Acciones
     handleSubmitAgregar,

@@ -49,9 +49,11 @@ const emptySearch = () => ({
  */
 const crearCtxVacio = (overrides = {}) => ({
   tipoSacramento: 'bautizo',
+  isSubmitting: false,
   form: {
     personaId: null,
     padrinoId: null,
+    madrinaId: null,
     ministroId: null,
     parroquiaId: null,
     foja: '',
@@ -78,6 +80,10 @@ const crearCtxVacio = (overrides = {}) => ({
   queryPadrino: '', setQueryPadrino: vi.fn(),
   padrinoSelected: false, setPadrinoSelected: vi.fn(),
   padrinoSearch: emptySearch(),
+  // Madrina
+  queryMadrina: '', setQueryMadrina: vi.fn(),
+  madrinaSelected: false, setMadrinaSelected: vi.fn(),
+  madrinaSearch: emptySearch(),
   // Ministro
   queryMinistro: '', setQueryMinistro: vi.fn(),
   ministroSelected: false, setMinistroSelected: vi.fn(),
@@ -187,8 +193,8 @@ describe('FormAgregar — formulario de registro de sacramento', () => {
    * PRUEBA 4
    * Objetivo: verificar que el botón "Registrar Sacramento" se habilita
    * cuando todos los campos obligatorios de un bautizo están completos
-   * (personaId, padrinoId, ministroId, parroquiaId, foja, numero,
-   * fecha_sacramento).
+   * (personaId, ministroId, parroquiaId, foja, numero, fecha_sacramento).
+   * Padrino y madrina son opcionales y no se incluyen aquí a propósito.
    */
   it('el botón "Registrar Sacramento" está habilitado cuando todos los campos obligatorios del bautizo están completos', () => {
 
@@ -198,7 +204,8 @@ describe('FormAgregar — formulario de registro de sacramento', () => {
       tipoSacramento: 'bautizo',
       form: {
         personaId:        1,
-        padrinoId:        2,
+        padrinoId:        null,
+        madrinaId:        null,
         ministroId:       3,
         parroquiaId:      4,
         foja:             '12-A',
@@ -213,25 +220,26 @@ describe('FormAgregar — formulario de registro de sacramento', () => {
     const boton = screen.getByRole('button', { name: /Registrar Sacramento/i });
 
     // === 3. VERIFICACIÓN ===
-    // Con todos los campos completos, isFormValid es true → botón habilitado
+    // Con todos los campos obligatorios completos (sin padrino/madrina),
+    // isFormValid es true → botón habilitado
     expect(boton).not.toBeDisabled();
   });
 
   /**
    * PRUEBA 5
    * Objetivo: verificar que el tooltip del botón deshabilitado lista
-   * exactamente los 7 campos obligatorios faltantes cuando el formulario
+   * exactamente los campos obligatorios faltantes cuando el formulario
    * de bautizo está completamente vacío, orientando al usuario sobre
-   * qué debe completar.
+   * qué debe completar. Padrino y madrina son opcionales, por lo que
+   * NO deben aparecer en este listado.
    */
   it('el tooltip muestra todos los campos obligatorios faltantes cuando el formulario de bautizo está vacío', () => {
 
     // === 1. PREPARACIÓN ===
-    // ctx vacío para bautizo; camposFaltantes debe incluir los 7 campos requeridos
+    // ctx vacío para bautizo; camposFaltantes debe incluir los campos requeridos
     const ctx = crearCtxVacio({ tipoSacramento: 'bautizo' });
     const camposEsperadosEnTooltip = [
       'Persona',
-      'Padrino',
       'Ministro',
       'Parroquia',
       'Foja',
@@ -252,6 +260,10 @@ describe('FormAgregar — formulario de registro de sacramento', () => {
     camposEsperadosEnTooltip.forEach((campo) => {
       expect(within(contenedorTooltip).getByText(campo)).toBeInTheDocument();
     });
+
+    // Padrino y madrina son opcionales — no deben listarse como faltantes
+    expect(within(contenedorTooltip).queryByText('Padrino')).not.toBeInTheDocument();
+    expect(within(contenedorTooltip).queryByText('Madrina')).not.toBeInTheDocument();
   });
 
 });
